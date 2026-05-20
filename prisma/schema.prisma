@@ -1,0 +1,250 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserStatus {
+  active
+  inactive
+  banned
+}
+
+enum UserType {
+  user
+  creator
+  admin
+}
+
+enum ContentStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ReportStatus {
+  open
+  in_progress
+  resolved
+}
+
+enum ReportType {
+  inappropriate_content
+  spam
+  copyright
+  harassment
+  other
+}
+
+enum WithdrawalStatus {
+  pending
+  approved
+  rejected
+}
+
+enum AdType {
+  banner
+  interstitial
+  in_content
+}
+
+// ─── User domain ─────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  joinedAt  DateTime @default(now())
+  status    UserStatus @default(active)
+  userType  UserType   @default(user)
+
+  creatorProfile  CreatorProfile?
+  adminProfile    AdminProfile?
+  punishments     PunishmentRecord[]
+  reports         Report[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CreatorProfile {
+  id        String @id @default(cuid())
+  userId    String @unique
+  works     Int    @default(0)
+  followers Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  role      String
+  lastLogin DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Content ─────────────────────────────────────────────────────────────────
+
+model Content {
+  id          String        @id @default(cuid())
+  title       String
+  author      String
+  category    String
+  status      ContentStatus @default(pending)
+  chapters    Int           @default(0)
+  submittedAt DateTime      @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Reports ─────────────────────────────────────────────────────────────────
+
+model Report {
+  id         String       @id @default(cuid())
+  senderId   String?
+  sender     User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  senderName String
+  subject    String
+  type       ReportType
+  date       DateTime     @default(now())
+  status     ReportStatus @default(open)
+  message    String       @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Punishment ──────────────────────────────────────────────────────────────
+
+model PunishmentLevel {
+  id        String @id @default(cuid())
+  level     Int    @unique
+  name      String
+  threshold Int
+  duration  Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PunishmentRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  levelName String
+  date      DateTime @default(now())
+  note      String?
+
+  createdAt DateTime @default(now())
+}
+
+// ─── Finance ─────────────────────────────────────────────────────────────────
+
+model MonthlyIncome {
+  id           String   @id @default(cuid())
+  month        String
+  income       Decimal  @db.Decimal(12, 2)
+  transactions Int
+  creators     Int
+  recordedAt   DateTime @default(now())
+}
+
+model WithdrawalRequest {
+  id          String           @id @default(cuid())
+  creator     String
+  bank        String
+  bankAccount String
+  amount      Decimal          @db.Decimal(12, 2)
+  requestedAt DateTime         @default(now())
+  status      WithdrawalStatus @default(pending)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Monetization ────────────────────────────────────────────────────────────
+
+model Promotion {
+  id        String   @id @default(cuid())
+  name      String
+  discount  Int
+  validFrom DateTime
+  validTo   DateTime
+  active    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Pricing {
+  id              String @id @default(cuid())
+  category        String @unique
+  pricePerEpisode Int
+  currency        String @default("เหรียญ")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VipLevel {
+  id       String @id @default(cuid())
+  level    Int    @unique
+  name     String
+  minSpend Int
+  badge    String
+  color    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ExpTitle {
+  id     String @id @default(cuid())
+  minExp Int    @unique
+  title  String
+  badge  String
+  color  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Ads ─────────────────────────────────────────────────────────────────────
+
+model AdPlacement {
+  id       String  @id @default(cuid())
+  name     String
+  location String
+  type     AdType
+  active   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Ad {
+  id         String   @id @default(cuid())
+  name       String
+  advertiser String
+  type       AdType
+  validFrom  DateTime
+  validTo    DateTime
+  active     Boolean  @default(false)
+  imageUrl   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
