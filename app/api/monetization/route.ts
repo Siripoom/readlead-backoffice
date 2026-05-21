@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server'
 import { getPromotions, getPricing, getVipLevels, getExpTitles } from '@/lib/db/monetization'
 

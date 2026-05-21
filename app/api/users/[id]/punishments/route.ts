@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserPunishments } from '@/lib/db/users'
 import { createPunishmentRecord } from '@/lib/db/punishment'

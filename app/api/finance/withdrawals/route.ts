@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getWithdrawalRequests, updateWithdrawalStatus } from '@/lib/db/finance'
 import type { WithdrawalStatus } from '@/lib/generated/prisma/enums'

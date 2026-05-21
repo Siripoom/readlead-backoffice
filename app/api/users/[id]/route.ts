@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserById, updateUserStatus } from '@/lib/db/users'
 import type { UserStatus } from '@/lib/generated/prisma/enums'
