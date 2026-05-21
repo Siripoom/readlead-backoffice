@@ -3,9 +3,10 @@ export const dynamic = 'force-dynamic'
 import { Box, Heading, Text } from '@chakra-ui/react'
 import { ReportTable } from '@/components/report/ReportTable'
 import { getReports } from '@/lib/db/reports'
+import type { ReportStatus as DbReportStatus, ReportType as DbReportType } from '@/lib/generated/prisma/enums'
 import type { ReportItem, ReportStatus, ReportType } from '@/lib/mock-data/report'
 
-const typeLabels: Record<string, ReportType> = {
+const typeLabels: Record<DbReportType, ReportType> = {
   inappropriate_content: 'เนื้อหาไม่เหมาะสม',
   spam: 'สแปม',
   copyright: 'ละเมิดลิขสิทธิ์',
@@ -13,7 +14,7 @@ const typeLabels: Record<string, ReportType> = {
   other: 'อื่นๆ',
 }
 
-const statusLabels: Record<string, ReportStatus> = {
+const statusLabels: Record<DbReportStatus, ReportStatus> = {
   open: 'open',
   in_progress: 'in-progress',
   resolved: 'resolved',
@@ -21,13 +22,13 @@ const statusLabels: Record<string, ReportStatus> = {
 
 export default async function ReportPage() {
   const raw = await getReports()
-  const reports: ReportItem[] = raw.map(r => ({
+  const reports: ReportItem[] = raw.map((r) => ({
     id: r.id,
     sender: r.senderName,
     subject: r.subject,
-    type: typeLabels[r.type] ?? 'อื่นๆ',
+    type: typeLabels[r.type],
     date: r.date.toISOString().split('T')[0],
-    status: statusLabels[r.status] ?? 'open',
+    status: statusLabels[r.status],
     message: r.message,
   }))
 

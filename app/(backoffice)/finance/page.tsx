@@ -14,9 +14,13 @@ export default async function FinancePage() {
   ])
 
   const latestIncome = incomeRows.at(-1)
-  const pendingCount = withdrawals.filter(w => w.status === 'pending').length
-  const pendingTotal = withdrawals.filter(w => w.status === 'pending').reduce((s, w) => s + Number(w.amount), 0)
-  const approvedTotal = withdrawals.filter(w => w.status === 'approved').reduce((s, w) => s + Number(w.amount), 0)
+  const pendingCount = withdrawals.filter((w) => w.status === 'pending').length
+  const pendingTotal = withdrawals
+    .filter((w) => w.status === 'pending')
+    .reduce((s, w) => s + Number(w.amount), 0)
+  const approvedTotal = withdrawals
+    .filter((w) => w.status === 'approved')
+    .reduce((s, w) => s + Number(w.amount), 0)
 
   const stats: FinanceStat[] = [
     {

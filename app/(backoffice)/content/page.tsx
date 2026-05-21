@@ -3,10 +3,11 @@ export const dynamic = 'force-dynamic'
 import { Box, Heading, Text } from '@chakra-ui/react'
 import { ContentTable } from '@/components/content/ContentTable'
 import { getContent } from '@/lib/db/content'
+import type { ContentItem } from '@/lib/mock-data/content'
 
 export default async function ContentPage() {
   const raw = await getContent()
-  const content = raw.map(c => ({
+  const content: ContentItem[] = raw.map((c) => ({
     ...c,
     submittedAt: c.submittedAt.toISOString().split('T')[0],
   }))
