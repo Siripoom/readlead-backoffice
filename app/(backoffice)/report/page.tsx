@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { Box, Heading, Text } from '@chakra-ui/react'
 import { ReportTable } from '@/components/report/ReportTable'
 import { getReports } from '@/lib/db/reports'

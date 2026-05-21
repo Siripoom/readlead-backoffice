@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { Box, Heading, Text } from '@chakra-ui/react'
 import { Suspense } from 'react'
 import { FinancePanel } from '@/components/finance/FinancePanel'

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { Box, Heading, Text } from '@chakra-ui/react'
 import { ContentTable } from '@/components/content/ContentTable'
 import { getContent } from '@/lib/db/content'

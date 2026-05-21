@@ -69,10 +69,12 @@ export function PunishmentDialog({ open, targetName, onClose, onConfirm }: Props
                   <NativeSelect.Indicator />
                 </NativeSelect.Root>
               </Box>
-              <Box bg="gray.50" p={3} borderRadius="md" fontSize="sm" color="gray.600">
-                <Text>ระยะเวลา: <strong>{durationLabel(selectedLevel.duration)}</strong></Text>
-                <Text mt={1}>เงื่อนไข: ผิดกฎครั้งที่ {selectedLevel.threshold} ขึ้นไป</Text>
-              </Box>
+              {selectedLevel && (
+                <Box bg="gray.50" p={3} borderRadius="md" fontSize="sm" color="gray.600">
+                  <Text>ระยะเวลา: <strong>{durationLabel(selectedLevel.duration)}</strong></Text>
+                  <Text mt={1}>เงื่อนไข: ผิดกฎครั้งที่ {selectedLevel.threshold} ขึ้นไป</Text>
+                </Box>
+              )}
             </Flex>
           </Dialog.Body>
           <Dialog.Footer gap={2}>
