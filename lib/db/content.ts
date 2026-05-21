@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { ContentStatus } from '@/lib/generated/prisma'
+import type { ContentStatus } from '@/lib/generated/prisma/enums'
 
 export function getContent() {
   return prisma.content.findMany({ orderBy: { submittedAt: 'desc' } })

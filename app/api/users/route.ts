@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUsers, getUsersByType } from '@/lib/db/users'
-import type { UserType } from '@/lib/generated/prisma'
+import type { UserType } from '@/lib/generated/prisma/enums'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl

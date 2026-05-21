@@ -201,16 +201,10 @@ export function AdsTab() {
                 <Table.Row key={a.id}>
                   <Table.Cell>
                     {a.imageUrl ? (
-                      <Box
-                        as="img"
-                        src={a.imageUrl}
+                      <img
+                        src={a.imageUrl!}
                         alt={a.name}
-                        w="56px"
-                        h="36px"
-                        objectFit="cover"
-                        borderRadius="sm"
-                        border="1px solid"
-                        borderColor="gray.200"
+                        className="w-14 h-9 object-cover rounded-sm border border-gray-200"
                       />
                     ) : (
                       <Flex w="56px" h="36px" bg="gray.100" borderRadius="sm" align="center" justify="center" color="gray.400">
@@ -276,14 +270,10 @@ export function AdsTab() {
                   >
                     {form.imageUrl ? (
                       <Box position="relative">
-                        <Box
-                          as="img"
+                        <img
                           src={form.imageUrl}
                           alt="preview"
-                          w="100%"
-                          h="160px"
-                          objectFit="cover"
-                          display="block"
+                          className="w-full h-40 object-cover block"
                         />
                         <IconButton
                           aria-label="ลบภาพ"

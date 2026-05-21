@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getReportById, updateReportStatus } from '@/lib/db/reports'
-import type { ReportStatus } from '@/lib/generated/prisma'
+import type { ReportStatus } from '@/lib/generated/prisma/enums'
 
 type Params = { params: Promise<{ id: string }> }
 

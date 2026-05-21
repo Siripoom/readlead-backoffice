@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getWithdrawalRequests, updateWithdrawalStatus } from '@/lib/db/finance'
-import type { WithdrawalStatus } from '@/lib/generated/prisma'
+import type { WithdrawalStatus } from '@/lib/generated/prisma/enums'
 
 export async function GET() {
   const withdrawals = await getWithdrawalRequests()

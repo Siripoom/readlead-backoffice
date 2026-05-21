@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { ReportStatus } from '@/lib/generated/prisma'
+import type { ReportStatus } from '@/lib/generated/prisma/enums'
 
 export function getReports() {
   return prisma.report.findMany({ orderBy: { date: 'desc' } })

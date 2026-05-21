@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserById, updateUserStatus } from '@/lib/db/users'
-import type { UserStatus } from '@/lib/generated/prisma'
+import type { UserStatus } from '@/lib/generated/prisma/enums'
 
 type Params = { params: Promise<{ id: string }> }
 

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { WithdrawalStatus } from '@/lib/generated/prisma'
+import type { WithdrawalStatus } from '@/lib/generated/prisma/enums'
 
 export function getMonthlyIncome() {
   return prisma.monthlyIncome.findMany({ orderBy: { recordedAt: 'asc' } })

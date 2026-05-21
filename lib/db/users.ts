@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { UserStatus, UserType } from '@/lib/generated/prisma'
+import type { UserStatus, UserType } from '@/lib/generated/prisma/enums'
 
 export function getUsers() {
   return prisma.user.findMany({
