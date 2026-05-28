@@ -17,8 +17,7 @@ import {
 } from '@chakra-ui/react'
 import { Eye, Gavel, History, Pencil, Plus } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
-import { useState } from 'react'
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { toaster } from '@/lib/toaster'
 import type { AdminItem, CreatorItem, UserItem, UserStatus } from '@/lib/mock-data/users'
 import { PunishmentDialog } from '@/components/punishment/PunishmentDialog'
@@ -90,56 +89,51 @@ export function UsersPanel() {
   const [punishRecords, setPunishRecords] = useState<PunishmentRecord[]>([])
   const [historyTarget, setHistoryTarget] = useState<AnyUser | null>(null)
 
-  useEffect(() => {
-    fetch('/api/users?type=user').then(r => r.json()).then(data =>
-      setUsers(data.map((u: UserItem & { joinedAt: string }) => ({ ...u, joinedAt: u.joinedAt.split('T')[0] })))
-    )
-    fetch('/api/users?type=creator').then(r => r.json()).then(data =>
-      setCreators(data.map((u: UserItem & { creatorProfile: { works: number; followers: number } | null }) => ({
-        ...u,
-        joinedAt: u.joinedAt.split('T')[0],
-        works: u.creatorProfile?.works ?? 0,
-        followers: u.creatorProfile?.followers ?? 0,
-      })))
-    )
-    fetch('/api/users?type=admin').then(r => r.json()).then(data =>
-      setAdmins(data.map((u: UserItem & { adminProfile: { role: string; lastLogin: string | null } | null }) => ({
-        ...u,
-        joinedAt: u.joinedAt.split('T')[0],
-        role: u.adminProfile?.role ?? '',
-        lastLogin: u.adminProfile?.lastLogin?.split('T')[0] ?? '-',
-      })))
-    )
-    fetch('/api/punishment/records').then(r => r.json()).then(data =>
-      setPunishRecords(data.map((r: PunishmentRecord & { date: string }) => ({
-        ...r,
-        date: r.date.split('T')[0],
-      })))
-    )
+  const fetchAll = useCallback(async () => {
+    const [rawUsers, rawCreators, rawAdmins, rawRecords] = await Promise.all([
+      fetch('/api/users?type=user').then(r => r.json()),
+      fetch('/api/users?type=creator').then(r => r.json()),
+      fetch('/api/users?type=admin').then(r => r.json()),
+      fetch('/api/punishment/records').then(r => r.json()),
+    ])
+    setUsers(rawUsers.map((u: UserItem & { joinedAt: string }) => ({ ...u, joinedAt: u.joinedAt.split('T')[0] })))
+    setCreators(rawCreators.map((u: UserItem & { creatorProfile: { works: number; followers: number } | null }) => ({
+      ...u,
+      joinedAt: u.joinedAt.split('T')[0],
+      works: u.creatorProfile?.works ?? 0,
+      followers: u.creatorProfile?.followers ?? 0,
+    })))
+    setAdmins(rawAdmins.map((u: UserItem & { adminProfile: { role: string; lastLogin: string | null } | null }) => ({
+      ...u,
+      joinedAt: u.joinedAt.split('T')[0],
+      role: u.adminProfile?.role ?? '',
+      lastLogin: u.adminProfile?.lastLogin?.split('T')[0] ?? '-',
+    })))
+    setPunishRecords(rawRecords.map((r: PunishmentRecord & { date: string }) => ({ ...r, date: r.date.split('T')[0] })))
   }, [])
+
+  useEffect(() => { fetchAll() }, [fetchAll])
 
   function handleOpenPunish(item: AnyUser, type: UserType) {
     setPunishTarget(item)
     setPunishType(type)
   }
 
-  function handleConfirmPunish(level: PunishmentLevel) {
+  async function handleConfirmPunish(level: PunishmentLevel) {
     if (!punishTarget) return
+    await fetch(`/api/users/${punishTarget.id}/punishments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ levelName: level.name }),
+    })
     if (level.level >= 2) {
-      if (punishType === 'user') {
-        setUsers(users.map(u => u.id === punishTarget.id ? { ...u, status: 'banned' } : u))
-      } else if (punishType === 'creator') {
-        setCreators(creators.map(c => c.id === punishTarget.id ? { ...c, status: 'banned' } : c))
-      } else {
-        setAdmins(admins.map(a => a.id === punishTarget.id ? { ...a, status: 'banned' } : a))
-      }
+      await fetch(`/api/users/${punishTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'banned' }),
+      })
     }
-    setPunishRecords(prev => [...prev, {
-      id: `ph${Date.now()}`,
-      userId: punishTarget.id,
-      levelName: level.name,
-      date: new Date().toISOString().split('T')[0],
-    }])
+    await fetchAll()
     toaster.error({ title: 'ลงโทษแล้ว', description: `"${punishTarget.name}" ถูกลงโทษ: ${level.name}` })
     setPunishTarget(null)
   }
@@ -149,15 +143,26 @@ export function UsersPanel() {
     setIsAddOpen(true)
   }
 
-  function handleAdd() {
-    const today = new Date().toISOString().split('T')[0]
-    if (tab === 'users') {
-      setUsers([...users, { id: `u${Date.now()}`, name: addForm.name, email: addForm.email, status: addForm.status, joinedAt: today }])
-    } else if (tab === 'creators') {
-      setCreators([...creators, { id: `c${Date.now()}`, name: addForm.name, email: addForm.email, status: addForm.status, joinedAt: today, works: addForm.works, followers: addForm.followers }])
-    } else {
-      setAdmins([...admins, { id: `a${Date.now()}`, name: addForm.name, email: addForm.email, status: addForm.status, joinedAt: today, role: addForm.role, lastLogin: '-' }])
+  async function handleAdd() {
+    const userTypeMap: Record<string, string> = { users: 'user', creators: 'creator', admins: 'admin' }
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: addForm.name,
+        email: addForm.email,
+        status: addForm.status,
+        userType: userTypeMap[tab] ?? 'user',
+        works: addForm.works,
+        followers: addForm.followers,
+        role: addForm.role,
+      }),
+    })
+    if (!res.ok) {
+      toaster.error({ title: 'เพิ่มไม่สำเร็จ', description: 'กรุณาลองใหม่อีกครั้ง' })
+      return
     }
+    await fetchAll()
     toaster.success({ title: 'เพิ่มสำเร็จ', description: `"${addForm.name}" ถูกเพิ่มเรียบร้อย` })
     setIsAddOpen(false)
   }
@@ -184,15 +189,14 @@ export function UsersPanel() {
     setSelectedUser(null)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!selectedUser) return
-    if (userType === 'user') {
-      setUsers(users.map(u => u.id === selectedUser.id ? { ...u, name: form.name, status: form.status } : u))
-    } else if (userType === 'creator') {
-      setCreators(creators.map(c => c.id === selectedUser.id ? { ...c, name: form.name, status: form.status } : c))
-    } else {
-      setAdmins(admins.map(a => a.id === selectedUser.id ? { ...a, name: form.name, status: form.status, role: form.role ?? a.role } : a))
-    }
+    await fetch(`/api/users/${selectedUser.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: form.name, status: form.status }),
+    })
+    await fetchAll()
     toaster.success({ title: 'บันทึกสำเร็จ', description: `อัพเดทข้อมูล "${form.name}" แล้ว` })
     handleClose()
   }

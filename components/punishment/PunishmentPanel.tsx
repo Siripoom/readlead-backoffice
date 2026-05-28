@@ -57,12 +57,23 @@ export function PunishmentPanel() {
     setEditItem(item)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (isAdding) {
-      setData([...data, { id: `p${Date.now()}`, ...form }])
+      const res = await fetch('/api/punishment/levels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const newLevel = await res.json() as PunishmentLevel
+      setData([...data, newLevel])
       toaster.success({ title: 'เพิ่มระดับลงโทษแล้ว', description: `"${form.name}" ถูกเพิ่มเรียบร้อย` })
       setIsAdding(false)
     } else if (editItem) {
+      await fetch('/api/punishment/levels', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editItem.id, ...form }),
+      })
       setData(data.map(d => d.id === editItem.id ? { ...d, ...form } : d))
       toaster.success({ title: 'บันทึกสำเร็จ', description: `อัพเดทระดับ "${form.name}" แล้ว` })
       setEditItem(null)

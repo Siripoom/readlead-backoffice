@@ -29,3 +29,13 @@ export function updatePunishmentLevel(
   const prisma = getPrisma()
   return prisma.punishmentLevel.update({ where: { id }, data })
 }
+
+export function createPunishmentLevel(data: {
+  level: number
+  name: string
+  threshold: number
+  duration: number
+}) {
+  const prisma = getPrisma()
+  return prisma.punishmentLevel.create({ data })
+}

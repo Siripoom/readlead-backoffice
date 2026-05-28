@@ -38,3 +38,28 @@ export function updateUserStatus(id: string, status: UserStatus) {
   const prisma = getPrisma()
   return prisma.user.update({ where: { id }, data: { status } })
 }
+
+export function updateUserName(id: string, name: string) {
+  const prisma = getPrisma()
+  return prisma.user.update({ where: { id }, data: { name } })
+}
+
+export function createUser(data: {
+  name: string
+  email: string
+  userType?: UserType
+  status?: UserStatus
+  creatorProfile?: { works?: number; followers?: number }
+  adminProfile?: { role: string }
+}) {
+  const prisma = getPrisma()
+  const { creatorProfile, adminProfile, ...userData } = data
+  return prisma.user.create({
+    data: {
+      ...userData,
+      creatorProfile: creatorProfile ? { create: creatorProfile } : undefined,
+      adminProfile: adminProfile ? { create: adminProfile } : undefined,
+    },
+    include: { creatorProfile: true, adminProfile: true },
+  })
+}
