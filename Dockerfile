@@ -31,6 +31,13 @@ RUN node_modules/.bin/esbuild \
   "--external:../lib/generated/prisma/client" \
   --external:@prisma/engines
 
+# Compile prisma config to JS so runner can load it without a TypeScript runtime
+RUN node_modules/.bin/esbuild \
+  prisma.config.ts \
+  --platform=node \
+  --target=node22 \
+  --outfile=prisma.config.js
+
 # Stage 3: runner — minimal production image
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -54,8 +61,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_m
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/lib/generated ./lib/generated
 
-# prisma.config.ts is required by prisma migrate deploy to find DATABASE_URL
-COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./
+# prisma.config.js is required by prisma migrate deploy to find DATABASE_URL
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.js ./
 # Compiled seed bundle (no tsx or pg needed at runtime)
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.js ./prisma/
 
