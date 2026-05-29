@@ -10,10 +10,8 @@ echo "Running database migrations..."
 node_modules/.bin/prisma migrate deploy
 echo "Migrations complete."
 
-if [ "$SEED_ON_DEPLOY" = "true" ]; then
-  echo "Running database seed..."
-  node prisma/seed.js
-  echo "Seed complete."
-fi
+echo "Running database seed..."
+node prisma/seed.js
+echo "Seed complete."
 
 exec node server.js
