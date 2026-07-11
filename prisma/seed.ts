@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../lib/generated/prisma/client'
+import { hashPassword } from '../lib/password'
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
@@ -47,9 +48,9 @@ async function main() {
     { id: 'a3', name: 'ภูมิ ตรวจสอบ',  email: 'poom@readlead.com',       joinedAt: new Date('2024-06-01'), status: 'active' as const, userType: 'admin' as const },
   ]
   const adminProfiles = [
-    { userId: 'a1', role: 'Super Admin',     lastLogin: new Date('2026-05-16') },
-    { userId: 'a2', role: 'Content Manager', lastLogin: new Date('2026-05-15') },
-    { userId: 'a3', role: 'Moderator',       lastLogin: new Date('2026-05-14') },
+    { userId: 'a1', role: 'ผู้ดูแลระบบ', adminCode: 'AD-001', passwordHash: hashPassword('ReadLead@123'), permissions: ['dashboard','users','admins','reports','finance','punishment','cms','exp'], isOwner: true, lastLogin: new Date('2026-05-16') },
+    { userId: 'a2', role: 'ผู้ดูแลเนื้อหา', adminCode: 'AD-014', passwordHash: hashPassword('ReadLead@123'), permissions: ['dashboard','users','reports','punishment','cms'], isOwner: false, lastLogin: new Date('2026-05-15') },
+    { userId: 'a3', role: 'ผู้ตรวจสอบ', adminCode: 'AD-022', passwordHash: hashPassword('ReadLead@123'), permissions: ['dashboard','reports','finance'], isOwner: false, lastLogin: new Date('2026-05-14') },
   ]
   for (const a of admins) {
     await prisma.user.upsert({ where: { id: a.id }, update: a, create: a })
@@ -203,7 +204,49 @@ async function main() {
     await prisma.ad.upsert({ where: { id: a.id }, update: a, create: a })
   }
 
-  console.log('Seed completed.')
+  // CMS pages and sections from admin.html
+  const cmsPages = [
+    { slug: 'home', label: 'หน้าหลัก' }, { slug: 'novel', label: 'นิยาย' },
+    { slug: 'manga', label: 'เว็บตูน' }, { slug: 'audio', label: 'หนังสือเสียง' },
+  ]
+  const sectionTemplates = [
+    ['hero', 'แบนเนอร์ใหญ่ (Hero)'], ['activity', 'แบนเนอร์กิจกรรม'], ['sale', 'ลดราคาพิเศษ'],
+    ['writer-banner', 'แบนเนอร์ “มาเป็นนักเขียนกับเรา”'], ['row-3', 'แบนเนอร์ใต้อันดับรวม'],
+    ['narrator', 'แบนเนอร์เชิญชวนนักพากย์'], ['web-coverflow', 'แนะนำโดยเว็บ — ปกคอเวอร์โฟลว์'],
+    ['web-sides', 'แบนเนอร์แนะนำโดยเว็บ — ซ้าย/ขวา'], ['web-books', 'แนะนำโดยเว็บ — แถวการ์ดหนังสือ'],
+    ['category', 'เติมเต็มทุกอารมณ์'], ['bottom-cta', 'แบนเนอร์ CTA 4 ช่อง'],
+    ['recommend', 'แนะนำสำหรับคุณ'], ['web-recommend', 'แนะนำโดยเว็บ'], ['launch', 'เปิดตัวใหม่ยอดฮิต'],
+  ]
+  for (const pageData of cmsPages) {
+    const page = await prisma.cmsPage.upsert({ where: { slug: pageData.slug }, update: pageData, create: pageData })
+    for (let i = 0; i < sectionTemplates.length; i++) {
+      const [key, title] = sectionTemplates[i]
+      await prisma.cmsSection.upsert({
+        where: { pageId_key: { pageId: page.id, key } },
+        update: { title, sortOrder: i }, create: { pageId: page.id, key, title, sortOrder: i },
+      })
+    }
+  }
+
+  const queue = [
+    { id: 'mq1', title: 'จักรพรรดิย้อนเวลา', creatorName: 'ฝันดาว', reason: 'ชื่อคล้ายผลงานต่างประเทศ', chapter: 'ตอนที่ 1' },
+    { id: 'mq2', title: 'นักล่าเลเวลสูง', creatorName: 'ขวัญเรือน', reason: 'พบคำใน blacklist', chapter: 'ตอนที่ 12' },
+  ]
+  for (const item of queue) await prisma.moderationQueue.upsert({ where: { id: item.id }, update: item, create: item })
+
+  for (const user of [...users, ...creators]) {
+    await prisma.expAccount.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } })
+  }
+
+  const tickets = [
+    { id:'tk1', userId:'u1', amount:3, type:'free', reason:'ตั๋วโหวตฟรีรายวัน' },
+    { id:'tk2', userId:'u1', amount:-1, type:'vote_free', reason:'โหวตเรื่องมังกรผู้พิทักษ์', referenceId:'ct2' },
+    { id:'tk3', userId:'u2', amount:400, type:'tip', reason:'ทิปนักเขียน “ฝันดาว”', referenceId:'c3' },
+    { id:'tk4', userId:'u2', amount:1, type:'month', reason:'ตั๋วเดือนจากยอดทิปสะสม' },
+  ]
+  for (const ticket of tickets) await prisma.ticketLedger.upsert({ where:{id:ticket.id}, update:ticket, create:ticket })
+
+  console.log('Seed completed. Login: superadmin@readlead.com / ReadLead@123')
 }
 
 main()

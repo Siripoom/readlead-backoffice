@@ -1,20 +1,21 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ReadLead Backoffice
+
+Next.js 16 backoffice based on the supplied `admin.html` reference. It includes database-backed CMS, EXP review, user moderation, finance, reports, admin sessions and menu permissions.
 
 ## Getting Started
 
-First, run the development server:
+Set `DATABASE_URL`, `DATABASE_SSL` and a long random `SESSION_SECRET`, then run. Use `DATABASE_SSL=false` for the local Docker PostgreSQL service and `DATABASE_SSL=true` for a hosted database that requires TLS:
 
 ```bash
+npm install
+npx prisma migrate deploy
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). The development seed owner account is `superadmin@readlead.com` / `ReadLead@123`; change this password before a production rollout.
+
+Uploaded CMS images are stored in `public/uploads`. Deployments must provide persistent storage for this directory.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

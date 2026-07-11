@@ -1,76 +1,35 @@
 'use client'
-import {
-  Box,
-  Button,
-  Card,
-  Field,
-  Flex,
-  Heading,
-  Input,
-  Text,
-} from '@chakra-ui/react'
+
 import { BookOpen } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import styles from './Login.module.css'
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    router.push('/dashboard')
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault(); setLoading(true); setError('')
+    try {
+      const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password }) })
+      const result = await response.json().catch(() => ({ error: 'เซิร์ฟเวอร์ไม่ส่งคำตอบที่ถูกต้อง' }))
+      if (!response.ok) return setError(result.error ?? 'เข้าสู่ระบบไม่สำเร็จ')
+      router.push('/dashboard'); router.refresh()
+    } catch { setError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์') }
+    finally { setLoading(false) }
   }
 
-  return (
-    <Flex minH="100vh" align="center" justify="center" bg="gray.50">
-      <Card.Root w="full" maxW="400px" mx={4} shadow="md">
-        <Card.Header pb={2}>
-          <Flex align="center" justify="center" direction="column" gap={2}>
-            <Flex align="center" gap={2} color="teal.600">
-              <BookOpen size={32} />
-              <Heading size="xl" color="teal.600">ReadLead</Heading>
-            </Flex>
-            <Text color="gray.500" fontSize="sm">Backoffice Administration</Text>
-          </Flex>
-        </Card.Header>
-
-        <Card.Body>
-          <Box as="form" onSubmit={handleSubmit}>
-            <Flex direction="column" gap={4}>
-              <Field.Root>
-                <Field.Label>อีเมล</Field.Label>
-                <Input
-                  type="email"
-                  placeholder="admin@readlead.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </Field.Root>
-
-              <Field.Root>
-                <Field.Label>รหัสผ่าน</Field.Label>
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </Field.Root>
-
-              <Button
-                type="submit"
-                colorPalette="teal"
-                width="full"
-                mt={2}
-              >
-                เข้าสู่ระบบ
-              </Button>
-            </Flex>
-          </Box>
-        </Card.Body>
-      </Card.Root>
-    </Flex>
-  )
+  return <main className={styles.login}><section className={styles.card}>
+    <div className={styles.logo}><BookOpen /><span>ReadLead</span></div><p className={styles.sub}>Backoffice Administration</p><p className={styles.note}>เข้าสู่ระบบสำหรับผู้ดูแลระบบ<br />เพื่อจัดการข้อมูลและการทำงานของเว็บไซต์</p>
+    <form onSubmit={handleSubmit}>
+      <label>อีเมล<input type="email" autoComplete="email" placeholder="admin@readlead.com" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
+      <label>รหัสผ่าน<input type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
+      {error && <div className={styles.error} role="alert">{error}</div>}
+      <button type="submit" disabled={loading}>{loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}</button>
+    </form>
+  </section></main>
 }

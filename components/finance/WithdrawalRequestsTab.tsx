@@ -8,6 +8,7 @@ import {
   IconButton,
   Table,
   Text,
+  Textarea,
 } from '@chakra-ui/react'
 import { Check, Eye, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -34,17 +35,23 @@ export function WithdrawalRequestsTab() {
   }, [])
   const [viewItem, setViewItem] = useState<WithdrawalRequest | null>(null)
   const [rejectTarget, setRejectTarget] = useState<WithdrawalRequest | null>(null)
+  const [rejectNote, setRejectNote] = useState('')
 
-  function handleApprove(item: WithdrawalRequest) {
+  async function handleApprove(item: WithdrawalRequest) {
+    const response = await fetch('/api/finance/withdrawals', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: item.id, status: 'approved' }) })
+    if (!response.ok) return toaster.error({ title: 'อนุมัติไม่สำเร็จ' })
     setData(data.map(d => d.id === item.id ? { ...d, status: 'approved' as const } : d))
     toaster.success({ title: 'อนุมัติแล้ว', description: `อนุมัติการถอนเงินของ ${item.creator} ฿${item.amount.toLocaleString()}` })
   }
 
-  function handleRejectConfirm() {
+  async function handleRejectConfirm() {
     if (!rejectTarget) return
+    const response = await fetch('/api/finance/withdrawals', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: rejectTarget.id, status: 'rejected', note: rejectNote }) })
+    if (!response.ok) return toaster.error({ title: 'ปฏิเสธไม่สำเร็จ' })
     setData(data.map(d => d.id === rejectTarget.id ? { ...d, status: 'rejected' as const } : d))
     toaster.error({ title: 'ปฏิเสธแล้ว', description: `ปฏิเสธคำขอถอนเงินของ ${rejectTarget.creator}` })
     setRejectTarget(null)
+    setRejectNote('')
   }
 
   return (
@@ -146,10 +153,10 @@ export function WithdrawalRequestsTab() {
             </Dialog.Header>
             <Dialog.Body>
               {rejectTarget && (
-                <Text>
+                <Flex direction="column" gap={3}><Text>
                   ต้องการปฏิเสธคำขอถอนเงินของ <strong>{rejectTarget.creator}</strong> จำนวน{' '}
                   <strong>฿{rejectTarget.amount.toLocaleString()}</strong> ใช่หรือไม่?
-                </Text>
+                </Text><Textarea placeholder="เหตุผลที่ปฏิเสธ" value={rejectNote} onChange={e=>setRejectNote(e.target.value)}/></Flex>
               )}
             </Dialog.Body>
             <Dialog.Footer gap={2}>

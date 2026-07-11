@@ -27,6 +27,7 @@ const statusMap: Record<ReportStatus, { label: string; color: string }> = {
 
 export function ReportTable({ data: initialData }: { data: ReportItem[] }) {
   const [data, setData] = useState(initialData)
+  const [filter, setFilter] = useState<'all' | ReportStatus>('all')
   const [selectedItem, setSelectedItem] = useState<ReportItem | null>(null)
   const [mode, setMode] = useState<'view' | 'reply' | null>(null)
   const [replyText, setReplyText] = useState('')
@@ -45,16 +46,26 @@ export function ReportTable({ data: initialData }: { data: ReportItem[] }) {
     setReplyText('')
   }
 
-  function handleSendReply() {
+  async function handleSendReply() {
     if (!selectedItem || !replyText.trim()) return
+    const response = await fetch(`/api/reports/${selectedItem.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: replyText }) })
+    if (!response.ok) return toaster.error({ title: 'ส่งคำตอบไม่สำเร็จ' })
     const nextStatus: ReportStatus = selectedItem.status === 'open' ? 'in-progress' : 'resolved'
     setData(data.map(d => d.id === selectedItem.id ? { ...d, status: nextStatus } : d))
     toaster.success({ title: 'ส่งคำตอบสำเร็จ', description: `อัพเดทสถานะเป็น "${statusMap[nextStatus].label}"` })
     handleClose()
   }
 
+  async function handleResolve(item: ReportItem) {
+    const response = await fetch(`/api/reports/${item.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: 'resolved' }) })
+    if (!response.ok) return toaster.error({ title: 'ปิดเรื่องไม่สำเร็จ' })
+    setData(rows => rows.map(row => row.id === item.id ? { ...row, status: 'resolved' } : row))
+    toaster.success({ title: 'ปิดเรื่องแล้ว' })
+  }
+
   return (
     <>
+      <Flex gap={2} mb={4} wrap="wrap">{([['all','ทั้งหมด'],['open','รอดำเนินการ'],['in-progress','กำลังดำเนินการ'],['resolved','ปิดแล้ว']] as const).map(([value,label])=><Button key={value} size="sm" borderRadius="full" variant={filter===value?'solid':'outline'} bg={filter===value?'#b9232f':'white'} color={filter===value?'white':'gray.700'} onClick={()=>setFilter(value)}>{label} <Badge ml={1}>{value==='all'?data.length:data.filter(r=>r.status===value).length}</Badge></Button>)}</Flex>
       <Card.Root bg="white" shadow="sm">
         <Card.Body p={0}>
           <Box overflowX="auto">
@@ -70,7 +81,7 @@ export function ReportTable({ data: initialData }: { data: ReportItem[] }) {
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {data.map((item) => {
+                {data.filter(item => filter === 'all' || item.status === filter).map((item) => {
                   const s = statusMap[item.status]
                   return (
                     <Table.Row key={item.id}>
@@ -94,6 +105,7 @@ export function ReportTable({ data: initialData }: { data: ReportItem[] }) {
                           <IconButton aria-label="ลงโทษ" variant="ghost" size="sm" colorPalette="red" onClick={() => setPunishTarget(item)}>
                             <Gavel size={16} />
                           </IconButton>
+                          {item.status !== 'resolved' && <Button size="xs" variant="outline" onClick={() => handleResolve(item)}>ปิดเรื่อง</Button>}
                         </Box>
                       </Table.Cell>
                     </Table.Row>

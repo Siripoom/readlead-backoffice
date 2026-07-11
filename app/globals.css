@@ -8,3 +8,25 @@ body {
   margin: 0;
   padding: 0;
 }
+
+:root {
+  --rl-red: #b9232f;
+  --rl-red-dark: #8f1721;
+  --rl-red-soft: #fff0f1;
+  --rl-cream: #faf7f2;
+  --rl-ink: #26252a;
+  --rl-muted: #77747d;
+  --rl-line: #e8e2dc;
+}
+
+body {
+  color: var(--rl-ink);
+  background: var(--rl-cream);
+  font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, Arial, sans-serif;
+}
+
+button, input, select, textarea { font: inherit; }
+
+.rl-page-title { font-size: 1.65rem; font-weight: 800; letter-spacing: -.02em; }
+.rl-page-sub { color: var(--rl-muted); font-size: .9rem; margin-top: .2rem; }
+.rl-scroll { overflow-x: auto; }

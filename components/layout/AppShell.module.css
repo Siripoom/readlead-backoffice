@@ -1,0 +1,2 @@
+.shell{min-height:100vh;background:#f4f7f6}.body{display:flex;min-height:calc(100vh - 58px);align-items:stretch}.desktopSidebar{width:240px;flex-shrink:0}.desktopSidebar>nav{position:sticky;top:58px;height:calc(100vh - 58px)}.main{flex:1;min-width:0;min-height:0;overflow:hidden;background:#f4f7f6;padding:20px 28px 50px}.drawer{background:#fff!important}
+@media(max-width:767px){.desktopSidebar{display:none}.main{padding:20px 16px 50px;width:100%}}

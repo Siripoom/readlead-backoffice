@@ -1,13 +1,15 @@
-import { Box, Heading, Text } from '@chakra-ui/react'
+import { Box } from '@chakra-ui/react'
 import { Suspense } from 'react'
 import { UsersPanel } from '@/components/users/UsersPanel'
+import { requireAdmin } from '@/lib/auth'
 
-export default function UsersPage() {
+export default async function UsersPage() {
+  await requireAdmin('users')
   return (
     <Box>
       <Box mb={6}>
-        <Heading size="lg" color="gray.800">User</Heading>
-        <Text color="gray.500" fontSize="sm" mt={1}>จัดการผู้ใช้ นักเขียน และผู้ดูแลระบบ</Text>
+        <div className="rl-page-title">จัดการผู้ใช้</div>
+        <div className="rl-page-sub">บัญชีนักอ่าน นักเขียน และผู้ดูแลระบบ</div>
       </Box>
       <Suspense>
         <UsersPanel />

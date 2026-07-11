@@ -16,5 +16,7 @@ export interface CreatorItem extends UserItem {
 export interface AdminItem extends UserItem {
   role: string
   lastLogin: string
+  adminCode?: string
+  permissions?: string[]
+  isOwner?: boolean
 }
-

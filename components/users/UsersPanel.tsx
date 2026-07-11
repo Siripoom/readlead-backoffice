@@ -23,6 +23,7 @@ import type { AdminItem, CreatorItem, UserItem, UserStatus } from '@/lib/mock-da
 import { PunishmentDialog } from '@/components/punishment/PunishmentDialog'
 import type { PunishmentLevel, PunishmentRecord } from '@/lib/mock-data/punishment'
 import { PunishmentHistoryDialog } from '@/components/users/PunishmentHistoryDialog'
+import { ModerationPanel } from '@/components/users/ModerationPanel'
 
 const statusMap: Record<UserStatus, { label: string; color: string }> = {
   active: { label: 'ใช้งาน', color: 'green' },
@@ -37,7 +38,10 @@ interface EditForm {
   name: string
   status: UserStatus
   role?: string
+  permissions?: string[]
 }
+
+const permissionLabels: Record<string,string> = { dashboard: 'ภาพรวม', users: 'ผู้ใช้', admins: 'แอดมิน', reports: 'รายงาน', finance: 'การเงิน', punishment: 'บทลงโทษ', cms: 'แบนเนอร์', exp: 'EXP/ตั๋ว' }
 
 interface AddForm {
   name: string
@@ -46,9 +50,10 @@ interface AddForm {
   role: string
   works: number
   followers: number
+  password: string
 }
 
-const emptyAddForm: AddForm = { name: '', email: '', status: 'active', role: '', works: 0, followers: 0 }
+const emptyAddForm: AddForm = { name: '', email: '', status: 'active', role: '', works: 0, followers: 0, password: '' }
 
 const addButtonLabel: Record<string, string> = {
   users: 'เพิ่มผู้ใช้งาน',
@@ -84,7 +89,6 @@ export function UsersPanel() {
   const [addForm, setAddForm] = useState<AddForm>(emptyAddForm)
 
   const [punishTarget, setPunishTarget] = useState<AnyUser | null>(null)
-  const [punishType, setPunishType] = useState<UserType>('user')
 
   const [punishRecords, setPunishRecords] = useState<PunishmentRecord[]>([])
   const [historyTarget, setHistoryTarget] = useState<AnyUser | null>(null)
@@ -103,20 +107,24 @@ export function UsersPanel() {
       works: u.creatorProfile?.works ?? 0,
       followers: u.creatorProfile?.followers ?? 0,
     })))
-    setAdmins(rawAdmins.map((u: UserItem & { adminProfile: { role: string; lastLogin: string | null } | null }) => ({
+    setAdmins(rawAdmins.map((u: UserItem & { adminProfile: { role: string; lastLogin: string | null; adminCode?:string; permissions?:string[]; isOwner?:boolean } | null }) => ({
       ...u,
       joinedAt: u.joinedAt.split('T')[0],
       role: u.adminProfile?.role ?? '',
       lastLogin: u.adminProfile?.lastLogin?.split('T')[0] ?? '-',
+      adminCode: u.adminProfile?.adminCode,
+      permissions: u.adminProfile?.permissions ?? [],
+      isOwner: u.adminProfile?.isOwner ?? false,
     })))
     setPunishRecords(rawRecords.map((r: PunishmentRecord & { date: string }) => ({ ...r, date: r.date.split('T')[0] })))
   }, [])
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  // The callback performs the initial synchronization with the API.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void fetchAll() }, [fetchAll])
 
-  function handleOpenPunish(item: AnyUser, type: UserType) {
+  function handleOpenPunish(item: AnyUser) {
     setPunishTarget(item)
-    setPunishType(type)
   }
 
   async function handleConfirmPunish(level: PunishmentLevel) {
@@ -156,6 +164,8 @@ export function UsersPanel() {
         works: addForm.works,
         followers: addForm.followers,
         role: addForm.role,
+        password: addForm.password,
+        permissions: ['dashboard','users','reports'],
       }),
     })
     if (!res.ok) {
@@ -180,6 +190,7 @@ export function UsersPanel() {
       name: item.name,
       status: item.status,
       role: (item as AdminItem).role ?? '',
+      permissions: (item as AdminItem).permissions ?? [],
     })
     setMode('edit')
   }
@@ -194,7 +205,7 @@ export function UsersPanel() {
     await fetch(`/api/users/${selectedUser.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: form.name, status: form.status }),
+      body: JSON.stringify({ name: form.name, status: form.status, role: form.role, permissions: form.permissions }),
     })
     await fetchAll()
     toaster.success({ title: 'บันทึกสำเร็จ', description: `อัพเดทข้อมูล "${form.name}" แล้ว` })
@@ -223,7 +234,7 @@ export function UsersPanel() {
                   <Table.Header>
                     <Table.Row bg="gray.50">
                       <Table.ColumnHeader>ชื่อ</Table.ColumnHeader>
-                      <Table.ColumnHeader>อีเมล</Table.ColumnHeader>
+                      <Table.ColumnHeader>ไอดีแอดมิน</Table.ColumnHeader>
                       <Table.ColumnHeader>วันที่สมัคร</Table.ColumnHeader>
                       <Table.ColumnHeader>โทษ</Table.ColumnHeader>
                       <Table.ColumnHeader>สถานะ</Table.ColumnHeader>
@@ -245,7 +256,7 @@ export function UsersPanel() {
                         </Table.Cell>
                         <Table.Cell><Badge colorPalette={statusMap[row.status].color} variant="subtle">{statusMap[row.status].label}</Badge></Table.Cell>
                         <Table.Cell>
-                          <ActionButtons onView={() => handleView(row, 'user')} onEdit={() => handleEdit(row, 'user')} onPunish={() => handleOpenPunish(row, 'user')} onHistory={() => setHistoryTarget(row)} />
+                          <ActionButtons onView={() => handleView(row, 'user')} onEdit={() => handleEdit(row, 'user')} onPunish={() => handleOpenPunish(row)} onHistory={() => setHistoryTarget(row)} />
                         </Table.Cell>
                       </Table.Row>
                       )
@@ -256,6 +267,7 @@ export function UsersPanel() {
             </Tabs.Content>
 
             <Tabs.Content value="creators" p={0}>
+              <ModerationPanel />
               <Box overflowX="auto">
                 <Table.Root>
                   <Table.Header>
@@ -285,7 +297,7 @@ export function UsersPanel() {
                         </Table.Cell>
                         <Table.Cell><Badge colorPalette={statusMap[c.status].color} variant="subtle">{statusMap[c.status].label}</Badge></Table.Cell>
                         <Table.Cell>
-                          <ActionButtons onView={() => handleView(c, 'creator')} onEdit={() => handleEdit(c, 'creator')} onPunish={() => handleOpenPunish(c, 'creator')} onHistory={() => setHistoryTarget(c)} />
+                          <ActionButtons onView={() => handleView(c, 'creator')} onEdit={() => handleEdit(c, 'creator')} onPunish={() => handleOpenPunish(c)} onHistory={() => setHistoryTarget(c)} />
                         </Table.Cell>
                       </Table.Row>
                       )
@@ -303,29 +315,22 @@ export function UsersPanel() {
                       <Table.ColumnHeader>ชื่อ</Table.ColumnHeader>
                       <Table.ColumnHeader>อีเมล</Table.ColumnHeader>
                       <Table.ColumnHeader>บทบาท</Table.ColumnHeader>
-                      <Table.ColumnHeader>เข้าสู่ระบบล่าสุด</Table.ColumnHeader>
-                      <Table.ColumnHeader>โทษ</Table.ColumnHeader>
+                      <Table.ColumnHeader>เมนูที่เห็น</Table.ColumnHeader>
                       <Table.ColumnHeader>สถานะ</Table.ColumnHeader>
                       <Table.ColumnHeader>จัดการ</Table.ColumnHeader>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
                     {admins.map((a) => {
-                      const count = punishRecords.filter(r => r.userId === a.id).length
                       return (
                       <Table.Row key={a.id}>
                         <Table.Cell fontWeight="medium">{a.name}</Table.Cell>
-                        <Table.Cell color="gray.600">{a.email}</Table.Cell>
+                        <Table.Cell color="gray.600">{a.adminCode ?? '—'}</Table.Cell>
                         <Table.Cell color="gray.600">{a.role}</Table.Cell>
-                        <Table.Cell color="gray.600">{a.lastLogin}</Table.Cell>
-                        <Table.Cell>
-                          {count > 0
-                            ? <Badge colorPalette="orange" variant="subtle" cursor="pointer" onClick={() => setHistoryTarget(a)}>{count} ครั้ง</Badge>
-                            : <Text color="gray.400" fontSize="sm">—</Text>}
-                        </Table.Cell>
+                        <Table.Cell><Flex gap={1} wrap="wrap">{a.isOwner?<Badge colorPalette="red">ทุกเมนู</Badge>:a.permissions?.map(p=><Badge key={p} variant="subtle">{permissionLabels[p]??p}</Badge>)}</Flex></Table.Cell>
                         <Table.Cell><Badge colorPalette={statusMap[a.status].color} variant="subtle">{statusMap[a.status].label}</Badge></Table.Cell>
                         <Table.Cell>
-                          <ActionButtons onView={() => handleView(a, 'admin')} onEdit={() => handleEdit(a, 'admin')} onPunish={() => handleOpenPunish(a, 'admin')} onHistory={() => setHistoryTarget(a)} />
+                          <ActionButtons onView={() => handleView(a, 'admin')} onEdit={() => handleEdit(a, 'admin')} onPunish={() => handleOpenPunish(a)} onHistory={() => setHistoryTarget(a)} />
                         </Table.Cell>
                       </Table.Row>
                       )
@@ -433,16 +438,13 @@ export function UsersPanel() {
                   </>
                 )}
                 {tab === 'admins' && (
-                  <Field.Root>
-                    <Field.Label>บทบาท</Field.Label>
-                    <Input placeholder="เช่น Moderator" value={addForm.role} onChange={(e) => setAddForm({ ...addForm, role: e.target.value })} />
-                  </Field.Root>
+                  <><Field.Root><Field.Label>บทบาท</Field.Label><Input placeholder="เช่น ผู้ดูแลเนื้อหา" value={addForm.role} onChange={(e) => setAddForm({ ...addForm, role: e.target.value })} /></Field.Root><Field.Root><Field.Label>รหัสผ่านเริ่มต้น</Field.Label><Input type="password" minLength={8} value={addForm.password} onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}/></Field.Root></>
                 )}
               </Flex>
             </Dialog.Body>
             <Dialog.Footer gap={2}>
               <Button variant="outline" onClick={() => setIsAddOpen(false)}>ยกเลิก</Button>
-              <Button colorPalette="teal" onClick={handleAdd} disabled={!addForm.name.trim() || !addForm.email.trim()}>เพิ่ม</Button>
+              <Button bg="#b9232f" color="white" onClick={handleAdd} disabled={!addForm.name.trim() || !addForm.email.trim() || (tab === 'admins' && (!addForm.role.trim() || addForm.password.length < 8))}>เพิ่ม</Button>
             </Dialog.Footer>
           </Dialog.Content>
         </Dialog.Positioner>
@@ -492,10 +494,10 @@ export function UsersPanel() {
                   </NativeSelect.Root>
                 </Field.Root>
                 {userType === 'admin' && (
-                  <Field.Root>
+                  <><Field.Root>
                     <Field.Label>บทบาท</Field.Label>
                     <Input value={form.role ?? ''} onChange={(e) => setForm({ ...form, role: e.target.value })} />
-                  </Field.Root>
+                  </Field.Root>{!(selectedUser as AdminItem)?.isOwner&&<Field.Root><Field.Label>เมนูที่เห็น</Field.Label><Flex gap={2} wrap="wrap">{Object.entries(permissionLabels).map(([key,label])=><Box as="label" key={key} borderWidth="1px" borderRadius="md" px={2} py={1} cursor="pointer"><input type="checkbox" checked={form.permissions?.includes(key)??false} onChange={e=>setForm({...form,permissions:e.target.checked?[...(form.permissions??[]),key]:(form.permissions??[]).filter(p=>p!==key)})}/> <Text as="span" fontSize="sm">{label}</Text></Box>)}</Flex></Field.Root>}</>
                 )}
               </Flex>
             </Dialog.Body>

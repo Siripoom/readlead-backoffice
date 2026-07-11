@@ -1,10 +1,11 @@
 export const dynamic = 'force-dynamic'
 
-import { Box, Heading, Text } from '@chakra-ui/react'
+import { Box } from '@chakra-ui/react'
 import { ReportTable } from '@/components/report/ReportTable'
 import { getReports } from '@/lib/db/reports'
 import type { ReportStatus as DbReportStatus, ReportType as DbReportType } from '@/lib/generated/prisma/enums'
 import type { ReportItem, ReportStatus, ReportType } from '@/lib/mock-data/report'
+import { requireAdmin } from '@/lib/auth'
 
 const typeLabels: Record<DbReportType, ReportType> = {
   inappropriate_content: 'เนื้อหาไม่เหมาะสม',
@@ -21,6 +22,7 @@ const statusLabels: Record<DbReportStatus, ReportStatus> = {
 }
 
 export default async function ReportPage() {
+  await requireAdmin('reports')
   const raw = await getReports()
   const reports: ReportItem[] = raw.map((r) => ({
     id: r.id,
@@ -35,8 +37,8 @@ export default async function ReportPage() {
   return (
     <Box>
       <Box mb={6}>
-        <Heading size="lg" color="gray.800">Report</Heading>
-        <Text color="gray.500" fontSize="sm" mt={1}>รายการข้อความที่ผู้ใช้ส่งมาให้แอดมินตรวจสอบ</Text>
+        <div className="rl-page-title">รายงาน</div>
+        <div className="rl-page-sub">เรื่องที่ผู้ใช้แจ้งเข้ามา เช่น สแปม เนื้อหาไม่เหมาะสม ละเมิดลิขสิทธิ์</div>
       </Box>
       <ReportTable data={reports} />
     </Box>

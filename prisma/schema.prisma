@@ -61,38 +61,74 @@ enum AdType {
 // ─── User domain ─────────────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  joinedAt  DateTime @default(now())
-  status    UserStatus @default(active)
-  userType  UserType   @default(user)
+  id       String     @id @default(cuid())
+  name     String
+  email    String     @unique
+  joinedAt DateTime   @default(now())
+  status   UserStatus @default(active)
+  userType UserType   @default(user)
 
-  creatorProfile  CreatorProfile?
-  adminProfile    AdminProfile?
-  punishments     PunishmentRecord[]
-  reports         Report[]
+  creatorProfile CreatorProfile?
+  adminProfile   AdminProfile?
+  punishments    PunishmentRecord[]
+  reports        Report[]
+  expAccount     ExpAccount?
+  expEntries     ExpLedger[]
+  ticketEntries  TicketLedger[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model CreatorProfile {
-  id        String @id @default(cuid())
-  userId    String @unique
-  works     Int    @default(0)
-  followers Int    @default(0)
+  id        String  @id @default(cuid())
+  userId    String  @unique
+  works     Int     @default(0)
+  followers Int     @default(0)
+  revenue   Decimal @default(0) @db.Decimal(12, 2)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AdminProfile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  role      String
-  lastLogin DateTime?
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  role         String
+  lastLogin    DateTime?
+  adminCode    String?   @unique
+  passwordHash String    @default("")
+  permissions  String[]  @default([])
+  isOwner      Boolean   @default(false)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions  AdminSession[]
+  auditLogs AuditLog[]
+}
+
+model AdminSession {
+  id        String       @id @default(cuid())
+  tokenHash String       @unique
+  adminId   String
+  admin     AdminProfile @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime     @default(now())
+
+  @@index([adminId])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id        String        @id @default(cuid())
+  adminId   String?
+  admin     AdminProfile? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  detail    Json?
+  createdAt DateTime      @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
 }
 
 // ─── Content ─────────────────────────────────────────────────────────────────
@@ -123,8 +159,21 @@ model Report {
   status     ReportStatus @default(open)
   message    String       @db.Text
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  messages  ReportMessage[]
+}
+
+model ReportMessage {
+  id         String   @id @default(cuid())
+  reportId   String
+  report     Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  senderType String
+  senderName String
+  message    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([reportId, createdAt])
 }
 
 // ─── Punishment ──────────────────────────────────────────────────────────────
@@ -141,12 +190,14 @@ model PunishmentLevel {
 }
 
 model PunishmentRecord {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   levelName String
-  date      DateTime @default(now())
+  date      DateTime  @default(now())
   note      String?
+  status    String    @default("active")
+  expiresAt DateTime?
 
   createdAt DateTime @default(now())
 }
@@ -163,16 +214,137 @@ model MonthlyIncome {
 }
 
 model WithdrawalRequest {
-  id          String           @id @default(cuid())
-  creator     String
-  bank        String
-  bankAccount String
-  amount      Decimal          @db.Decimal(12, 2)
-  requestedAt DateTime         @default(now())
-  status      WithdrawalStatus @default(pending)
+  id           String           @id @default(cuid())
+  creator      String
+  bank         String
+  bankAccount  String
+  amount       Decimal          @db.Decimal(12, 2)
+  requestedAt  DateTime         @default(now())
+  status       WithdrawalStatus @default(pending)
+  slipUrl      String?
+  reviewerName String?
+  reviewedAt   DateTime?
 
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  history   WithdrawalHistory[]
+}
+
+model WithdrawalHistory {
+  id           String            @id @default(cuid())
+  withdrawalId String
+  withdrawal   WithdrawalRequest @relation(fields: [withdrawalId], references: [id], onDelete: Cascade)
+  status       WithdrawalStatus
+  note         String?
+  createdAt    DateTime          @default(now())
+
+  @@index([withdrawalId, createdAt])
+}
+
+// ─── CMS / moderation ───
+
+model CmsPage {
+  id           String       @id @default(cuid())
+  slug         String       @unique
+  label        String
+  slideSeconds Int          @default(5)
+  sections     CmsSection[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model CmsSection {
+  id        String    @id @default(cuid())
+  pageId    String
+  page      CmsPage   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  key       String
+  title     String
+  enabled   Boolean   @default(true)
+  sortOrder Int       @default(0)
+  config    Json?
+  items     CmsItem[]
+
+  @@unique([pageId, key])
+  @@index([pageId, sortOrder])
+}
+
+model CmsItem {
+  id        String     @id @default(cuid())
+  sectionId String
+  section   CmsSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  title     String
+  subtitle  String?
+  imageUrl  String?
+  linkUrl   String?
+  enabled   Boolean    @default(true)
+  sortOrder Int        @default(0)
+  config    Json?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([sectionId, sortOrder])
+}
+
+model ModerationQueue {
+  id          String   @id @default(cuid())
+  title       String
+  creatorName String
+  reason      String
+  chapter     String?
+  status      String   @default("pending")
+  submittedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model IpBlacklist {
+  id        String   @id @default(cuid())
+  term      String   @unique
   createdAt DateTime @default(now())
+}
+
+// ─── EXP and ticket ledgers ───
+
+model ExpAccount {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance   Int      @default(0)
+  level     Int      @default(1)
   updatedAt DateTime @updatedAt
+}
+
+model ExpLedger {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount       Int
+  action       String
+  source       String
+  status       String    @default("granted")
+  reason       String?
+  referenceId  String?
+  reviewedAt   DateTime?
+  reviewerName String?
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model TicketLedger {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Int
+  type        String
+  reason      String
+  referenceId String?
+  status      String   @default("completed")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // ─── Monetization ────────────────────────────────────────────────────────────

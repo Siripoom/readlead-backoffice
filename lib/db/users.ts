@@ -50,7 +50,7 @@ export function createUser(data: {
   userType?: UserType
   status?: UserStatus
   creatorProfile?: { works?: number; followers?: number }
-  adminProfile?: { role: string }
+  adminProfile?: { role: string; adminCode?: string; passwordHash?: string; permissions?: string[] }
 }) {
   const prisma = getPrisma()
   const { creatorProfile, adminProfile, ...userData } = data

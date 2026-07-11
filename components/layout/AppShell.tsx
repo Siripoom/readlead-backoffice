@@ -1,44 +1,23 @@
 'use client'
-import { Box, Drawer, Flex } from '@chakra-ui/react'
+
+import { Drawer } from '@chakra-ui/react'
 import { useState } from 'react'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
+import styles from './AppShell.module.css'
 
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+interface AdminInfo { name: string; role: string; permissions: string[]; isOwner: boolean }
 
-  return (
-    <Flex direction="column" minH="100vh">
-      <Header onToggleSidebar={() => setIsSidebarOpen((v) => !v)} />
-
-      <Flex flex={1}>
-        {/* Desktop sidebar */}
-        <Box display={{ base: 'none', md: 'block' }} flexShrink={0}>
-          <Sidebar />
-        </Box>
-
-        {/* Mobile sidebar as Drawer */}
-        <Drawer.Root
-          open={isSidebarOpen}
-          onOpenChange={(e) => setIsSidebarOpen(e.open)}
-          placement="start"
-        >
-          <Drawer.Backdrop />
-          <Drawer.Positioner>
-            <Drawer.Content maxW="240px">
-              <Drawer.Body p={0}>
-                <Sidebar />
-              </Drawer.Body>
-              <Drawer.CloseTrigger />
-            </Drawer.Content>
-          </Drawer.Positioner>
-        </Drawer.Root>
-
-        {/* Main content */}
-        <Box as="main" flex={1} p={6} bg="gray.50" minH="0">
-          {children}
-        </Box>
-      </Flex>
-    </Flex>
-  )
+export function AppShell({ children, admin }: { children: React.ReactNode; admin: AdminInfo }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  return <div className={styles.shell}>
+    <Header admin={admin} onToggleSidebar={() => setSidebarOpen((value) => !value)} />
+    <div className={styles.body}>
+      <aside className={styles.desktopSidebar}><Sidebar permissions={admin.permissions} isOwner={admin.isOwner} /></aside>
+      <Drawer.Root open={sidebarOpen} onOpenChange={(event) => setSidebarOpen(event.open)} placement="start">
+        <Drawer.Backdrop /><Drawer.Positioner><Drawer.Content maxW="240px" className={styles.drawer}><Drawer.Body p={0}><Sidebar permissions={admin.permissions} isOwner={admin.isOwner} onNavigate={() => setSidebarOpen(false)} /></Drawer.Body><Drawer.CloseTrigger /></Drawer.Content></Drawer.Positioner>
+      </Drawer.Root>
+      <main className={styles.main}>{children}</main>
+    </div>
+  </div>
 }

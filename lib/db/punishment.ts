@@ -17,6 +17,8 @@ export function createPunishmentRecord(data: {
   userId: string
   levelName: string
   note?: string
+  status?: string
+  expiresAt?: Date | null
 }) {
   const prisma = getPrisma()
   return prisma.punishmentRecord.create({ data })
