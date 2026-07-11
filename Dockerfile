@@ -54,10 +54,12 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Prisma CLI + migrations for migrate deploy at startup
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+# The standalone output only contains dependencies traced by the Next.js app.
+# Copy the lockfile-installed dependency tree so the Prisma CLI used at startup
+# also has all of its transitive dependencies (for example @prisma/debug).
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# Prisma CLI inputs for migrate deploy at startup
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/lib/generated ./lib/generated
 
