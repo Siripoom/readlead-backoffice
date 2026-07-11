@@ -21,16 +21,6 @@ ENV NODE_ENV=production
 
 RUN npm run build
 
-# Compile seed to a self-contained bundle (no tsx/pg needed at runtime)
-RUN node_modules/.bin/esbuild \
-  prisma/seed.ts \
-  --bundle \
-  --platform=node \
-  --target=node22 \
-  --outfile=prisma/seed.js \
-  "--external:../lib/generated/prisma/client" \
-  --external:@prisma/engines
-
 # Compile prisma config to JS so runner can load it without a TypeScript runtime
 RUN node_modules/.bin/esbuild \
   prisma.config.ts \
@@ -62,11 +52,10 @@ COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 # Prisma CLI inputs for migrate deploy at startup
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/lib/generated ./lib/generated
+COPY --from=builder --chown=nextjs:nodejs /app/lib/password.ts ./lib/password.ts
 
 # prisma.config.js is required by prisma migrate deploy to find DATABASE_URL
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.js ./
-# Compiled seed bundle (no tsx or pg needed at runtime)
-COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.js ./prisma/
 
 COPY --chown=nextjs:nodejs entrypoint.sh ./
 RUN chmod +x entrypoint.sh

@@ -11,7 +11,7 @@ node_modules/.bin/prisma migrate deploy
 echo "Migrations complete."
 
 echo "Running database seed..."
-node prisma/seed.js
+node_modules/.bin/tsx prisma/seed.ts
 echo "Seed complete."
 
 exec node server.js
