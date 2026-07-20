@@ -6,10 +6,11 @@ import { toaster } from '@/lib/toaster'
 import styles from './CmsManager.module.css'
 
 type VisualConfig = { x: number; y: number; size: number; color: string }
-type Item = { id: string; title: string; subtitle?: string; imageUrl?: string; linkUrl?: string; enabled: boolean; config?: VisualConfig }
+type ItemConfig = Partial<VisualConfig> & { badge?: string; ctaLabel?: string; mobileImageUrl?: string }
+type Item = { id: string; title: string; subtitle?: string; imageUrl?: string; linkUrl?: string; enabled: boolean; config?: ItemConfig }
 type Section = { id: string; key: string; title: string; enabled: boolean; items: Item[] }
 type CmsPage = { id: string; slug: string; label: string; slideSeconds: number; sections: Section[] }
-type FormState = { title: string; subtitle: string; imageUrl: string; linkUrl: string; enabled: boolean; config: VisualConfig }
+type FormState = { badge: string; title: string; subtitle: string; ctaLabel: string; imageUrl: string; mobileImageUrl: string; linkUrl: string; enabled: boolean; config: VisualConfig }
 
 const pages = [{ slug: 'home', label: 'หน้าหลัก' }, { slug: 'novel', label: 'นิยาย' }, { slug: 'manga', label: 'เว็บตูน' }, { slug: 'audio', label: 'หนังสือเสียง' }]
 const visibleSections: Record<string, string[]> = {
@@ -18,7 +19,8 @@ const visibleSections: Record<string, string[]> = {
   manga: ['hero', 'activity', 'sale', 'row-3', 'web-sides', 'web-books', 'category', 'bottom-cta', 'web-recommend', 'launch'],
   audio: ['hero', 'activity', 'sale', 'row-3', 'narrator', 'web-sides', 'web-books', 'category', 'bottom-cta', 'web-recommend', 'launch'],
 }
-const emptyForm: FormState = { title: '', subtitle: '', imageUrl: '', linkUrl: '', enabled: true, config: { x: 8, y: 55, size: 100, color: '#ffffff' } }
+const defaultVisual: VisualConfig = { x: 8, y: 55, size: 100, color: '#ffffff' }
+const emptyForm: FormState = { badge: '', title: '', subtitle: '', ctaLabel: 'อ่านเลย', imageUrl: '', mobileImageUrl: '', linkUrl: '', enabled: true, config: defaultVisual }
 
 export function CmsManager() {
   const [slug, setSlug] = useState('home')
@@ -61,25 +63,31 @@ export function CmsManager() {
   }
   function open(target: Section, item?: Item) {
     setSection(target); setEdit(item ?? null)
-    setForm(item ? { title: item.title, subtitle: item.subtitle ?? '', imageUrl: item.imageUrl ?? '', linkUrl: item.linkUrl ?? '', enabled: item.enabled, config: item.config ?? emptyForm.config } : { ...emptyForm, config: { ...emptyForm.config } })
+    const config = item?.config
+    setForm(item ? {
+      badge: config?.badge ?? '', title: item.title, subtitle: item.subtitle ?? '', ctaLabel: config?.ctaLabel ?? 'อ่านเลย',
+      imageUrl: item.imageUrl ?? '', mobileImageUrl: config?.mobileImageUrl ?? '', linkUrl: item.linkUrl ?? '', enabled: item.enabled,
+      config: { x: config?.x ?? defaultVisual.x, y: config?.y ?? defaultVisual.y, size: config?.size ?? defaultVisual.size, color: config?.color ?? defaultVisual.color },
+    } : { ...emptyForm, config: { ...defaultVisual } })
   }
   function close() { if (!saving && !uploading) { setSection(null); setEdit(null) } }
-  async function upload(file: File) {
+  async function upload(file: File, target: 'desktop' | 'mobile') {
     setUploading(true)
     const body = new FormData(); body.append('file', file)
     try {
       const response = await fetch('/api/cms/upload', { method: 'POST', body })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error)
-      setForm((value) => ({ ...value, imageUrl: result.url }))
+      setForm((value) => ({ ...value, [target === 'desktop' ? 'imageUrl' : 'mobileImageUrl']: result.url }))
     } catch (uploadError) { toaster.error({ title: uploadError instanceof Error ? uploadError.message : 'อัปโหลดไม่สำเร็จ' }) }
     finally { setUploading(false) }
   }
   async function save() {
-    if (!section || !form.title.trim()) return
+    if (!section || !form.title.trim() || (section.key === 'hero' && !form.imageUrl.trim())) return
     setSaving(true)
     try {
-      const response = await fetch('/api/cms', { method: edit ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(edit ? { type: 'item', id: edit.id, ...form } : { sectionId: section.id, ...form }) })
+      const item = { title: form.title, subtitle: form.subtitle, imageUrl: form.imageUrl, linkUrl: form.linkUrl, enabled: form.enabled, config: { ...form.config, badge: form.badge, ctaLabel: form.ctaLabel, mobileImageUrl: form.mobileImageUrl } }
+      const response = await fetch('/api/cms', { method: edit ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(edit ? { type: 'item', id: edit.id, ...item } : { sectionId: section.id, ...item }) })
       if (!response.ok) throw new Error()
       setSection(null); setEdit(null); await load(); toaster.success({ title: 'บันทึกแล้ว' })
     } catch { toaster.error({ title: 'บันทึกไม่สำเร็จ' }) }
@@ -124,14 +132,20 @@ export function CmsManager() {
       </section>)}
     </>}
 
-    <Dialog.Root open={!!section} onOpenChange={(event) => { if (!event.open) close() }}><Dialog.Backdrop /><Dialog.Positioner><Dialog.Content maxW="720px" className={styles.dialog}><Dialog.Header><Dialog.Title>{edit ? 'แก้ไข' : 'เพิ่ม'} {section?.title}</Dialog.Title><Dialog.CloseTrigger /></Dialog.Header><Dialog.Body><div className={styles.form}>
+    <Dialog.Root open={!!section} onOpenChange={(event) => { if (!event.open) close() }}><Dialog.Backdrop /><Dialog.Positioner><Dialog.Content maxW="860px" className={styles.dialog}><Dialog.Header><Dialog.Title>{edit ? 'แก้ไข' : 'เพิ่ม'} {section?.title}</Dialog.Title><Dialog.CloseTrigger /></Dialog.Header><Dialog.Body><div className={styles.form}>
+      {section?.key === 'hero' && <label>ป้ายบนแบนเนอร์<input value={form.badge} onChange={(event) => setForm({ ...form, badge: event.target.value })} placeholder="เช่น นิยายแนะนำ" /></label>}
       <label>ชื่อ<input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="ชื่อแบนเนอร์หรือรายการ" /></label>
       <label>คำอธิบาย<input value={form.subtitle} onChange={(event) => setForm({ ...form, subtitle: event.target.value })} /></label>
+      {section?.key === 'hero' && <label>ข้อความบนปุ่ม<input value={form.ctaLabel} onChange={(event) => setForm({ ...form, ctaLabel: event.target.value })} placeholder="อ่านเลย" /></label>}
       <label>ลิงก์<input value={form.linkUrl} onChange={(event) => setForm({ ...form, linkUrl: event.target.value })} placeholder="https:// หรือ /path" /></label>
-      <label>รูปภาพ (JPEG/PNG/WebP/GIF ไม่เกิน 5 MB)<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => event.target.files?.[0] && upload(event.target.files[0])} /></label>
-      <div className={styles.preview} style={form.imageUrl ? { backgroundImage: `url(${form.imageUrl})` } : undefined}><strong style={{ left: `${form.config.x}%`, top: `${form.config.y}%`, fontSize: `${form.config.size / 100}rem`, color: form.config.color }}>{form.title || 'ตัวอย่างหัวข้อ'}</strong></div>
+      <label>รูป Desktop — แนะนำ 2560 × 636 px {section?.key === 'hero' ? '(จำเป็นสำหรับ Hero)' : ''}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => event.target.files?.[0] && upload(event.target.files[0], 'desktop')} /><small className={styles.fileStatus}>{form.imageUrl ? 'มีรูป Desktop แล้ว' : 'ยังไม่ได้เลือกรูป Desktop'}</small></label>
+      {section?.key === 'hero' && <label>รูป Mobile — แนะนำ 750 × 700 px<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => event.target.files?.[0] && upload(event.target.files[0], 'mobile')} /><small className={styles.fileStatus}>{form.mobileImageUrl ? 'มีรูป Mobile แล้ว' : 'ยังไม่มี — ระบบจะใช้รูป Desktop แทน'}</small></label>}
+      <div className={styles.previewGrid}>
+        <div><span className={styles.previewLabel}>Desktop</span><div className={`${styles.preview} ${styles.previewDesktop}`} style={form.imageUrl ? { backgroundImage: `url(${form.imageUrl})` } : undefined}><strong style={{ left: `${form.config.x}%`, top: `${form.config.y}%`, fontSize: `${form.config.size / 100}rem`, color: form.config.color }}>{form.title || 'ตัวอย่างหัวข้อ'}</strong></div></div>
+        {section?.key === 'hero' && <div><span className={styles.previewLabel}>Mobile</span><div className={`${styles.preview} ${styles.previewMobile}`} style={form.mobileImageUrl || form.imageUrl ? { backgroundImage: `url(${form.mobileImageUrl || form.imageUrl})` } : undefined}><strong style={{ left: `${form.config.x}%`, top: `${form.config.y}%`, fontSize: `${form.config.size / 100}rem`, color: form.config.color }}>{form.title || 'ตัวอย่างหัวข้อ'}</strong></div></div>}
+      </div>
       <div className={styles.configGrid}><label>ตำแหน่ง X (%)<input type="number" min={0} max={90} value={form.config.x} onChange={(event) => setForm({ ...form, config: { ...form.config, x: Number(event.target.value) } })} /></label><label>ตำแหน่ง Y (%)<input type="number" min={0} max={90} value={form.config.y} onChange={(event) => setForm({ ...form, config: { ...form.config, y: Number(event.target.value) } })} /></label><label>ขนาด (%)<input type="number" min={50} max={240} value={form.config.size} onChange={(event) => setForm({ ...form, config: { ...form.config, size: Number(event.target.value) } })} /></label><label>สีข้อความ<input type="color" value={form.config.color} onChange={(event) => setForm({ ...form, config: { ...form.config, color: event.target.value } })} /></label></div>
       {edit && <label className={styles.enabledCheck}><input type="checkbox" checked={form.enabled} onChange={(event) => setForm({ ...form, enabled: event.target.checked })} /> เปิดใช้งานรายการนี้</label>}
-    </div></Dialog.Body><Dialog.Footer><button type="button" className={styles.cancelButton} disabled={saving || uploading} onClick={close}>ยกเลิก</button><button type="button" className={styles.saveButton} disabled={saving || uploading || !form.title.trim()} onClick={save}>{uploading ? 'กำลังอัปโหลด...' : saving ? 'กำลังบันทึก...' : 'บันทึก'}</button></Dialog.Footer></Dialog.Content></Dialog.Positioner></Dialog.Root>
+    </div></Dialog.Body><Dialog.Footer><button type="button" className={styles.cancelButton} disabled={saving || uploading} onClick={close}>ยกเลิก</button><button type="button" className={styles.saveButton} disabled={saving || uploading || !form.title.trim() || (section?.key === 'hero' && !form.imageUrl.trim())} onClick={save}>{uploading ? 'กำลังอัปโหลด...' : saving ? 'กำลังบันทึก...' : 'บันทึก'}</button></Dialog.Footer></Dialog.Content></Dialog.Positioner></Dialog.Root>
   </div>
 }
