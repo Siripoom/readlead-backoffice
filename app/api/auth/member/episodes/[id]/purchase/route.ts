@@ -12,7 +12,7 @@ export async function GET(_request: Request, context: Context) {
   const id = (await context.params).id
   const episode = await getPrisma().creatorEpisode.findUnique({ where: { id }, select: {
     id: true, workId: true, episodeNumber: true, title: true, type: true, status: true, priceCoins: true, content: true, scheduledAt: true, publishedAt: true, durationSeconds: true,
-    work: { select: { creatorId: true, status: true } }, assets: { orderBy: { sortOrder: 'asc' }, select: { id: true, kind: true, contentType: true, sizeBytes: true, sortOrder: true, durationSeconds: true } },
+    work: { select: { creatorId: true, status: true } }, assets: { where: { isPublic: true }, orderBy: { sortOrder: 'asc' }, select: { id: true, kind: true, contentType: true, sizeBytes: true, sortOrder: true, durationSeconds: true } },
   } })
   if (!episode || episode.status !== 'published' || episode.work.status !== 'published') return privateJson({ error: 'ไม่พบตอน' }, 404)
   const owner = user?.id === episode.work.creatorId

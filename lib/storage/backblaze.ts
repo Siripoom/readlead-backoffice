@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto'
 
 const requiredKeys = ['B2_REGION', 'B2_BUCKET', 'B2_KEY_ID', 'B2_APP_KEY'] as const
@@ -130,4 +130,12 @@ export async function downloadCreatorMedia(key: string, range?: string | null) {
     }
   }
   return { body, contentType: object.ContentType || 'application/octet-stream', contentLength: body.byteLength, contentRange, acceptRanges: 'bytes' }
+}
+
+export async function deleteCreatorMedia(key: string) {
+  const config = getConfig()
+  const encryptedPrefix = (process.env.B2_CREATOR_STAGING_PREFIX?.trim() || 'creator-content-encrypted').replace(/^\/+|\/+$/g, '')
+  const allowedPrefixes = [config.prefix, encryptedPrefix, (process.env.B2_CREATOR_UPLOAD_PREFIX?.trim() || 'creator-content').replace(/^\/+|\/+$/g, '')]
+  if (!allowedPrefixes.some((prefix) => key.startsWith(`${prefix}/`))) throw new Error('Creator media key is outside configured prefixes')
+  await getClient(config).send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
 }

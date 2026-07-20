@@ -38,9 +38,9 @@ export function TicketManager() {
   }), [data, filter])
   const messages = useMemo(() => (data?.rows ?? []).filter((row) => row.type === 'tip').map((row) => ({ row, message: cheeringMessage(row.reason) })).filter((item): item is { row: Row; message: string } => !!item.message).slice(0, 5), [data])
   const cards = [
-    ['ตั๋วโหวตฟรีแจกวันนี้', data?.stats.freeToday ?? 0, 'แจกอัตโนมัติตามเลเวลสมาชิก'],
+    ['ตั๋วโหวตฟรีแจกวันนี้', data?.stats.freeToday ?? 0, 'สิทธิ์ 15 ใบต่อสมาชิก รีเซ็ตทุกวันเวลาไทย'],
     ['โหวตวันนี้ (ทุกชนิด)', data?.stats.votesToday ?? 0, 'ตั๋วฟรี + ตั๋วเดือนที่ถูกใช้'],
-    ['ตั๋วเดือนที่เกิดเดือนนี้', data?.stats.monthCreated ?? 0, 'จากยอดสมัครอ่านสะสม + ทิป'],
+    ['ตั๋วเดือนที่เกิดเดือนนี้', data?.stats.monthCreated ?? 0, 'ยอดสะสมจริงจาก Ticket Ledger'],
     ['ยอดทิปเดือนนี้ (เหรียญ)', data?.stats.tipMonth ?? 0, 'รวมทุกเรื่องทั้งเว็บ'],
   ]
   const chips: { key: Filter; label: string }[] = [{ key: 'all', label: 'ทั้งหมด' }, { key: 'daily', label: 'แจกรายวัน' }, { key: 'vote', label: 'โหวต' }, { key: 'spend', label: 'ใช้จ่าย (อ่าน/ทิป)' }, { key: 'earn', label: 'ได้ตั๋วเดือน' }]

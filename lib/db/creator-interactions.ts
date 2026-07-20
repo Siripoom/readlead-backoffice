@@ -65,19 +65,145 @@ export async function toggleCreatorFollow(userId: string, creatorId: string) {
   })
 }
 
-export async function upsertReview(userId: string, workId: string, rating: number, body: string) {
+type ReviewRow = {
+  id: string
+  userId: string
+  workId: string
+  rating: number
+  body: string
+  recommended: boolean
+  spoiler: boolean
+  createdAt: Date
+  updatedAt: Date
+  user: { id: string; name: string }
+  replies: Array<{ id: string; userId: string; body: string; createdAt: Date; updatedAt: Date; user: { id: string; name: string } }>
+  reactions: Array<{ userId: string; kind: string }>
+}
+
+const reviewInclude = {
+  user: { select: { id: true, name: true } },
+  replies: {
+    where: { status: 'published' },
+    orderBy: { createdAt: 'asc' as const },
+    select: { id: true, userId: true, body: true, createdAt: true, updatedAt: true, user: { select: { id: true, name: true } } },
+  },
+  reactions: { select: { userId: true, kind: true } },
+} as const
+
+function presentReview(review: ReviewRow, viewerId?: string) {
+  return {
+    id: review.id,
+    userId: review.userId,
+    workId: review.workId,
+    rating: review.rating,
+    body: review.body,
+    recommended: review.recommended,
+    spoiler: review.spoiler,
+    createdAt: review.createdAt,
+    updatedAt: review.updatedAt,
+    user: review.user,
+    replies: review.replies.map((reply) => ({
+      id: reply.id,
+      userId: reply.userId,
+      body: reply.body,
+      createdAt: reply.createdAt,
+      updatedAt: reply.updatedAt,
+      user: reply.user,
+    })),
+    likes: review.reactions.filter((reaction) => reaction.kind === 'like').length,
+    dislikes: review.reactions.filter((reaction) => reaction.kind === 'dislike').length,
+    viewerReaction: viewerId ? review.reactions.find((reaction) => reaction.userId === viewerId)?.kind ?? null : null,
+  }
+}
+
+export async function upsertReview(userId: string, workId: string, rating: number, body: string, recommended = true, spoiler = false) {
   if (!Number.isInteger(rating) || rating < 1 || rating > 5 || !body.trim() || body.trim().length > 3000) throw new CreatorStudioError('VALIDATION')
   const prisma = getPrisma()
   return prisma.$transaction(async (tx) => {
     const work = await tx.creatorWork.findUnique({ where: { id: workId }, select: { status: true } })
     if (!work || work.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
     const previous = await tx.workReview.findUnique({ where: { userId_workId: { userId, workId } } })
-    const review = await tx.workReview.upsert({ where: { userId_workId: { userId, workId } }, create: { userId, workId, rating, body: body.trim(), status: 'published' }, update: { rating, body: body.trim(), status: 'published' } })
-    if (!previous) {
+    if (previous && previous.status !== 'published') {
+      await tx.workReviewReply.deleteMany({ where: { reviewId: previous.id } })
+      await tx.workReviewReaction.deleteMany({ where: { reviewId: previous.id } })
+    }
+    const review = await tx.workReview.upsert({
+      where: { userId_workId: { userId, workId } },
+      create: { userId, workId, rating, body: body.trim(), recommended, spoiler, status: 'published' },
+      update: { rating, body: body.trim(), recommended, spoiler, status: 'published' },
+      include: reviewInclude,
+    })
+    if (!previous || previous.status !== 'published') {
       await tx.creatorWork.update({ where: { id: workId }, data: { reviewCount: { increment: 1 } } })
       await incrementMetric(workId, { reviews: 1 }, tx)
     }
-    return review
+    return presentReview(review, userId)
+  })
+}
+
+export async function updateReview(userId: string, input: { id: string; rating: number; body: string; recommended: boolean; spoiler: boolean }) {
+  if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5 || !input.body.trim() || input.body.trim().length > 3000) throw new CreatorStudioError('VALIDATION')
+  const prisma = getPrisma()
+  const current = await prisma.workReview.findUnique({ where: { id: input.id }, select: { userId: true, status: true } })
+  if (!current || current.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
+  if (current.userId !== userId) throw new CreatorStudioError('FORBIDDEN')
+  const review = await prisma.workReview.update({
+    where: { id: input.id },
+    data: { rating: input.rating, body: input.body.trim(), recommended: input.recommended, spoiler: input.spoiler },
+    include: reviewInclude,
+  })
+  return presentReview(review, userId)
+}
+
+export async function createReviewReply(userId: string, reviewId: string, body: string) {
+  if (!body.trim() || body.trim().length > 3000) throw new CreatorStudioError('VALIDATION')
+  const prisma = getPrisma()
+  const review = await prisma.workReview.findUnique({ where: { id: reviewId }, select: { status: true, work: { select: { status: true } } } })
+  if (!review || review.status !== 'published' || review.work.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
+  return prisma.workReviewReply.create({
+    data: { reviewId, userId, body: body.trim(), status: 'published' },
+    select: { id: true, userId: true, body: true, createdAt: true, updatedAt: true, user: { select: { id: true, name: true } } },
+  })
+}
+
+export async function updateReviewReply(userId: string, id: string, body: string) {
+  if (!body.trim() || body.trim().length > 3000) throw new CreatorStudioError('VALIDATION')
+  const prisma = getPrisma()
+  const current = await prisma.workReviewReply.findUnique({ where: { id }, select: { userId: true, status: true } })
+  if (!current || current.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
+  if (current.userId !== userId) throw new CreatorStudioError('FORBIDDEN')
+  return prisma.workReviewReply.update({ where: { id }, data: { body: body.trim() }, select: { id: true, userId: true, body: true, createdAt: true, updatedAt: true, user: { select: { id: true, name: true } } } })
+}
+
+export async function deleteReviewReply(userId: string, id: string) {
+  const prisma = getPrisma()
+  const current = await prisma.workReviewReply.findUnique({ where: { id }, select: { userId: true, status: true } })
+  if (!current || current.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
+  if (current.userId !== userId) throw new CreatorStudioError('FORBIDDEN')
+  await prisma.workReviewReply.update({ where: { id }, data: { status: 'deleted' } })
+  return { id }
+}
+
+export async function toggleReviewReaction(userId: string, reviewId: string, kind: 'like' | 'dislike') {
+  const prisma = getPrisma()
+  return prisma.$transaction(async (tx) => {
+    const review = await tx.workReview.findUnique({ where: { id: reviewId }, select: { status: true, work: { select: { status: true } } } })
+    if (!review || review.status !== 'published' || review.work.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
+    const existing = await tx.workReviewReaction.findUnique({ where: { reviewId_userId: { reviewId, userId } } })
+    let viewerReaction: 'like' | 'dislike' | null = kind
+    if (existing?.kind === kind) {
+      await tx.workReviewReaction.delete({ where: { id: existing.id } })
+      viewerReaction = null
+    } else if (existing) {
+      await tx.workReviewReaction.update({ where: { id: existing.id }, data: { kind } })
+    } else {
+      await tx.workReviewReaction.create({ data: { reviewId, userId, kind } })
+    }
+    const [likes, dislikes] = await Promise.all([
+      tx.workReviewReaction.count({ where: { reviewId, kind: 'like' } }),
+      tx.workReviewReaction.count({ where: { reviewId, kind: 'dislike' } }),
+    ])
+    return { reviewId, likes, dislikes, viewerReaction }
   })
 }
 
@@ -102,8 +228,8 @@ export async function updateMemberActivity(userId: string, kind: 'review' | 'com
   if (!body.trim() || body.trim().length > 3000) throw new CreatorStudioError('VALIDATION')
   const prisma = getPrisma()
   if (kind === 'review') {
-    const current = await prisma.workReview.findUnique({ where: { id }, select: { userId: true } })
-    if (!current) throw new CreatorStudioError('NOT_FOUND')
+    const current = await prisma.workReview.findUnique({ where: { id }, select: { userId: true, status: true } })
+    if (!current || current.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
     if (current.userId !== userId) throw new CreatorStudioError('FORBIDDEN')
     return prisma.workReview.update({ where: { id }, data: { body: body.trim(), status: 'published' }, select: { id: true, body: true, updatedAt: true } })
   }
@@ -117,10 +243,10 @@ export async function deleteMemberActivity(userId: string, kind: 'review' | 'com
   const prisma = getPrisma()
   return prisma.$transaction(async (tx) => {
     if (kind === 'review') {
-      const current = await tx.workReview.findUnique({ where: { id }, select: { userId: true, workId: true } })
-      if (!current) throw new CreatorStudioError('NOT_FOUND')
+      const current = await tx.workReview.findUnique({ where: { id }, select: { userId: true, workId: true, status: true } })
+      if (!current || current.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
       if (current.userId !== userId) throw new CreatorStudioError('FORBIDDEN')
-      await tx.workReview.delete({ where: { id } })
+      await tx.workReview.update({ where: { id }, data: { status: 'deleted' } })
       await tx.creatorWork.updateMany({ where: { id: current.workId, reviewCount: { gt: 0 } }, data: { reviewCount: { decrement: 1 } } })
       return { id }
     }
@@ -175,21 +301,146 @@ export async function simulateTopup(userId: string, amount: number, idempotencyK
   })
 }
 
-export async function voteForWork(userId: string, workId: string, kind: 'daily' | 'monthly') {
+const DAILY_TICKET_ALLOWANCE = 15
+
+function bangkokDay(now = new Date()) {
+  const shifted = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+  const key = shifted.toISOString().slice(0, 10)
+  const start = new Date(`${key}T00:00:00+07:00`)
+  return { key, start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) }
+}
+
+type TicketClient = Pick<ReturnType<typeof getPrisma>, 'ticketLedger'>
+
+async function ensureDailyTicketGrant(userId: string, client: TicketClient, now = new Date()) {
+  const day = bangkokDay(now)
+  const existingCredits = await client.ticketLedger.aggregate({
+    where: { userId, type: 'free', amount: { gt: 0 }, status: 'completed', createdAt: { gte: day.start, lt: day.end } },
+    _sum: { amount: true },
+  })
+  const grantAmount = Math.max(0, DAILY_TICKET_ALLOWANCE - (existingCredits._sum.amount ?? 0))
+  await client.ticketLedger.upsert({
+    where: { idempotencyKey: `daily-ticket-grant:${userId}:${day.key}` },
+    create: {
+      userId,
+      amount: grantAmount,
+      type: 'free',
+      reason: `สิทธิ์ตั๋วรายวัน ${day.key}`,
+      idempotencyKey: `daily-ticket-grant:${userId}:${day.key}`,
+      metadata: { allowance: DAILY_TICKET_ALLOWANCE, granted: grantAmount, timeZone: 'Asia/Bangkok' },
+    },
+    update: {},
+  })
+  return day
+}
+
+async function ticketState(userId: string, client: TicketClient, now = new Date()) {
+  const day = bangkokDay(now)
+  const [daily, dailySpent, monthly] = await Promise.all([
+    client.ticketLedger.aggregate({
+      where: { userId, type: { in: ['free', 'vote_free'] }, status: 'completed', createdAt: { gte: day.start, lt: day.end } },
+      _sum: { amount: true },
+    }),
+    client.ticketLedger.aggregate({
+      where: { userId, type: 'vote_free', status: 'completed', createdAt: { gte: day.start, lt: day.end } },
+      _sum: { amount: true },
+    }),
+    client.ticketLedger.aggregate({
+      where: { userId, type: { in: ['month', 'vote_month'] }, status: 'completed' },
+      _sum: { amount: true },
+    }),
+  ])
+  return {
+    daily: {
+      allowance: DAILY_TICKET_ALLOWANCE,
+      used: Math.abs(Math.min(0, dailySpent._sum.amount ?? 0)),
+      balance: Math.max(0, daily._sum.amount ?? 0),
+      resetsAt: day.end.toISOString(),
+    },
+    monthly: { balance: Math.max(0, monthly._sum.amount ?? 0) },
+  }
+}
+
+export async function getInteractionState(userId: string, workId: string) {
   const prisma = getPrisma()
-  const period = kind === 'daily' ? todayUtc().toISOString().slice(0, 10) : todayUtc().toISOString().slice(0, 7)
-  const idempotencyKey = `work-vote:${kind}:${userId}:${workId}:${period}`
-  return prisma.$transaction(async (tx) => {
-    const work = await tx.creatorWork.findUnique({ where: { id: workId }, select: { status: true } })
-    if (!work || work.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
-    const existing = await tx.ticketLedger.findUnique({ where: { idempotencyKey } })
-    if (existing) return { active: true, idempotent: true }
-    const types = kind === 'daily' ? ['free', 'vote_free'] : ['month', 'vote_month']
-    const balance = await tx.ticketLedger.aggregate({ where: { userId, type: { in: types }, status: 'completed' }, _sum: { amount: true } })
-    if ((balance._sum.amount ?? 0) < 1) throw new CreatorStudioError('INSUFFICIENT_BALANCE')
-    await tx.ticketLedger.create({ data: { userId, amount: -1, type: kind === 'daily' ? 'vote_free' : 'vote_month', reason: 'โหวตผลงาน', referenceId: workId, idempotencyKey } })
-    await tx.creatorWork.update({ where: { id: workId }, data: kind === 'daily' ? { dailyVotes: { increment: 1 } } : { monthlyVotes: { increment: 1 } } })
-    await incrementMetric(workId, kind === 'daily' ? { dailyVotes: 1 } : { monthlyVotes: 1 }, tx)
-    return { active: true, idempotent: false }
-  }, { isolationLevel: 'Serializable' })
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const work = await tx.creatorWork.findUnique({ where: { id: workId }, select: { status: true, dailyVotes: true, monthlyVotes: true } })
+        if (!work || work.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
+        await ensureDailyTicketGrant(userId, tx)
+        const [tickets, ownReview, reactionRows] = await Promise.all([
+          ticketState(userId, tx),
+          tx.workReview.findUnique({ where: { userId_workId: { userId, workId } }, include: reviewInclude }),
+          tx.workReviewReaction.findMany({
+            where: { userId, review: { workId, status: 'published' } },
+            select: { reviewId: true, kind: true },
+          }),
+        ])
+        return {
+          tickets,
+          totals: { daily: work.dailyVotes, monthly: work.monthlyVotes },
+          review: ownReview?.status === 'published' ? presentReview(ownReview, userId) : null,
+          reviewReactions: Object.fromEntries(reactionRows.map((reaction) => [reaction.reviewId, reaction.kind])),
+        }
+      }, { isolationLevel: 'Serializable' })
+    } catch (error) {
+      if (typeof error === 'object' && error && 'code' in error && error.code === 'P2034' && attempt < 2) continue
+      throw error
+    }
+  }
+  throw new CreatorStudioError('INVALID_STATE')
+}
+
+export async function voteForWork(userId: string, workId: string, kind: 'daily' | 'monthly', amount: number, requestId: string) {
+  if (!Number.isInteger(amount) || amount < 1 || amount > 10_000 || !/^[A-Za-z0-9_-]{8,100}$/.test(requestId)) throw new CreatorStudioError('VALIDATION')
+  const prisma = getPrisma()
+  const idempotencyKey = `work-vote:${userId}:${requestId}`
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const work = await tx.creatorWork.findUnique({ where: { id: workId }, select: { status: true, dailyVotes: true, monthlyVotes: true } })
+        if (!work || work.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
+        await ensureDailyTicketGrant(userId, tx)
+        const existing = await tx.ticketLedger.findUnique({ where: { idempotencyKey } })
+        if (existing) {
+          if (existing.referenceId !== workId || existing.type !== (kind === 'daily' ? 'vote_free' : 'vote_month') || Math.abs(existing.amount) !== amount) throw new CreatorStudioError('VALIDATION')
+          return {
+            vote: { kind, amount, idempotent: true },
+            tickets: await ticketState(userId, tx),
+            totals: { daily: work.dailyVotes, monthly: work.monthlyVotes },
+          }
+        }
+        const tickets = await ticketState(userId, tx)
+        const available = kind === 'daily' ? tickets.daily.balance : tickets.monthly.balance
+        if (available < amount) throw new CreatorStudioError('INSUFFICIENT_BALANCE', { tickets })
+        await tx.ticketLedger.create({
+          data: {
+            userId,
+            amount: -amount,
+            type: kind === 'daily' ? 'vote_free' : 'vote_month',
+            reason: `โหวตผลงาน ${amount} ใบ`,
+            referenceId: workId,
+            idempotencyKey,
+            metadata: { kind, amount, requestId },
+          },
+        })
+        const updated = await tx.creatorWork.update({
+          where: { id: workId },
+          data: kind === 'daily' ? { dailyVotes: { increment: amount } } : { monthlyVotes: { increment: amount } },
+          select: { dailyVotes: true, monthlyVotes: true },
+        })
+        await incrementMetric(workId, kind === 'daily' ? { dailyVotes: amount } : { monthlyVotes: amount }, tx)
+        return {
+          vote: { kind, amount, idempotent: false },
+          tickets: await ticketState(userId, tx),
+          totals: { daily: updated.dailyVotes, monthly: updated.monthlyVotes },
+        }
+      }, { isolationLevel: 'Serializable' })
+    } catch (error) {
+      if (typeof error === 'object' && error && 'code' in error && error.code === 'P2034' && attempt < 2) continue
+      throw error
+    }
+  }
+  throw new CreatorStudioError('INVALID_STATE')
 }

@@ -6,8 +6,8 @@ type Context = { params: Promise<{ id: string }> }
 
 export async function GET(request: Request, context: Context) {
   const user = await getMemberSessionUser()
-  const asset = await getPrisma().workAsset.findUnique({ where: { id: (await context.params).id }, select: { objectKey: true, contentType: true, episode: { select: { id: true, priceCoins: true, status: true, work: { select: { creatorId: true, status: true } } } } } })
-  if (!asset?.episode || asset.episode.status !== 'published' || asset.episode.work.status !== 'published') return Response.json({ error: 'ไม่พบไฟล์' }, { status: 404 })
+  const asset = await getPrisma().workAsset.findUnique({ where: { id: (await context.params).id }, select: { objectKey: true, contentType: true, isPublic: true, episode: { select: { id: true, priceCoins: true, status: true, work: { select: { creatorId: true, status: true } } } } } })
+  if (!asset?.episode || !asset.isPublic || asset.episode.status !== 'published' || asset.episode.work.status !== 'published') return Response.json({ error: 'ไม่พบไฟล์' }, { status: 404 })
   const owner = user?.id === asset.episode.work.creatorId
   const purchase = user && asset.episode.priceCoins > 0 ? await getPrisma().episodePurchase.findUnique({ where: { userId_episodeId: { userId: user.id, episodeId: asset.episode.id } }, select: { id: true } }) : null
   if (asset.episode.priceCoins > 0 && !owner && !purchase) return Response.json({ error: 'ไม่มีสิทธิ์เปิดไฟล์นี้' }, { status: user ? 403 : 401, headers: { 'Cache-Control': 'private, no-store' } })

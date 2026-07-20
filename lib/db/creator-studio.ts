@@ -3,7 +3,10 @@ import { decryptWriterApplicationPayload, encryptWriterApplicationPayload } from
 import type { CreatorEpisodeStatus, CreatorEpisodeType, CreatorModerationType, CreatorWorkOrigin, CreatorWorkStatus, CreatorWorkType } from '@/lib/generated/prisma/enums'
 
 export class CreatorStudioError extends Error {
-  constructor(public readonly code: 'NOT_FOUND' | 'FORBIDDEN' | 'INVALID_STATE' | 'INSUFFICIENT_BALANCE' | 'VALIDATION' | 'NOT_READY') {
+  constructor(
+    public readonly code: 'NOT_FOUND' | 'FORBIDDEN' | 'INVALID_STATE' | 'INSUFFICIENT_BALANCE' | 'VALIDATION' | 'NOT_READY',
+    public readonly details?: Record<string, unknown>,
+  ) {
     super(code)
     this.name = 'CreatorStudioError'
   }

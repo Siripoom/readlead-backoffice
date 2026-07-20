@@ -141,26 +141,28 @@ model User {
   status       UserStatus @default(active)
   userType     UserType   @default(user)
 
-  creatorProfile    CreatorProfile?
-  adminProfile      AdminProfile?
-  punishments       PunishmentRecord[]
-  reports           Report[]
-  expAccount        ExpAccount?
-  expEntries        ExpLedger[]
-  ticketEntries     TicketLedger[]
-  memberSessions    MemberSession[]
-  writerApplication WriterApplication?
-  creatorWorks      CreatorWork[]             @relation("CreatorWorks")
-  followedCreators  CreatorFollow[]           @relation("CreatorFollowers")
-  followers         CreatorFollow[]           @relation("FollowedCreator")
-  workShelves       WorkShelf[]
-  workViews         WorkView[]
-  workReviews       WorkReview[]
-  workComments      WorkComment[]
-  episodePurchases  EpisodePurchase[]
-  coinAccount       CoinAccount?
-  coinEntries       CoinLedger[]
-  revenueEntries    CreatorRevenueLedger[]
+  creatorProfile     CreatorProfile?
+  adminProfile       AdminProfile?
+  punishments        PunishmentRecord[]
+  reports            Report[]
+  expAccount         ExpAccount?
+  expEntries         ExpLedger[]
+  ticketEntries      TicketLedger[]
+  memberSessions     MemberSession[]
+  writerApplication  WriterApplication?
+  creatorWorks       CreatorWork[]          @relation("CreatorWorks")
+  followedCreators   CreatorFollow[]        @relation("CreatorFollowers")
+  followers          CreatorFollow[]        @relation("FollowedCreator")
+  workShelves        WorkShelf[]
+  workViews          WorkView[]
+  workReviews        WorkReview[]
+  reviewReplies      WorkReviewReply[]
+  reviewReactions    WorkReviewReaction[]
+  workComments       WorkComment[]
+  episodePurchases   EpisodePurchase[]
+  coinAccount        CoinAccount?
+  coinEntries        CoinLedger[]
+  revenueEntries     CreatorRevenueLedger[]
   withdrawalRequests WithdrawalRequest[]
 
   createdAt DateTime @default(now())
@@ -269,37 +271,37 @@ model Content {
 }
 
 model CreatorWork {
-  id                 String            @id @default(cuid())
+  id                 String                     @id @default(cuid())
   creatorId          String
-  creator            User              @relation("CreatorWorks", fields: [creatorId], references: [id], onDelete: Cascade)
+  creator            User                       @relation("CreatorWorks", fields: [creatorId], references: [id], onDelete: Cascade)
   type               CreatorWorkType
-  origin             CreatorWorkOrigin @default(original)
-  status             CreatorWorkStatus @default(draft)
+  origin             CreatorWorkOrigin          @default(original)
+  status             CreatorWorkStatus          @default(draft)
   title              String
   category           String
-  rating             String            @default("general")
-  creationMethod     String            @default("self_written")
-  tagline            String            @default("") @db.Text
-  synopsis           String            @default("") @db.Text
-  tags               String[]          @default([])
+  rating             String                     @default("general")
+  creationMethod     String                     @default("self_written")
+  tagline            String                     @default("") @db.Text
+  synopsis           String                     @default("") @db.Text
+  tags               String[]                   @default([])
   originalAuthor     String?
   translatorName     String?
   originalLanguage   String?
   originalTitle      String?
   coverObjectKey     String?
   coverContentType   String?
-  coverIsPublic      Boolean           @default(false)
-  seriesStatus       String            @default("ongoing")
+  coverIsPublic      Boolean                    @default(false)
+  seriesStatus       String                     @default("ongoing")
   rejectionReason    String?
   approvedAt         DateTime?
   publishedAt        DateTime?
-  views              Int               @default(0)
-  coins              Int               @default(0)
-  shelfCount         Int               @default(0)
-  dailyVotes         Int               @default(0)
-  monthlyVotes       Int               @default(0)
-  reviewCount        Int               @default(0)
-  commentCount       Int               @default(0)
+  views              Int                        @default(0)
+  coins              Int                        @default(0)
+  shelfCount         Int                        @default(0)
+  dailyVotes         Int                        @default(0)
+  monthlyVotes       Int                        @default(0)
+  reviewCount        Int                        @default(0)
+  commentCount       Int                        @default(0)
   episodes           CreatorEpisode[]
   assets             WorkAsset[]
   moderationRequests CreatorModerationRequest[]
@@ -309,8 +311,8 @@ model CreatorWork {
   reviews            WorkReview[]
   comments           WorkComment[]
   purchases          EpisodePurchase[]
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
 
   @@index([creatorId, status, updatedAt])
   @@index([status, publishedAt])
@@ -358,47 +360,47 @@ model WorkAsset {
 }
 
 model CreatorModerationRequest {
-  id              String                    @id @default(cuid())
-  workId          String
-  work            CreatorWork               @relation(fields: [workId], references: [id], onDelete: Cascade)
-  type            CreatorModerationType
-  status          CreatorModerationStatus   @default(pending)
-  reason          String?
-  reviewerId      String?
-  reviewedAt      DateTime?
-  submittedAt     DateTime                  @default(now())
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  id          String                  @id @default(cuid())
+  workId      String
+  work        CreatorWork             @relation(fields: [workId], references: [id], onDelete: Cascade)
+  type        CreatorModerationType
+  status      CreatorModerationStatus @default(pending)
+  reason      String?
+  reviewerId  String?
+  reviewedAt  DateTime?
+  submittedAt DateTime                @default(now())
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
 
   @@index([status, submittedAt])
   @@index([workId, type, status])
 }
 
 model WorkMetricDaily {
-  id           String      @id @default(cuid())
-  workId       String
-  work         CreatorWork @relation(fields: [workId], references: [id], onDelete: Cascade)
-  date         DateTime    @db.Date
-  views        Int         @default(0)
-  coins        Int         @default(0)
-  revenueSatang Int        @default(0)
-  shelfAdds    Int         @default(0)
-  dailyVotes   Int         @default(0)
-  monthlyVotes Int         @default(0)
-  reviews      Int         @default(0)
-  comments     Int         @default(0)
+  id            String      @id @default(cuid())
+  workId        String
+  work          CreatorWork @relation(fields: [workId], references: [id], onDelete: Cascade)
+  date          DateTime    @db.Date
+  views         Int         @default(0)
+  coins         Int         @default(0)
+  revenueSatang Int         @default(0)
+  shelfAdds     Int         @default(0)
+  dailyVotes    Int         @default(0)
+  monthlyVotes  Int         @default(0)
+  reviews       Int         @default(0)
+  comments      Int         @default(0)
 
   @@unique([workId, date])
   @@index([date])
 }
 
 model CreatorFollow {
-  id          String   @id @default(cuid())
-  followerId  String
-  follower    User     @relation("CreatorFollowers", fields: [followerId], references: [id], onDelete: Cascade)
-  creatorId   String
-  creator     User     @relation("FollowedCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  followerId String
+  follower   User     @relation("CreatorFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  creatorId  String
+  creator    User     @relation("FollowedCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
 
   @@unique([followerId, creatorId])
   @@index([creatorId])
@@ -431,19 +433,53 @@ model WorkView {
 }
 
 model WorkReview {
-  id        String      @id @default(cuid())
-  userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workId    String
-  work      CreatorWork @relation(fields: [workId], references: [id], onDelete: Cascade)
-  rating    Int
-  body      String      @db.Text
-  status    String      @default("pending")
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id          String               @id @default(cuid())
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workId      String
+  work        CreatorWork          @relation(fields: [workId], references: [id], onDelete: Cascade)
+  rating      Int
+  body        String               @db.Text
+  recommended Boolean              @default(true)
+  spoiler     Boolean              @default(false)
+  status      String               @default("pending")
+  replies     WorkReviewReply[]
+  reactions   WorkReviewReaction[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 
   @@unique([userId, workId])
   @@index([workId, status, createdAt])
+}
+
+model WorkReviewReply {
+  id        String     @id @default(cuid())
+  reviewId  String
+  review    WorkReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String     @db.Text
+  status    String     @default("published")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([reviewId, status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model WorkReviewReaction {
+  id        String     @id @default(cuid())
+  reviewId  String
+  review    WorkReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([reviewId, userId])
+  @@index([reviewId, kind])
+  @@index([userId, createdAt])
 }
 
 model WorkComment {
@@ -465,16 +501,16 @@ model WorkComment {
 }
 
 model EpisodePurchase {
-  id           String         @id @default(cuid())
-  userId       String
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workId       String
-  work         CreatorWork    @relation(fields: [workId], references: [id], onDelete: Cascade)
-  episodeId    String
-  episode      CreatorEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
-  coinsSpent   Int
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workId        String
+  work          CreatorWork    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  episodeId     String
+  episode       CreatorEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  coinsSpent    Int
   revenueSatang Int
-  purchasedAt  DateTime       @default(now())
+  purchasedAt   DateTime       @default(now())
 
   @@unique([userId, episodeId])
   @@index([workId, purchasedAt])
@@ -587,32 +623,32 @@ model MonthlyIncome {
 }
 
 model WithdrawalRequest {
-  id           String           @id @default(cuid())
-  userId       String?
-  user         User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
-  creator      String
-  bank         String
-  bankAccount  String
-  amount       Decimal          @db.Decimal(12, 2)
-  amountSatang Int?
-  taxSatang    Int?
-  feeSatang    Int?             @default(0)
-  netSatang    Int?
-  encryptedDestination String?  @db.Text
-  payoutMode   String           @default("advance")
-  payoutPeriod String?
-  requestedAt  DateTime         @default(now())
-  status       WithdrawalStatus @default(pending)
-  slipUrl      String?
-  reviewerName String?
-  reviewedAt   DateTime?
+  id                   String           @id @default(cuid())
+  userId               String?
+  user                 User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  creator              String
+  bank                 String
+  bankAccount          String
+  amount               Decimal          @db.Decimal(12, 2)
+  amountSatang         Int?
+  taxSatang            Int?
+  feeSatang            Int?             @default(0)
+  netSatang            Int?
+  encryptedDestination String?          @db.Text
+  payoutMode           String           @default("advance")
+  payoutPeriod         String?
+  requestedAt          DateTime         @default(now())
+  status               WithdrawalStatus @default(pending)
+  slipUrl              String?
+  reviewerName         String?
+  reviewedAt           DateTime?
 
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
   history   WithdrawalHistory[]
 
-  @@index([userId, status, requestedAt])
   @@unique([userId, payoutPeriod])
+  @@index([userId, status, requestedAt])
 }
 
 model WithdrawalHistory {
@@ -718,17 +754,17 @@ model ExpLedger {
 }
 
 model TicketLedger {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount      Int
-  type        String
-  reason      String
-  referenceId String?
-  idempotencyKey String? @unique
-  status      String   @default("completed")
-  metadata    Json?
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount         Int
+  type           String
+  reason         String
+  referenceId    String?
+  idempotencyKey String?  @unique
+  status         String   @default("completed")
+  metadata       Json?
+  createdAt      DateTime @default(now())
 
   @@index([userId, createdAt])
 }

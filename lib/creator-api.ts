@@ -17,7 +17,7 @@ export function creatorApiError(error: unknown, fallback = 'ดำเนิน�
   if (error instanceof CreatorStudioError) {
     if (error.code === 'NOT_FOUND') return privateJson({ error: 'ไม่พบข้อมูลที่ร้องขอ' }, 404)
     if (error.code === 'FORBIDDEN') return privateJson({ error: 'ไม่มีสิทธิ์ดำเนินการ' }, 403)
-    if (error.code === 'INSUFFICIENT_BALANCE') return privateJson({ error: 'ยอดคงเหลือไม่เพียงพอ' }, 409)
+    if (error.code === 'INSUFFICIENT_BALANCE') return privateJson({ error: 'ยอดคงเหลือไม่เพียงพอ', ...error.details }, 409)
     if (error.code === 'INVALID_STATE') return privateJson({ error: 'สถานะข้อมูลไม่รองรับการดำเนินการนี้' }, 409)
     if (error.code === 'NOT_READY') return privateJson({ error: 'ข้อมูลหรือไฟล์ที่จำเป็นยังไม่พร้อมใช้งาน' }, 409)
     return privateJson({ error: 'ข้อมูลไม่ถูกต้อง' }, 400)

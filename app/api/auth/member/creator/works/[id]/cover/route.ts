@@ -1,10 +1,37 @@
 import { createHmac, randomUUID } from 'node:crypto'
 import { authorizeMember, privateJson } from '@/lib/creator-api'
 import { getPrisma } from '@/lib/prisma'
-import { BackblazeConfigError, CreatorMediaEncryptionConfigError, uploadCreatorMedia } from '@/lib/storage/backblaze'
+import { BackblazeConfigError, CreatorMediaEncryptionConfigError, downloadCreatorMedia, uploadCreatorMedia } from '@/lib/storage/backblaze'
 
 type Context = { params: Promise<{ id: string }> }
 const formats = new Map([['image/jpeg', { extension: 'jpg', magic: [0xff, 0xd8, 0xff] }], ['image/png', { extension: 'png', magic: [0x89, 0x50, 0x4e, 0x47] }], ['image/webp', { extension: 'webp', magic: [0x52, 0x49, 0x46, 0x46] }]])
+
+export async function GET(_request: Request, context: Context) {
+  const auth = await authorizeMember({ creator: true }); if (!auth.ok) return auth.response
+  const work = await getPrisma().creatorWork.findUnique({
+    where: { id: (await context.params).id },
+    select: { creatorId: true, coverObjectKey: true, coverContentType: true },
+  })
+  if (!work) return privateJson({ error: 'ไม่พบผลงาน' }, 404)
+  if (work.creatorId !== auth.user.id) return privateJson({ error: 'ไม่มีสิทธิ์เปิดภาพปกนี้' }, 403)
+  if (!work.coverObjectKey) return privateJson({ error: 'ไม่พบภาพปก' }, 404)
+  try {
+    const media = await downloadCreatorMedia(work.coverObjectKey)
+    return new Response(Uint8Array.from(media.body).buffer, {
+      headers: {
+        'Content-Type': work.coverContentType || media.contentType,
+        'Content-Length': String(media.contentLength),
+        'Content-Disposition': 'inline',
+        'Cache-Control': 'private, no-store',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    })
+  } catch (error) {
+    if (error instanceof BackblazeConfigError || error instanceof CreatorMediaEncryptionConfigError) return privateJson({ error: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน' }, 503)
+    console.error('Creator cover read failed', error instanceof Error ? error.name : 'UnknownError')
+    return privateJson({ error: 'เปิดภาพปกไม่สำเร็จ' }, 502)
+  }
+}
 
 export async function POST(request: Request, context: Context) {
   const auth = await authorizeMember({ creator: true }); if (!auth.ok) return auth.response
