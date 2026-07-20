@@ -95,6 +95,28 @@ export async function uploadCmsImage(input: { body: Uint8Array; contentType: str
   return { key, url: publicObjectUrl(config.publicUrl, key) }
 }
 
+export async function uploadReportAttachment(input: { body: Uint8Array; contentType: 'image/jpeg' | 'image/png'; extension: 'jpg' | 'png'; size: number; id: string; reportId: string }) {
+  const config = getConfig()
+  const prefix = (process.env.B2_REPORT_UPLOAD_PREFIX?.trim() || 'reports').replace(/^\/+|\/+$/g, '')
+  const key = `${prefix}/${input.reportId}/${input.id}.${input.extension}`
+  await getClient(config).send(new PutObjectCommand({
+    Bucket: config.bucket,
+    Key: key,
+    Body: input.body,
+    ContentLength: input.size,
+    ContentType: input.contentType,
+    CacheControl: 'public, max-age=31536000, immutable',
+  }))
+  return { key, url: publicObjectUrl(config.publicUrl, key) }
+}
+
+export async function deleteReportAttachment(key: string) {
+  const config = getConfig()
+  const prefix = (process.env.B2_REPORT_UPLOAD_PREFIX?.trim() || 'reports').replace(/^\/+|\/+$/g, '')
+  if (!key.startsWith(`${prefix}/`)) throw new Error('Report attachment key is outside the configured prefix')
+  await getClient(config).send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
+}
+
 export async function uploadCreatorMedia(input: { body: Uint8Array; contentType: string; extension: string; size: number; id: string; workToken: string }) {
   const config = getConfig()
   const prefix = (process.env.B2_CREATOR_STAGING_PREFIX?.trim() || 'creator-content-encrypted').replace(/^\/+|\/+$/g, '')

@@ -8,7 +8,13 @@ export function getReports() {
 
 export function getReportById(id: string) {
   const prisma = getPrisma()
-  return prisma.report.findUnique({ where: { id } })
+  return prisma.report.findUnique({
+    where: { id },
+    include: {
+      attachments: { orderBy: { createdAt: 'asc' } },
+      messages: { orderBy: { createdAt: 'asc' }, include: { attachments: { orderBy: { createdAt: 'asc' } } } },
+    },
+  })
 }
 
 export function updateReportStatus(id: string, status: ReportStatus) {

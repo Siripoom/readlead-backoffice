@@ -1,5 +1,5 @@
 export type ReportStatus = 'open' | 'in-progress' | 'resolved'
-export type ReportType = 'เนื้อหาไม่เหมาะสม' | 'สแปม' | 'ละเมิดลิขสิทธิ์' | 'ล่วงละเมิด' | 'อื่นๆ'
+export type ReportType = 'เนื้อหาไม่เหมาะสม' | 'สแปม' | 'ละเมิดลิขสิทธิ์' | 'ล่วงละเมิด' | 'บัญชีและความปลอดภัย' | 'การเติมเงิน / ชำระเงิน' | 'เนื้อหา / นิยาย' | 'ข้อเสนอแนะ' | 'อื่นๆ'
 
 export interface ReportItem {
   id: string
@@ -9,6 +9,7 @@ export interface ReportItem {
   date: string
   status: ReportStatus
   message: string
+  support?: boolean
 }
 
 export const mockReports: ReportItem[] = [

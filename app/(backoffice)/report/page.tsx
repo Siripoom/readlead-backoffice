@@ -12,6 +12,10 @@ const typeLabels: Record<DbReportType, ReportType> = {
   spam: 'สแปม',
   copyright: 'ละเมิดลิขสิทธิ์',
   harassment: 'ล่วงละเมิด',
+  account_security: 'บัญชีและความปลอดภัย',
+  payment: 'การเติมเงิน / ชำระเงิน',
+  content: 'เนื้อหา / นิยาย',
+  feedback: 'ข้อเสนอแนะ',
   other: 'อื่นๆ',
 }
 
@@ -32,6 +36,7 @@ export default async function ReportPage() {
     date: r.date.toISOString().split('T')[0],
     status: statusLabels[r.status],
     message: r.message,
+    support: r.isSupport,
   }))
 
   return (

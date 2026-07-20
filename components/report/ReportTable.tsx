@@ -8,6 +8,7 @@ import {
   Field,
   Flex,
   IconButton,
+  Image,
   Table,
   Text,
   Textarea,
@@ -18,6 +19,19 @@ import { toaster } from '@/lib/toaster'
 import type { ReportItem, ReportStatus } from '@/lib/mock-data/report'
 import { PunishmentDialog } from '@/components/punishment/PunishmentDialog'
 import type { PunishmentLevel } from '@/lib/mock-data/punishment'
+
+type ReportAttachment = { id: string; messageId: string | null; url: string; originalName: string }
+type ReportDetail = {
+  id: string
+  senderName: string
+  subject: string
+  type: string
+  date: string
+  status: 'open' | 'in_progress' | 'resolved'
+  message: string
+  attachments: ReportAttachment[]
+  messages: Array<{ id: string; senderType: string; senderName: string; message: string; createdAt: string; attachments: ReportAttachment[] }>
+}
 
 const statusMap: Record<ReportStatus, { label: string; color: string }> = {
   open: { label: 'เปิด', color: 'orange' },
@@ -32,6 +46,8 @@ export function ReportTable({ data: initialData }: { data: ReportItem[] }) {
   const [mode, setMode] = useState<'view' | 'reply' | null>(null)
   const [replyText, setReplyText] = useState('')
   const [punishTarget, setPunishTarget] = useState<ReportItem | null>(null)
+  const [detail, setDetail] = useState<ReportDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
 
   function handleConfirmPunish(level: PunishmentLevel) {
     if (!punishTarget) return
@@ -43,14 +59,30 @@ export function ReportTable({ data: initialData }: { data: ReportItem[] }) {
   function handleClose() {
     setMode(null)
     setSelectedItem(null)
+    setDetail(null)
+    setDetailLoading(false)
     setReplyText('')
+  }
+
+  async function openReport(item: ReportItem, nextMode: 'view' | 'reply') {
+    setSelectedItem(item)
+    setMode(nextMode)
+    setDetail(null)
+    setDetailLoading(true)
+    const response = await fetch(`/api/reports/${item.id}`, { cache: 'no-store' })
+    setDetailLoading(false)
+    if (!response.ok) {
+      toaster.error({ title: 'โหลดรายละเอียดไม่สำเร็จ' })
+      return
+    }
+    setDetail(await response.json() as ReportDetail)
   }
 
   async function handleSendReply() {
     if (!selectedItem || !replyText.trim()) return
     const response = await fetch(`/api/reports/${selectedItem.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: replyText }) })
     if (!response.ok) return toaster.error({ title: 'ส่งคำตอบไม่สำเร็จ' })
-    const nextStatus: ReportStatus = selectedItem.status === 'open' ? 'in-progress' : 'resolved'
+    const nextStatus: ReportStatus = 'in-progress'
     setData(data.map(d => d.id === selectedItem.id ? { ...d, status: nextStatus } : d))
     toaster.success({ title: 'ส่งคำตอบสำเร็จ', description: `อัพเดทสถานะเป็น "${statusMap[nextStatus].label}"` })
     handleClose()
@@ -96,15 +128,13 @@ export function ReportTable({ data: initialData }: { data: ReportItem[] }) {
                       </Table.Cell>
                       <Table.Cell>
                         <Box display="flex" gap={1}>
-                          <IconButton aria-label="ดู" variant="ghost" size="sm" onClick={() => { setSelectedItem(item); setMode('view') }}>
+                          <IconButton aria-label="ดู" variant="ghost" size="sm" onClick={() => openReport(item, 'view')}>
                             <Eye size={16} />
                           </IconButton>
-                          <IconButton aria-label="ตอบกลับ" variant="ghost" size="sm" onClick={() => { setSelectedItem(item); setMode('reply') }}>
+                          <IconButton aria-label="ตอบกลับ" variant="ghost" size="sm" disabled={item.status === 'resolved'} onClick={() => openReport(item, 'reply')}>
                             <MessageSquare size={16} />
                           </IconButton>
-                          <IconButton aria-label="ลงโทษ" variant="ghost" size="sm" colorPalette="red" onClick={() => setPunishTarget(item)}>
-                            <Gavel size={16} />
-                          </IconButton>
+                          {!item.support && <IconButton aria-label="ลงโทษ" variant="ghost" size="sm" colorPalette="red" onClick={() => setPunishTarget(item)}><Gavel size={16} /></IconButton>}
                           {item.status !== 'resolved' && <Button size="xs" variant="outline" onClick={() => handleResolve(item)}>ปิดเรื่อง</Button>}
                         </Box>
                       </Table.Cell>
@@ -127,7 +157,8 @@ export function ReportTable({ data: initialData }: { data: ReportItem[] }) {
               <Dialog.CloseTrigger />
             </Dialog.Header>
             <Dialog.Body>
-              {selectedItem && (
+              {detailLoading && <Text color="gray.500">กำลังโหลดรายละเอียด...</Text>}
+              {selectedItem && detail && (
                 <Flex direction="column" gap={3}>
                   <Box><Text fontSize="xs" color="gray.500">ผู้ส่ง</Text><Text fontWeight="medium">{selectedItem.sender}</Text></Box>
                   <Box><Text fontSize="xs" color="gray.500">หัวเรื่อง</Text><Text fontWeight="medium">{selectedItem.subject}</Text></Box>
@@ -142,9 +173,21 @@ export function ReportTable({ data: initialData }: { data: ReportItem[] }) {
                   <Box>
                     <Text fontSize="xs" color="gray.500" mb={1}>เนื้อหา</Text>
                     <Box bg="gray.50" p={3} borderRadius="md" fontSize="sm" color="gray.700" lineHeight="1.6">
-                      {selectedItem.message}
+                      {detail.message}
                     </Box>
                   </Box>
+                  {!!detail.attachments.filter(item => !item.messageId).length && <AttachmentGrid items={detail.attachments.filter(item => !item.messageId)} />}
+                  {!!detail.messages.length && <Box>
+                    <Text fontSize="xs" color="gray.500" mb={2}>บทสนทนา</Text>
+                    <Flex direction="column" gap={2} maxH="280px" overflowY="auto">
+                      {detail.messages.map(message => <Box key={message.id} alignSelf={message.senderType === 'admin' ? 'flex-end' : 'flex-start'} maxW="88%" bg={message.senderType === 'admin' ? 'red.50' : 'gray.50'} p={3} borderRadius="lg">
+                        <Text fontSize="xs" fontWeight="bold" color={message.senderType === 'admin' ? 'red.600' : 'gray.500'}>{message.senderType === 'admin' ? 'เจ้าหน้าที่' : message.senderName}</Text>
+                        {message.message && <Text fontSize="sm" whiteSpace="pre-wrap">{message.message}</Text>}
+                        {!!message.attachments.length && <AttachmentGrid items={message.attachments} />}
+                        <Text fontSize="xs" color="gray.400" mt={1}>{new Date(message.createdAt).toLocaleString('th-TH')}</Text>
+                      </Box>)}
+                    </Flex>
+                  </Box>}
                 </Flex>
               )}
             </Dialog.Body>
@@ -175,7 +218,8 @@ export function ReportTable({ data: initialData }: { data: ReportItem[] }) {
               <Dialog.CloseTrigger />
             </Dialog.Header>
             <Dialog.Body>
-              {selectedItem && (
+              {detailLoading && <Text color="gray.500">กำลังโหลดรายละเอียด...</Text>}
+              {selectedItem && !detailLoading && (
                 <Flex direction="column" gap={4}>
                   <Box bg="gray.50" p={3} borderRadius="md">
                     <Text fontSize="xs" color="gray.500">หัวเรื่อง</Text>
@@ -208,4 +252,12 @@ export function ReportTable({ data: initialData }: { data: ReportItem[] }) {
       </Dialog.Root>
     </>
   )
+}
+
+function AttachmentGrid({ items }: { items: ReportAttachment[] }) {
+  return <Flex gap={2} wrap="wrap" mt={2}>{items.map(item => (
+    <Box key={item.id} asChild><a href={item.url} target="_blank" rel="noreferrer" title={item.originalName}>
+      <Image src={item.url} alt={item.originalName} boxSize="76px" objectFit="cover" borderRadius="md" borderWidth="1px" />
+    </a></Box>
+  ))}</Flex>
 }

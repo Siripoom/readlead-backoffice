@@ -43,6 +43,10 @@ enum ReportType {
   spam
   copyright
   harassment
+  account_security
+  payment
+  content
+  feedback
   other
 }
 
@@ -567,10 +571,12 @@ model Report {
   date       DateTime     @default(now())
   status     ReportStatus @default(open)
   message    String       @db.Text
+  isSupport  Boolean      @default(false)
 
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
-  messages  ReportMessage[]
+  messages    ReportMessage[]
+  attachments ReportAttachment[]
 }
 
 model ReportMessage {
@@ -581,8 +587,26 @@ model ReportMessage {
   senderName String
   message    String   @db.Text
   createdAt  DateTime @default(now())
+  attachments ReportAttachment[]
 
   @@index([reportId, createdAt])
+}
+
+model ReportAttachment {
+  id           String         @id @default(cuid())
+  reportId     String
+  report       Report         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  messageId    String?
+  message      ReportMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  objectKey    String         @unique
+  url          String
+  contentType  String
+  sizeBytes    Int
+  originalName String
+  createdAt    DateTime       @default(now())
+
+  @@index([reportId, createdAt])
+  @@index([messageId])
 }
 
 // ─── Punishment ──────────────────────────────────────────────────────────────

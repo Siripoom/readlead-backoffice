@@ -25,7 +25,7 @@ export async function POST(request: Request, context: Context) {
     if (action === 'review-reaction' && typeof body.reviewId === 'string' && (body.kind === 'like' || body.kind === 'dislike')) return privateJson({ reaction: await toggleReviewReaction(auth.user.id, body.reviewId, body.kind) })
     if (action === 'comment' && typeof body.workId === 'string') return privateJson({ comment: await createComment(auth.user.id, body.workId, String(body.body ?? ''), typeof body.parentId === 'string' ? body.parentId : undefined) }, 201)
     if (action === 'vote' && typeof body.workId === 'string' && (body.kind === 'daily' || body.kind === 'monthly')) return privateJson(await voteForWork(auth.user.id, body.workId, body.kind, Number(body.amount), String(body.requestId ?? '')))
-    if (action === 'simulate-topup') return privateJson(await simulateTopup(auth.user.id, Number(body.amount), String(body.idempotencyKey ?? '')))
+    if (action === 'simulate-topup') return privateJson(await simulateTopup(auth.user.id, String(body.packageId ?? ''), String(body.paymentMethod ?? ''), String(body.idempotencyKey ?? '')))
     return privateJson({ error: 'คำสั่งไม่ถูกต้อง' }, 400)
   } catch (error) { return creatorApiError(error) }
 }

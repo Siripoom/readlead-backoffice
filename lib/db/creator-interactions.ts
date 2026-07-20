@@ -1,5 +1,6 @@
 import { getPrisma } from '@/lib/prisma'
 import { CreatorStudioError, todayUtc } from '@/lib/db/creator-studio'
+import { getWalletPackage, isWalletPaymentMethod, simulatedTopUpEnabled } from '@/lib/member-wallet'
 
 type MetricClient = Pick<ReturnType<typeof getPrisma>, 'workMetricDaily'>
 
@@ -288,17 +289,44 @@ export async function purchaseEpisode(userId: string, episodeId: string) {
   }, { isolationLevel: 'Serializable' })
 }
 
-export async function simulateTopup(userId: string, amount: number, idempotencyKey: string) {
-  if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SIMULATED_TOPUP !== 'true') throw new CreatorStudioError('FORBIDDEN')
-  if (!Number.isInteger(amount) || amount < 1 || amount > 100_000 || !idempotencyKey) throw new CreatorStudioError('VALIDATION')
+export async function simulateTopup(userId: string, packageId: string, paymentMethod: string, idempotencyKey: string) {
+  if (!simulatedTopUpEnabled()) throw new CreatorStudioError('FORBIDDEN')
+  const walletPackage = getWalletPackage(packageId)
+  if (!walletPackage || !isWalletPaymentMethod(paymentMethod) || !idempotencyKey) throw new CreatorStudioError('VALIDATION')
+  const amount = walletPackage.coins + walletPackage.bonus
   const prisma = getPrisma()
-  return prisma.$transaction(async (tx) => {
-    const existing = await tx.coinLedger.findUnique({ where: { idempotencyKey } })
-    if (existing) return { balance: existing.balanceAfter, idempotent: true }
-    const account = await tx.coinAccount.upsert({ where: { userId }, create: { userId, balance: amount }, update: { balance: { increment: amount } } })
-    await tx.coinLedger.create({ data: { userId, kind: 'topup', amount, balanceAfter: account.balance, idempotencyKey } })
-    return { balance: account.balance, idempotent: false }
-  })
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const existing = await tx.coinLedger.findUnique({ where: { idempotencyKey } })
+      if (existing) {
+        if (existing.userId !== userId) throw new CreatorStudioError('VALIDATION')
+        return { balance: existing.balanceAfter, idempotent: true }
+      }
+      const account = await tx.coinAccount.upsert({ where: { userId }, create: { userId, balance: amount }, update: { balance: { increment: amount } } })
+      await tx.coinLedger.create({ data: {
+        userId,
+        kind: 'topup',
+        amount,
+        balanceAfter: account.balance,
+        idempotencyKey,
+        metadata: {
+          packageId: walletPackage.id,
+          baseCoins: walletPackage.coins,
+          bonusCoins: walletPackage.bonus,
+          paidAmountBaht: walletPackage.price,
+          paymentMethod,
+        },
+      } })
+      return { balance: account.balance, idempotent: false }
+    })
+  } catch (error) {
+    if (typeof error === 'object' && error && 'code' in error && error.code === 'P2002') {
+      const existing = await prisma.coinLedger.findUnique({ where: { idempotencyKey } })
+      if (existing?.userId === userId) return { balance: existing.balanceAfter, idempotent: true }
+      if (existing) throw new CreatorStudioError('VALIDATION')
+    }
+    throw error
+  }
 }
 
 const DAILY_TICKET_ALLOWANCE = 15
