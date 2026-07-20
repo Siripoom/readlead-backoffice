@@ -41,6 +41,26 @@ async function main() {
     await prisma.creatorProfile.upsert({ where: { userId: cp.userId }, update: cp, create: cp })
   }
 
+  // Creator Studio demo data only. Real creators are intentionally not seeded with works or revenue.
+  const demoCreator = { id: 'creator-demo', name: 'ReadLead Demo Creator', email: 'creator.demo@readlead.com', passwordHash: hashPassword('ReadLead@123'), joinedAt: new Date('2026-07-01'), status: 'active' as const, userType: 'creator' as const }
+  await prisma.user.upsert({ where: { id: demoCreator.id }, update: demoCreator, create: demoCreator })
+  await prisma.creatorProfile.upsert({ where: { userId: demoCreator.id }, update: { works: 3, followers: 1284 }, create: { userId: demoCreator.id, works: 3, followers: 1284 } })
+  const demoWorks = [
+    { id: 'creator-demo-novel', type: 'novel' as const, title: 'แสงดาวเหนือหอคอย', category: 'fantasy', tagline: 'คำสัญญาหนึ่งคืนเปลี่ยนชะตาของทั้งอาณาจักร', synopsis: 'เรื่องราวของนักพยากรณ์ฝึกหัดที่ต้องตามหาดาวดวงสุดท้ายก่อนคืนจันทรคราส', tags: ['แฟนตาซี', 'ผจญภัย'], views: 18420, coins: 3560, shelfCount: 942, dailyVotes: 128, monthlyVotes: 732, reviewCount: 84, commentCount: 116 },
+    { id: 'creator-demo-manga', type: 'manga' as const, title: 'ร้านชาในวันฝนพรำ', category: 'romance', tagline: 'ทุกแก้วชามีเรื่องราวที่ยังเล่าไม่จบ', synopsis: 'เว็บตูนอบอุ่นหัวใจเกี่ยวกับร้านชาเล็ก ๆ และลูกค้าที่แวะเวียนมาพร้อมความทรงจำ', tags: ['โรแมนซ์', 'ฮีลใจ'], views: 9320, coins: 1480, shelfCount: 514, dailyVotes: 62, monthlyVotes: 348, reviewCount: 39, commentCount: 75 },
+    { id: 'creator-demo-audio', type: 'audiobook' as const, title: 'เสียงจากปลายฤดู', category: 'drama', tagline: 'จดหมายเสียงที่เดินทางข้ามฤดูกาล', synopsis: 'หนังสือเสียงดราม่าที่เล่าผ่านจดหมายและเสียงบันทึกของคนสองคน', tags: ['ดราม่า', 'หนังสือเสียง'], views: 6480, coins: 920, shelfCount: 286, dailyVotes: 41, monthlyVotes: 205, reviewCount: 22, commentCount: 31 },
+  ]
+  for (const [index, work] of demoWorks.entries()) {
+    await prisma.creatorWork.upsert({ where: { id: work.id }, update: { ...work, creatorId: demoCreator.id, origin: 'original', status: 'published', rating: 'general', creationMethod: 'self_written', seriesStatus: 'ongoing', publishedAt: new Date(`2026-07-0${index + 2}T08:00:00Z`) }, create: { ...work, creatorId: demoCreator.id, origin: 'original', status: 'published', rating: 'general', creationMethod: 'self_written', seriesStatus: 'ongoing', publishedAt: new Date(`2026-07-0${index + 2}T08:00:00Z`) } })
+    for (let episodeNumber = 1; episodeNumber <= 5; episodeNumber++) {
+      const episode = { id: `${work.id}-episode-${episodeNumber}`, workId: work.id, episodeNumber, title: `ตอนที่ ${episodeNumber}: ${episodeNumber === 1 ? 'จุดเริ่มต้น' : 'เรื่องราวบทใหม่'}`, type: work.type === 'novel' ? 'text' as const : work.type === 'manga' ? 'image' as const : 'audio' as const, status: 'published' as const, priceCoins: episodeNumber <= 2 ? 0 : 5, content: work.type === 'novel' ? `เนื้อหาตัวอย่างของ ${work.title} ตอนที่ ${episodeNumber}` : null, publishedAt: new Date(`2026-07-${String(episodeNumber + 5).padStart(2, '0')}T08:00:00Z`) }
+      await prisma.creatorEpisode.upsert({ where: { id: episode.id }, update: episode, create: episode })
+    }
+    await prisma.workMetricDaily.upsert({ where: { workId_date: { workId: work.id, date: new Date('2026-07-19T00:00:00Z') } }, update: { views: Math.round(work.views / 30), coins: Math.round(work.coins / 30), revenueSatang: Math.round(work.coins / 30) * 7, shelfAdds: 12, dailyVotes: work.dailyVotes, monthlyVotes: work.monthlyVotes, reviews: 2, comments: 4 }, create: { workId: work.id, date: new Date('2026-07-19T00:00:00Z'), views: Math.round(work.views / 30), coins: Math.round(work.coins / 30), revenueSatang: Math.round(work.coins / 30) * 7, shelfAdds: 12, dailyVotes: work.dailyVotes, monthlyVotes: work.monthlyVotes, reviews: 2, comments: 4 } })
+  }
+  await prisma.coinAccount.upsert({ where: { userId: demoCreator.id }, update: { balance: 500 }, create: { userId: demoCreator.id, balance: 500 } })
+  await prisma.creatorRevenueLedger.upsert({ where: { idempotencyKey: 'creator-demo-opening-revenue' }, update: { amountSatang: 41_720 }, create: { userId: demoCreator.id, kind: 'earning', amountSatang: 41_720, idempotencyKey: 'creator-demo-opening-revenue', metadata: { seed: true } } })
+
   // Admins
   const admins = [
     { id: 'a1', name: 'Admin Super',    email: 'superadmin@readlead.com', joinedAt: new Date('2024-01-01'), status: 'active' as const, userType: 'admin' as const },

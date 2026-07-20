@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login']
+const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/member/', '/api/public/', '/api/cron/']
 
 function hasValidCookie(request: NextRequest) {
   const token = request.cookies.get('rl_admin_session')?.value ?? ''

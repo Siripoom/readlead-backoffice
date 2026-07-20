@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { ChevronDown, DollarSign, Flag, Images, LayoutDashboard, ShieldAlert, Sparkles, Ticket, Users } from 'lucide-react'
+import { ChevronDown, ClipboardCheck, DollarSign, FileSearch, Flag, Images, LayoutDashboard, ShieldAlert, Sparkles, Ticket, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import styles from './Sidebar.module.css'
 
@@ -13,8 +13,10 @@ interface NavItem { label: string; href?: string; icon: LucideIcon; permission: 
 const navItems: NavItem[] = [
   { label: 'ภาพรวมระบบ', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard' },
   { label: 'จัดการผู้ใช้', icon: Users, permission: 'users', children: [{ label: 'ผู้ใช้งาน', href: '/users?tab=users', tab: 'users' }, { label: 'นักเขียน', href: '/users?tab=creators', tab: 'creators' }, { label: 'แอดมิน', href: '/users?tab=admins', tab: 'admins' }] },
+  { label: 'ใบสมัครนักเขียน', href: '/writer-applications', icon: ClipboardCheck, permission: 'users' },
   { label: 'รายงาน', href: '/report', icon: Flag, permission: 'reports' },
   { label: 'การเงินของเว็บ', href: '/finance', icon: DollarSign, permission: 'finance' },
+  { label: 'ตรวจผลงาน', href: '/content', icon: FileSearch, permission: 'cms' },
   { label: 'บทลงโทษ', href: '/punishment', icon: ShieldAlert, permission: 'punishment' },
   { label: 'แบนเนอร์ & โปรโมชัน', href: '/cms', icon: Images, permission: 'cms' },
   { label: 'ระบบ EXP', href: '/exp', icon: Sparkles, permission: 'exp' },

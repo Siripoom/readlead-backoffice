@@ -1,24 +1,10 @@
 export const dynamic = 'force-dynamic'
 
 import { Box, Heading, Text } from '@chakra-ui/react'
-import { ContentTable } from '@/components/content/ContentTable'
-import { getContent } from '@/lib/db/content'
-import type { ContentItem } from '@/lib/mock-data/content'
+import { CreatorModerationPanel } from '@/components/content/CreatorModerationPanel'
+import { requireAdmin } from '@/lib/auth'
 
 export default async function ContentPage() {
-  const raw = await getContent()
-  const content: ContentItem[] = raw.map((c) => ({
-    ...c,
-    submittedAt: c.submittedAt.toISOString().split('T')[0],
-  }))
-
-  return (
-    <Box>
-      <Box mb={6}>
-        <Heading size="lg" color="gray.800">Content</Heading>
-        <Text color="gray.500" fontSize="sm" mt={1}>จัดการเนื้อหาที่นักเขียนส่งเข้ามา</Text>
-      </Box>
-      <ContentTable data={content} />
-    </Box>
-  )
+  await requireAdmin('cms')
+  return <Box><Box mb={6}><Heading size="lg" color="gray.800">ตรวจผลงาน Creator Studio</Heading><Text color="gray.500" fontSize="sm" mt={1}>ตรวจเรื่องใหม่ ผลงานแปล และคำขอลบจาก Creator Studio</Text></Box><CreatorModerationPanel /></Box>
 }

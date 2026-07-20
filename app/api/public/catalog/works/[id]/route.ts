@@ -1,0 +1,21 @@
+export const dynamic = 'force-dynamic'
+
+import { getPrisma } from '@/lib/prisma'
+
+type Context = { params: Promise<{ id: string }> }
+
+export async function GET(_request: Request, context: Context) {
+  const work = await getPrisma().creatorWork.findFirst({
+    where: { id: (await context.params).id, status: 'published', episodes: { some: { status: 'published' } } },
+    select: {
+      id: true, type: true, origin: true, title: true, category: true, rating: true, creationMethod: true, tagline: true, synopsis: true, tags: true, seriesStatus: true, publishedAt: true, updatedAt: true,
+      views: true, coins: true, shelfCount: true, dailyVotes: true, monthlyVotes: true, reviewCount: true, commentCount: true,
+      creator: { select: { id: true, name: true, writerApplication: { select: { penName: true } }, creatorProfile: { select: { followers: true } } } },
+      episodes: { where: { status: 'published' }, orderBy: { episodeNumber: 'asc' }, select: { id: true, episodeNumber: true, title: true, type: true, priceCoins: true, publishedAt: true, durationSeconds: true } },
+      reviews: { where: { status: 'published' }, orderBy: { createdAt: 'desc' }, take: 50, select: { id: true, rating: true, body: true, createdAt: true, user: { select: { id: true, name: true } } } },
+      comments: { where: { status: 'published', parentId: null }, orderBy: { createdAt: 'desc' }, take: 100, select: { id: true, body: true, createdAt: true, user: { select: { id: true, name: true } }, replies: { where: { status: 'published' }, select: { id: true, body: true, createdAt: true, user: { select: { id: true, name: true } } } } } },
+    },
+  })
+  if (!work) return Response.json({ error: 'ไม่พบผลงาน' }, { status: 404 })
+  return Response.json({ work }, { headers: { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=60' } })
+}

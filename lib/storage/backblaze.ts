@@ -1,6 +1,7 @@
 import 'server-only'
 
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto'
 
 const requiredKeys = ['B2_REGION', 'B2_BUCKET', 'B2_KEY_ID', 'B2_APP_KEY'] as const
 type RequiredKey = (typeof requiredKeys)[number]
@@ -10,6 +11,33 @@ export class BackblazeConfigError extends Error {
     super(`Missing Backblaze configuration: ${missing.join(', ')}`)
     this.name = 'BackblazeConfigError'
   }
+}
+
+export class CreatorMediaEncryptionConfigError extends Error {
+  constructor() { super('WRITER_APPLICATION_ENCRYPTION_KEY is not configured for creator media'); this.name = 'CreatorMediaEncryptionConfigError' }
+}
+
+const CREATOR_MEDIA_MAGIC = Buffer.from('RLCM1')
+function creatorMediaKey(objectKey: string) {
+  const encoded = process.env.WRITER_APPLICATION_ENCRYPTION_KEY?.trim()
+  if (!encoded) throw new CreatorMediaEncryptionConfigError()
+  const base = Buffer.from(encoded, 'base64')
+  if (base.length !== 32) throw new CreatorMediaEncryptionConfigError()
+  return Buffer.from(hkdfSync('sha256', base, Buffer.from('readlead-creator-media-v1'), Buffer.from(objectKey), 32))
+}
+function encryptCreatorMedia(body: Uint8Array, objectKey: string) {
+  const iv = randomBytes(12)
+  const cipher = createCipheriv('aes-256-gcm', creatorMediaKey(objectKey), iv)
+  const encrypted = Buffer.concat([cipher.update(body), cipher.final()])
+  return Buffer.concat([CREATOR_MEDIA_MAGIC, iv, cipher.getAuthTag(), encrypted])
+}
+function decryptCreatorMedia(body: Uint8Array, objectKey: string) {
+  const bytes = Buffer.from(body)
+  if (!bytes.subarray(0, CREATOR_MEDIA_MAGIC.length).equals(CREATOR_MEDIA_MAGIC) || bytes.length < 34) throw new Error('Invalid creator media envelope')
+  const ivStart = CREATOR_MEDIA_MAGIC.length
+  const decipher = createDecipheriv('aes-256-gcm', creatorMediaKey(objectKey), bytes.subarray(ivStart, ivStart + 12))
+  decipher.setAuthTag(bytes.subarray(ivStart + 12, ivStart + 28))
+  return Buffer.concat([decipher.update(bytes.subarray(ivStart + 28)), decipher.final()])
 }
 
 function getConfig() {
@@ -65,4 +93,41 @@ export async function uploadCmsImage(input: { body: Uint8Array; contentType: str
     CacheControl: 'public, max-age=31536000, immutable',
   }))
   return { key, url: publicObjectUrl(config.publicUrl, key) }
+}
+
+export async function uploadCreatorMedia(input: { body: Uint8Array; contentType: string; extension: string; size: number; id: string; workToken: string }) {
+  const config = getConfig()
+  const prefix = (process.env.B2_CREATOR_STAGING_PREFIX?.trim() || 'creator-content-encrypted').replace(/^\/+|\/+$/g, '')
+  const key = `${prefix}/${input.workToken}/${input.id}.rlcm`
+  const encrypted = encryptCreatorMedia(input.body, key)
+  await getClient(config).send(new PutObjectCommand({
+    Bucket: config.bucket,
+    Key: key,
+    Body: encrypted,
+    ContentLength: encrypted.byteLength,
+    ContentType: 'application/octet-stream',
+    CacheControl: 'private, no-store',
+  }))
+  return { key, url: publicObjectUrl(config.publicUrl, key) }
+}
+
+export async function downloadCreatorMedia(key: string, range?: string | null) {
+  const config = getConfig()
+  const encryptedPrefix = (process.env.B2_CREATOR_STAGING_PREFIX?.trim() || 'creator-content-encrypted').replace(/^\/+|\/+$/g, '')
+  const allowedPrefixes = [config.prefix, encryptedPrefix, (process.env.B2_CREATOR_UPLOAD_PREFIX?.trim() || 'creator-content').replace(/^\/+|\/+$/g, '')]
+  if (!allowedPrefixes.some((prefix) => key.startsWith(`${prefix}/`))) throw new Error('Creator media key is outside configured prefixes')
+  const encrypted = key.startsWith(`${encryptedPrefix}/`)
+  const object = await getClient(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: key, ...(!encrypted && range ? { Range: range } : {}) }))
+  if (!object.Body) throw new Error('Creator media body is missing')
+  let body = encrypted ? decryptCreatorMedia(await object.Body.transformToByteArray(), key) : Buffer.from(await object.Body.transformToByteArray())
+  let contentRange = object.ContentRange
+  if (encrypted && range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range)
+    if (match) {
+      const start = match[1] ? Number(match[1]) : 0
+      const end = match[2] ? Math.min(Number(match[2]), body.length - 1) : body.length - 1
+      if (start <= end && start < body.length) { contentRange = `bytes ${start}-${end}/${body.length}`; body = body.subarray(start, end + 1) }
+    }
+  }
+  return { body, contentType: object.ContentType || 'application/octet-stream', contentLength: body.byteLength, contentRange, acceptRanges: 'bytes' }
 }

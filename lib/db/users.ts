@@ -1,11 +1,19 @@
 import { getPrisma } from '@/lib/prisma'
 import type { UserStatus, UserType } from '@/lib/generated/prisma/enums'
 
+const safeUserQuery = {
+  omit: { passwordHash: true },
+  include: {
+    creatorProfile: true,
+    adminProfile: { omit: { passwordHash: true } },
+  },
+} as const
+
 export function getUsers() {
   const prisma = getPrisma()
   return prisma.user.findMany({
     orderBy: { joinedAt: 'desc' },
-    include: { creatorProfile: true, adminProfile: true },
+    ...safeUserQuery,
   })
 }
 
@@ -13,7 +21,7 @@ export function getUserById(id: string) {
   const prisma = getPrisma()
   return prisma.user.findUnique({
     where: { id },
-    include: { creatorProfile: true, adminProfile: true },
+    ...safeUserQuery,
   })
 }
 
@@ -22,7 +30,7 @@ export function getUsersByType(userType: UserType) {
   return prisma.user.findMany({
     where: { userType },
     orderBy: { joinedAt: 'desc' },
-    include: { creatorProfile: true, adminProfile: true },
+    ...safeUserQuery,
   })
 }
 
@@ -60,6 +68,6 @@ export function createUser(data: {
       creatorProfile: creatorProfile ? { create: creatorProfile } : undefined,
       adminProfile: adminProfile ? { create: adminProfile } : undefined,
     },
-    include: { creatorProfile: true, adminProfile: true },
+    ...safeUserQuery,
   })
 }
