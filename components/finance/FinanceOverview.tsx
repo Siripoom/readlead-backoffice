@@ -3,6 +3,7 @@
 import { Dialog } from '@chakra-ui/react'
 import { useMemo, useState } from 'react'
 import { toaster } from '@/lib/toaster'
+import { TopUpProofsTab } from './TopUpProofsTab'
 import styles from './FinanceOverview.module.css'
 
 type Status = 'pending' | 'approved' | 'rejected'
@@ -42,6 +43,7 @@ function thaiDate(value: string) {
 }
 
 export function FinanceOverview({ income, initialWithdrawals }: { income: Income[]; initialWithdrawals: Withdrawal[] }) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'proofs'>('overview')
   const [withdrawals, setWithdrawals] = useState(initialWithdrawals)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [detail, setDetail] = useState<Withdrawal | null>(null)
@@ -107,9 +109,15 @@ export function FinanceOverview({ income, initialWithdrawals }: { income: Income
   return <div className={styles.finance}>
     <header className={styles.pageHead}>
       <h1>การเงินของเว็บ</h1>
-      <p>ภาพรวมรายได้และคำขอถอนเงินของนักเขียน</p>
+      <p>ภาพรวมรายได้ คำขอถอนเงิน และการตรวจสอบหลักฐานเติมเหรียญ</p>
     </header>
 
+    <div className={styles.financeTabs} role="tablist" aria-label="เมนูการเงิน">
+      <button type="button" role="tab" aria-selected={activeTab === 'overview'} className={activeTab === 'overview' ? styles.financeTabActive : ''} onClick={() => setActiveTab('overview')}>ภาพรวมการเงิน</button>
+      <button type="button" role="tab" aria-selected={activeTab === 'proofs'} className={activeTab === 'proofs' ? styles.financeTabActive : ''} onClick={() => setActiveTab('proofs')}>ตรวจสอบหลักฐาน</button>
+    </div>
+
+    {activeTab === 'overview' ? <>
     <div className={styles.cards}>
       <article className={styles.card}><span>รายได้รวมเดือนนี้</span><strong>{currency(stats.latestIncome)}</strong><small className={stats.growth !== null && stats.growth >= 0 ? styles.up : undefined}>{stats.growth === null ? 'ยังไม่มีข้อมูลเดือนก่อน' : `${stats.growth >= 0 ? '▲' : '▼'} ${Math.abs(stats.growth).toFixed(1)}% เทียบเดือนก่อน`}</small></article>
       <article className={styles.card}><span>ยอดขายเหรียญ</span><strong>{currency(stats.latestIncome)}</strong><small>{stats.latest ? `${stats.latest.transactions.toLocaleString()} ธุรกรรม` : 'ยังไม่มีข้อมูล'}</small></article>
@@ -156,5 +164,6 @@ export function FinanceOverview({ income, initialWithdrawals }: { income: Income
         <Dialog.Footer><button type="button" className={styles.secondary} onClick={() => setDetail(null)}>ปิด</button></Dialog.Footer>
       </Dialog.Content></Dialog.Positioner>
     </Dialog.Root>
+    </> : <TopUpProofsTab />}
   </div>
 }

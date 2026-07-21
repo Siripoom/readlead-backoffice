@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { authorizeApi } from '@/lib/auth'
-import { CreatorModerationError, decideCreatorModeration, getCreatorModeration } from '@/lib/db/creator-moderation'
+import { CreatorModerationError, decideCreatorModeration, getCreatorModeration, updateCreatorModerationNarration } from '@/lib/db/creator-moderation'
 import { getPrisma } from '@/lib/prisma'
 type Context = { params: Promise<{ id: string }> }
 
@@ -22,7 +22,11 @@ export async function GET(_request: Request, context: Context) {
 
 export async function PATCH(request: Request, context: Context) {
   const auth = await authorizeApi('cms'); if (!auth.ok) return auth.response
-  const body = await request.json().catch(() => ({})) as { decision?: string; reason?: string }
+  const body = await request.json().catch(() => ({})) as { decision?: string; reason?: string; narrationType?: string }
+  const id = (await context.params).id
+  if (body.narrationType === 'human' || body.narrationType === 'ai') {
+    try { return Response.json({ work: await updateCreatorModerationNarration({ id, narrationType: body.narrationType, adminId: auth.admin.id }) }) } catch (error) { return failure(error) }
+  }
   if (body.decision !== 'approved' && body.decision !== 'rejected') return Response.json({ error: 'รูปแบบการตัดสินใจไม่ถูกต้อง' }, { status: 400 })
-  try { return Response.json({ request: await decideCreatorModeration({ id: (await context.params).id, decision: body.decision, reason: body.reason, adminId: auth.admin.id }) }) } catch (error) { return failure(error) }
+  try { return Response.json({ request: await decideCreatorModeration({ id, decision: body.decision, reason: body.reason, adminId: auth.admin.id }) }) } catch (error) { return failure(error) }
 }

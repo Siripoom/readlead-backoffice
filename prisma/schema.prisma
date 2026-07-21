@@ -84,6 +84,11 @@ enum CreatorWorkOrigin {
   translated
 }
 
+enum CreatorNarrationType {
+  human
+  ai
+}
+
 enum CreatorWorkStatus {
   draft
   pending_review
@@ -126,6 +131,12 @@ enum CoinLedgerKind {
   adjustment
 }
 
+enum CoinTopUpStatus {
+  pending
+  approved
+  rejected
+}
+
 enum CreatorRevenueKind {
   earning
   withdrawal_reserve
@@ -166,6 +177,7 @@ model User {
   episodePurchases   EpisodePurchase[]
   coinAccount        CoinAccount?
   coinEntries        CoinLedger[]
+  coinTopUpRequests  CoinTopUpRequest[]
   revenueEntries     CreatorRevenueLedger[]
   withdrawalRequests WithdrawalRequest[]
 
@@ -231,6 +243,7 @@ model AdminProfile {
   user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions  AdminSession[]
   auditLogs AuditLog[]
+  reviewedCoinTopUps CoinTopUpRequest[]
 }
 
 model AdminSession {
@@ -292,6 +305,7 @@ model CreatorWork {
   translatorName     String?
   originalLanguage   String?
   originalTitle      String?
+  narrationType      CreatorNarrationType?
   coverObjectKey     String?
   coverContentType   String?
   coverIsPublic      Boolean                    @default(false)
@@ -542,6 +556,35 @@ model CoinLedger {
 
   @@index([userId, createdAt])
   @@index([referenceId])
+}
+
+model CoinTopUpRequest {
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId        String
+  baseCoins        Int
+  bonusCoins       Int
+  totalCoins       Int
+  amountSatang     Int
+  status           CoinTopUpStatus @default(pending)
+  idempotencyKey   String          @unique
+  slipObjectKey    String          @unique
+  slipUrl          String
+  slipContentType  String
+  slipSizeBytes    Int
+  slipOriginalName String
+  rejectionReason  String?
+  reviewerId       String?
+  reviewer         AdminProfile?   @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?
+  submittedAt      DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([userId, submittedAt])
+  @@index([status, submittedAt])
+  @@index([reviewerId])
 }
 
 model CreatorRevenueLedger {

@@ -14,7 +14,7 @@ export async function GET(_request: Request, context: Context) {
       ],
     },
     select: {
-      id: true, type: true, origin: true, status: true, title: true, category: true, rating: true, creationMethod: true, tagline: true, synopsis: true, tags: true, seriesStatus: true, approvedAt: true, publishedAt: true, updatedAt: true,
+      id: true, type: true, origin: true, status: true, title: true, category: true, rating: true, creationMethod: true, narrationType: true, tagline: true, synopsis: true, tags: true, seriesStatus: true, approvedAt: true, publishedAt: true, updatedAt: true,
       coverObjectKey: true, coverIsPublic: true,
       views: true, coins: true, shelfCount: true, dailyVotes: true, monthlyVotes: true, reviewCount: true, commentCount: true,
       creator: { select: { id: true, name: true, writerApplication: { select: { penName: true } }, creatorProfile: { select: { followers: true } } } },

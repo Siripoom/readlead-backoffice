@@ -117,6 +117,35 @@ export async function deleteReportAttachment(key: string) {
   await getClient(config).send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
 }
 
+export async function uploadTopUpProof(input: {
+  body: Uint8Array
+  contentType: 'image/jpeg' | 'image/png'
+  extension: 'jpg' | 'png'
+  size: number
+  id: string
+  requestId: string
+}) {
+  const config = getConfig()
+  const prefix = (process.env.B2_TOPUP_UPLOAD_PREFIX?.trim() || 'topup-proofs').replace(/^\/+|\/+$/g, '')
+  const key = `${prefix}/${input.requestId}/${input.id}.${input.extension}`
+  await getClient(config).send(new PutObjectCommand({
+    Bucket: config.bucket,
+    Key: key,
+    Body: input.body,
+    ContentLength: input.size,
+    ContentType: input.contentType,
+    CacheControl: 'public, max-age=31536000, immutable',
+  }))
+  return { key, url: publicObjectUrl(config.publicUrl, key) }
+}
+
+export async function deleteTopUpProof(key: string) {
+  const config = getConfig()
+  const prefix = (process.env.B2_TOPUP_UPLOAD_PREFIX?.trim() || 'topup-proofs').replace(/^\/+|\/+$/g, '')
+  if (!key.startsWith(`${prefix}/`)) throw new Error('Top-up proof key is outside the configured prefix')
+  await getClient(config).send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
+}
+
 export async function uploadCreatorMedia(input: { body: Uint8Array; contentType: string; extension: string; size: number; id: string; workToken: string }) {
   const config = getConfig()
   const prefix = (process.env.B2_CREATOR_STAGING_PREFIX?.trim() || 'creator-content-encrypted').replace(/^\/+|\/+$/g, '')

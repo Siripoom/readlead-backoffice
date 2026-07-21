@@ -17,6 +17,7 @@ export async function PATCH(request: Request, context: Context) {
   const allowed: Partial<CreatorWorkInput> = {}
   for (const key of ['title', 'category', 'rating', 'creationMethod', 'tagline', 'synopsis', 'seriesStatus', 'originalAuthor', 'translatorName', 'originalLanguage', 'originalTitle'] as const) if (typeof body[key] === 'string') allowed[key] = body[key]
   if (Array.isArray(body.tags)) allowed.tags = body.tags.map(String).slice(0, 10)
+  if (body.narrationType === 'human' || body.narrationType === 'ai') allowed.narrationType = body.narrationType
   try { return privateJson({ work: await updateCreatorWork(auth.user.id, (await context.params).id, allowed) }) } catch (error) { return creatorApiError(error, 'แก้ไขผลงานไม่สำเร็จ') }
 }
 

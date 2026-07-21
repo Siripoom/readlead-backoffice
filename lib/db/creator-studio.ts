@@ -1,6 +1,6 @@
 import { getPrisma } from '@/lib/prisma'
 import { decryptWriterApplicationPayload, encryptWriterApplicationPayload } from '@/lib/writer-application-crypto'
-import type { CreatorEpisodeStatus, CreatorEpisodeType, CreatorModerationType, CreatorWorkOrigin, CreatorWorkStatus, CreatorWorkType } from '@/lib/generated/prisma/enums'
+import type { CreatorEpisodeStatus, CreatorEpisodeType, CreatorModerationType, CreatorNarrationType, CreatorWorkOrigin, CreatorWorkStatus, CreatorWorkType } from '@/lib/generated/prisma/enums'
 
 export class CreatorStudioError extends Error {
   constructor(
@@ -19,6 +19,7 @@ const workSummarySelect = {
   status: true,
   title: true,
   category: true,
+  narrationType: true,
   rating: true,
   tagline: true,
   seriesStatus: true,
@@ -210,6 +211,7 @@ export interface CreatorWorkInput {
   translatorName?: string
   originalLanguage?: string
   originalTitle?: string
+  narrationType?: CreatorNarrationType | null
   seriesStatus?: string
 }
 
@@ -247,10 +249,11 @@ export async function submitCreatorWorkForReview(userId: string, id: string) {
 }
 
 export async function updateCreatorWork(userId: string, id: string, input: Partial<CreatorWorkInput>) {
-  const current = await getPrisma().creatorWork.findUnique({ where: { id }, select: { creatorId: true, status: true } })
+  const current = await getPrisma().creatorWork.findUnique({ where: { id }, select: { creatorId: true, status: true, type: true } })
   if (!current) throw new CreatorStudioError('NOT_FOUND')
   if (current.creatorId !== userId) throw new CreatorStudioError('FORBIDDEN')
   if (current.status === 'archived' || current.status === 'deletion_pending' || current.status === 'pending_review') throw new CreatorStudioError('INVALID_STATE')
+  if (input.narrationType !== undefined && (current.type !== 'audiobook' || !['human', 'ai'].includes(input.narrationType ?? ''))) throw new CreatorStudioError('VALIDATION')
   const data = current.status === 'approved' || current.status === 'published'
     ? Object.fromEntries(Object.entries(input).filter(([key]) => ['tagline', 'synopsis', 'tags', 'seriesStatus'].includes(key)))
     : input
