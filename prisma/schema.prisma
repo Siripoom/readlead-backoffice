@@ -137,6 +137,10 @@ enum CoinTopUpStatus {
   rejected
 }
 
+enum WorkFeature {
+  text_to_speech
+}
+
 enum CreatorRevenueKind {
   earning
   withdrawal_reserve
@@ -175,6 +179,7 @@ model User {
   reviewReactions    WorkReviewReaction[]
   workComments       WorkComment[]
   episodePurchases   EpisodePurchase[]
+  workFeaturePurchases WorkFeaturePurchase[]
   coinAccount        CoinAccount?
   coinEntries        CoinLedger[]
   coinTopUpRequests  CoinTopUpRequest[]
@@ -329,6 +334,7 @@ model CreatorWork {
   reviews            WorkReview[]
   comments           WorkComment[]
   purchases          EpisodePurchase[]
+  featurePurchases   WorkFeaturePurchase[]
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
 
@@ -531,6 +537,21 @@ model EpisodePurchase {
   purchasedAt   DateTime       @default(now())
 
   @@unique([userId, episodeId])
+  @@index([workId, purchasedAt])
+}
+
+model WorkFeaturePurchase {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workId      String
+  work        CreatorWork @relation(fields: [workId], references: [id], onDelete: Cascade)
+  feature     WorkFeature
+  coinsSpent  Int
+  purchasedAt DateTime    @default(now())
+
+  @@unique([userId, workId, feature])
+  @@index([userId, purchasedAt])
   @@index([workId, purchasedAt])
 }
 

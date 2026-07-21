@@ -5,9 +5,10 @@ import { getPrisma } from '@/lib/prisma'
 export async function GET() {
   const auth = await authorizeMember(); if (!auth.ok) return auth.response
   const prisma = getPrisma()
-  const [account, purchases, shelves, reviews, comments, following, followers] = await Promise.all([
+  const [account, episodePurchases, featurePurchases, shelves, reviews, comments, following, followers] = await Promise.all([
     prisma.coinAccount.findUnique({ where: { userId: auth.user.id }, select: { balance: true } }),
     prisma.episodePurchase.findMany({ where: { userId: auth.user.id }, orderBy: { purchasedAt: 'desc' }, take: 100, select: { id: true, coinsSpent: true, purchasedAt: true, work: { select: { id: true, title: true } }, episode: { select: { id: true, title: true } } } }),
+    prisma.workFeaturePurchase.findMany({ where: { userId: auth.user.id }, orderBy: { purchasedAt: 'desc' }, take: 100, select: { id: true, feature: true, coinsSpent: true, purchasedAt: true, work: { select: { id: true, title: true } } } }),
     prisma.workShelf.findMany({ where: { userId: auth.user.id }, orderBy: { createdAt: 'desc' }, select: { createdAt: true, work: { select: { id: true, type: true, title: true, category: true, tagline: true, updatedAt: true, creator: { select: { id: true, name: true, writerApplication: { select: { penName: true } } } } } } } }),
     prisma.workReview.findMany({
       where: { userId: auth.user.id, status: { not: 'deleted' } },
@@ -37,6 +38,10 @@ export async function GET() {
     prisma.creatorFollow.count({ where: { followerId: auth.user.id } }),
     prisma.creatorFollow.count({ where: { creatorId: auth.user.id } }),
   ])
+  const purchases = [
+    ...episodePurchases.map((item) => ({ ...item, kind: 'episode' as const })),
+    ...featurePurchases.map((item) => ({ ...item, kind: 'feature' as const, episode: null })),
+  ].sort((a, b) => +b.purchasedAt - +a.purchasedAt).slice(0, 100)
   const activityIds = [...reviews.map((item) => item.id), ...comments.map((item) => item.id)]
   const expEntries = activityIds.length ? await prisma.expLedger.findMany({
     where: { userId: auth.user.id, referenceId: { in: activityIds } },

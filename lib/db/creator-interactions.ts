@@ -1,6 +1,8 @@
 import { getPrisma } from '@/lib/prisma'
 import { CreatorStudioError, todayUtc } from '@/lib/db/creator-studio'
 
+export const TEXT_TO_SPEECH_PRICE_COINS = 300
+
 type MetricClient = Pick<ReturnType<typeof getPrisma>, 'workMetricDaily'>
 
 async function incrementMetric(workId: string, data: Partial<Record<'views' | 'coins' | 'revenueSatang' | 'shelfAdds' | 'dailyVotes' | 'monthlyVotes' | 'reviews' | 'comments', number>>, tx: MetricClient = getPrisma()) {
@@ -286,6 +288,85 @@ export async function purchaseEpisode(userId: string, episodeId: string) {
     }
     return { purchase, coinBalance: account.balance, idempotent: false }
   }, { isolationLevel: 'Serializable' })
+}
+
+export async function getTextToSpeechAccess(userId: string | undefined, workId: string) {
+  const prisma = getPrisma()
+  const work = await prisma.creatorWork.findUnique({
+    where: { id: workId },
+    select: { id: true, creatorId: true, type: true, status: true },
+  })
+  if (!work || work.status !== 'published') throw new CreatorStudioError('NOT_FOUND')
+  const eligible = work.type === 'novel'
+  if (!eligible || !userId) return { eligible, entitled: false, priceCoins: TEXT_TO_SPEECH_PRICE_COINS }
+  const owner = work.creatorId === userId
+  const purchase = owner ? null : await prisma.workFeaturePurchase.findUnique({
+    where: { userId_workId_feature: { userId, workId, feature: 'text_to_speech' } },
+    select: { id: true },
+  })
+  return { eligible: true, entitled: owner || Boolean(purchase), priceCoins: TEXT_TO_SPEECH_PRICE_COINS }
+}
+
+async function purchaseTextToSpeechOnce(userId: string, workId: string) {
+  const prisma = getPrisma()
+  return prisma.$transaction(async (tx) => {
+    const work = await tx.creatorWork.findUnique({
+      where: { id: workId },
+      select: { id: true, creatorId: true, type: true, status: true },
+    })
+    if (!work || work.status !== 'published' || work.type !== 'novel') throw new CreatorStudioError('NOT_FOUND')
+
+    const account = await tx.coinAccount.upsert({ where: { userId }, create: { userId, balance: 0 }, update: {} })
+    if (work.creatorId === userId) {
+      return { entitlement: null, coinBalance: account.balance, idempotent: true, owner: true }
+    }
+
+    const existing = await tx.workFeaturePurchase.findUnique({
+      where: { userId_workId_feature: { userId, workId, feature: 'text_to_speech' } },
+    })
+    if (existing) return { entitlement: existing, coinBalance: account.balance, idempotent: true, owner: false }
+
+    const claimed = await tx.coinAccount.updateMany({
+      where: { userId, balance: { gte: TEXT_TO_SPEECH_PRICE_COINS } },
+      data: { balance: { decrement: TEXT_TO_SPEECH_PRICE_COINS } },
+    })
+    if (!claimed.count) throw new CreatorStudioError('INSUFFICIENT_BALANCE', { requiredCoins: TEXT_TO_SPEECH_PRICE_COINS })
+    const updatedAccount = await tx.coinAccount.findUniqueOrThrow({ where: { userId } })
+    const entitlement = await tx.workFeaturePurchase.create({
+      data: { userId, workId, feature: 'text_to_speech', coinsSpent: TEXT_TO_SPEECH_PRICE_COINS },
+    })
+    await tx.coinLedger.create({
+      data: {
+        userId,
+        kind: 'purchase',
+        amount: -TEXT_TO_SPEECH_PRICE_COINS,
+        balanceAfter: updatedAccount.balance,
+        referenceId: entitlement.id,
+        idempotencyKey: `work-feature:${userId}:${workId}:text_to_speech`,
+        metadata: { feature: 'text_to_speech', workId, priceCoins: TEXT_TO_SPEECH_PRICE_COINS },
+      },
+    })
+    return { entitlement, coinBalance: updatedAccount.balance, idempotent: false, owner: false }
+  }, { isolationLevel: 'Serializable' })
+}
+
+export async function purchaseTextToSpeech(userId: string, workId: string) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await purchaseTextToSpeechOnce(userId, workId)
+    } catch (error) {
+      const code = typeof error === 'object' && error && 'code' in error ? error.code : null
+      if (code !== 'P2034' && code !== 'P2002') throw error
+      const existing = await getPrisma().workFeaturePurchase.findUnique({
+        where: { userId_workId_feature: { userId, workId, feature: 'text_to_speech' } },
+      })
+      if (existing) {
+        const account = await getPrisma().coinAccount.findUnique({ where: { userId } })
+        return { entitlement: existing, coinBalance: account?.balance ?? 0, idempotent: true, owner: false }
+      }
+    }
+  }
+  throw new CreatorStudioError('INVALID_STATE')
 }
 
 const DAILY_TICKET_ALLOWANCE = 15
