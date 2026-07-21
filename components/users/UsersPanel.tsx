@@ -1,38 +1,29 @@
 'use client'
+
 import {
-  Badge,
-  Box,
   Button,
-  Card,
   Dialog,
   Field,
   Flex,
-  IconButton,
   Input,
   NativeSelect,
   NumberInput,
-  Table,
-  Tabs,
-  Text,
 } from '@chakra-ui/react'
-import { Eye, Gavel, History, Pencil, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
-import { toaster } from '@/lib/toaster'
-import type { AdminItem, CreatorItem, UserItem, UserStatus } from '@/lib/mock-data/users'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PunishmentDialog } from '@/components/punishment/PunishmentDialog'
-import type { PunishmentLevel, PunishmentRecord } from '@/lib/mock-data/punishment'
-import { PunishmentHistoryDialog } from '@/components/users/PunishmentHistoryDialog'
 import { ModerationPanel } from '@/components/users/ModerationPanel'
-
-const statusMap: Record<UserStatus, { label: string; color: string }> = {
-  active: { label: 'ใช้งาน', color: 'green' },
-  inactive: { label: 'ไม่ใช้งาน', color: 'gray' },
-  banned: { label: 'ถูกระงับ', color: 'red' },
-}
+import { PunishmentHistoryDialog } from '@/components/users/PunishmentHistoryDialog'
+import type { PunishmentLevel, PunishmentRecord } from '@/lib/mock-data/punishment'
+import type { AdminItem, CreatorItem, UserItem, UserStatus } from '@/lib/mock-data/users'
+import { toaster } from '@/lib/toaster'
+import styles from './UsersPanel.module.css'
 
 type AnyUser = UserItem | CreatorItem | AdminItem
 type UserType = 'user' | 'creator' | 'admin'
+type UserTab = 'users' | 'creators' | 'admins'
+type StatusFilter = 'all' | UserStatus
 
 interface EditForm {
   name: string
@@ -40,8 +31,6 @@ interface EditForm {
   role?: string
   permissions?: string[]
 }
-
-const permissionLabels: Record<string,string> = { dashboard: 'ภาพรวม', users: 'ผู้ใช้', admins: 'แอดมิน', reports: 'รายงาน', finance: 'การเงิน', punishment: 'บทลงโทษ', cms: 'แบนเนอร์', exp: 'EXP/ตั๋ว' }
 
 interface AddForm {
   name: string
@@ -53,87 +42,228 @@ interface AddForm {
   password: string
 }
 
-const emptyAddForm: AddForm = { name: '', email: '', status: 'active', role: '', works: 0, followers: 0, password: '' }
-
-const addButtonLabel: Record<string, string> = {
-  users: 'เพิ่มผู้ใช้งาน',
-  creators: 'เพิ่ม Creator',
-  admins: 'เพิ่ม Admin',
+const emptyAddForm: AddForm = {
+  name: '',
+  email: '',
+  status: 'active',
+  role: '',
+  works: 0,
+  followers: 0,
+  password: '',
 }
 
-function ActionButtons({ onView, onEdit, onPunish, onHistory }: { onView: () => void; onEdit: () => void; onPunish: () => void; onHistory: () => void }) {
+const pageContent: Record<UserTab, { title: string; description: string; addLabel: string }> = {
+  users: {
+    title: 'ผู้ใช้งาน',
+    description: 'บัญชีนักอ่านทั้งหมดในระบบ — ดู ระงับ หรือจัดการบัญชี',
+    addLabel: 'เพิ่มผู้ใช้งาน',
+  },
+  creators: {
+    title: 'นักเขียน',
+    description: 'บัญชีนักเขียนพร้อมจำนวนผลงานและผู้ติดตาม',
+    addLabel: 'เพิ่มนักเขียน',
+  },
+  admins: {
+    title: 'แอดมิน',
+    description: 'เพิ่มผู้ดูแลระบบ ออกไอดีแอดมิน และกำหนดสิทธิ์ว่าแต่ละคนเห็นเมนูไหนได้บ้าง',
+    addLabel: 'เพิ่มแอดมิน',
+  },
+}
+
+const statusMap: Record<UserStatus, { label: string; className: string }> = {
+  active: { label: 'ใช้งานอยู่', className: styles.statusActive },
+  inactive: { label: 'ไม่ใช้งาน', className: styles.statusInactive },
+  banned: { label: 'ถูกระงับ', className: styles.statusBanned },
+}
+
+const permissionLabels: Record<string, string> = {
+  dashboard: 'ภาพรวม',
+  users: 'ผู้ใช้',
+  admins: 'แอดมิน',
+  reports: 'รายงาน',
+  finance: 'การเงิน',
+  punishment: 'บทลงโทษ',
+  cms: 'แบนเนอร์',
+  exp: 'EXP/ตั๋ว',
+}
+
+const filters: Array<{ value: StatusFilter; label: string }> = [
+  { value: 'all', label: 'ทั้งหมด' },
+  { value: 'active', label: 'ใช้งานอยู่' },
+  { value: 'inactive', label: 'ไม่ใช้งาน' },
+  { value: 'banned', label: 'ถูกระงับ' },
+]
+
+function isUserTab(value: string | null): value is UserTab {
+  return value === 'users' || value === 'creators' || value === 'admins'
+}
+
+function formatThaiDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value || '—'
+  return new Intl.DateTimeFormat('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+function initials(name: string) {
+  return name.trim().charAt(0).toUpperCase() || '?'
+}
+
+function UserIdentity({ item }: { item: AnyUser }) {
   return (
-    <Box display="flex" gap={1}>
-      <IconButton aria-label="ดู" variant="ghost" size="sm" onClick={onView}><Eye size={16} /></IconButton>
-      <IconButton aria-label="แก้ไข" variant="ghost" size="sm" onClick={onEdit}><Pencil size={16} /></IconButton>
-      <IconButton aria-label="ลงโทษ" variant="ghost" size="sm" colorPalette="red" onClick={onPunish}><Gavel size={16} /></IconButton>
-      <IconButton aria-label="ประวัติการลงโทษ" variant="ghost" size="sm" colorPalette="orange" onClick={onHistory}><History size={16} /></IconButton>
-    </Box>
+    <div className={styles.userCell}>
+      <span className={styles.avatar}>{initials(item.name)}</span>
+      <span className={styles.userName}>{item.name}</span>
+    </div>
   )
+}
+
+function StatusBadge({ status }: { status: UserStatus }) {
+  const item = statusMap[status]
+  return <span className={`${styles.statusBadge} ${item.className}`}>{item.label}</span>
+}
+
+function ActionButtons({
+  onView,
+  onEdit,
+  onPunish,
+  onHistory,
+}: {
+  onView: () => void
+  onEdit: () => void
+  onPunish: () => void
+  onHistory: () => void
+}) {
+  return (
+    <div className={styles.actions}>
+      <button type="button" className={styles.smallButton} onClick={onView}>ดู</button>
+      <button type="button" className={styles.smallButton} onClick={onEdit}>แก้ไข</button>
+      <button type="button" className={`${styles.smallButton} ${styles.dangerButton}`} onClick={onPunish}>ลงโทษ</button>
+      <button type="button" className={styles.smallButton} onClick={onHistory}>ประวัติ</button>
+    </div>
+  )
+}
+
+function FilterPills({ value, onChange }: { value: StatusFilter; onChange: (value: StatusFilter) => void }) {
+  return (
+    <div className={styles.pills} aria-label="กรองสถานะ">
+      {filters.map((filter) => (
+        <button
+          key={filter.value}
+          type="button"
+          className={`${styles.pill} ${value === filter.value ? styles.activePill : ''}`}
+          onClick={() => onChange(filter.value)}
+          aria-pressed={value === filter.value}
+        >
+          {filter.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function TableState({ message }: { message: string }) {
+  return <div className={styles.tableState}>{message}</div>
 }
 
 export function UsersPanel() {
   const searchParams = useSearchParams()
-  const tab = searchParams.get('tab') ?? 'users'
+  const requestedTab = searchParams.get('tab')
+  const tab: UserTab = isUserTab(requestedTab) ? requestedTab : 'users'
+  const currentPage = pageContent[tab]
 
   const [users, setUsers] = useState<UserItem[]>([])
   const [creators, setCreators] = useState<CreatorItem[]>([])
   const [admins, setAdmins] = useState<AdminItem[]>([])
+  const [filtersByTab, setFiltersByTab] = useState<Record<'users' | 'creators', StatusFilter>>({ users: 'all', creators: 'all' })
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   const [selectedUser, setSelectedUser] = useState<AnyUser | null>(null)
   const [userType, setUserType] = useState<UserType>('user')
   const [mode, setMode] = useState<'view' | 'edit' | null>(null)
   const [form, setForm] = useState<EditForm>({ name: '', status: 'active', role: '' })
-
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [addForm, setAddForm] = useState<AddForm>(emptyAddForm)
-
   const [punishTarget, setPunishTarget] = useState<AnyUser | null>(null)
-
   const [punishRecords, setPunishRecords] = useState<PunishmentRecord[]>([])
   const [historyTarget, setHistoryTarget] = useState<AnyUser | null>(null)
 
   const fetchAll = useCallback(async () => {
-    const [rawUsers, rawCreators, rawAdmins, rawRecords] = await Promise.all([
-      fetch('/api/users?type=user').then(r => r.json()),
-      fetch('/api/users?type=creator').then(r => r.json()),
-      fetch('/api/users?type=admin').then(r => r.json()),
-      fetch('/api/punishment/records').then(r => r.json()),
-    ])
-    setUsers(rawUsers.map((u: UserItem & { joinedAt: string }) => ({ ...u, joinedAt: u.joinedAt.split('T')[0] })))
-    setCreators(rawCreators.map((u: UserItem & { creatorProfile: { works: number; followers: number } | null }) => ({
-      ...u,
-      joinedAt: u.joinedAt.split('T')[0],
-      works: u.creatorProfile?.works ?? 0,
-      followers: u.creatorProfile?.followers ?? 0,
-    })))
-    setAdmins(rawAdmins.map((u: UserItem & { adminProfile: { role: string; lastLogin: string | null; adminCode?:string; permissions?:string[]; isOwner?:boolean } | null }) => ({
-      ...u,
-      joinedAt: u.joinedAt.split('T')[0],
-      role: u.adminProfile?.role ?? '',
-      lastLogin: u.adminProfile?.lastLogin?.split('T')[0] ?? '-',
-      adminCode: u.adminProfile?.adminCode,
-      permissions: u.adminProfile?.permissions ?? [],
-      isOwner: u.adminProfile?.isOwner ?? false,
-    })))
-    setPunishRecords(rawRecords.map((r: PunishmentRecord & { date: string }) => ({ ...r, date: r.date.split('T')[0] })))
+    setIsLoading(true)
+    setLoadError('')
+    try {
+      const responses = await Promise.all([
+        fetch('/api/users?type=user'),
+        fetch('/api/users?type=creator'),
+        fetch('/api/users?type=admin'),
+        fetch('/api/punishment/records'),
+      ])
+      if (responses.some((response) => !response.ok)) throw new Error('Unable to load users')
+
+      const [rawUsers, rawCreators, rawAdmins, rawRecords] = await Promise.all(responses.map((response) => response.json()))
+      setUsers(rawUsers.map((user: UserItem & { joinedAt: string }) => ({ ...user, joinedAt: user.joinedAt })))
+      setCreators(rawCreators.map((user: UserItem & { creatorProfile: { works: number; followers: number } | null }) => ({
+        ...user,
+        joinedAt: user.joinedAt,
+        works: user.creatorProfile?.works ?? 0,
+        followers: user.creatorProfile?.followers ?? 0,
+      })))
+      setAdmins(rawAdmins.map((user: UserItem & { adminProfile: { role: string; lastLogin: string | null; adminCode?: string; permissions?: string[]; isOwner?: boolean } | null }) => ({
+        ...user,
+        joinedAt: user.joinedAt,
+        role: user.adminProfile?.role ?? '',
+        lastLogin: user.adminProfile?.lastLogin ?? '-',
+        adminCode: user.adminProfile?.adminCode,
+        permissions: user.adminProfile?.permissions ?? [],
+        isOwner: user.adminProfile?.isOwner ?? false,
+      })))
+      setPunishRecords(rawRecords.map((record: PunishmentRecord & { date: string }) => ({ ...record, date: record.date })))
+    } catch {
+      setLoadError('โหลดข้อมูลผู้ใช้ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
 
-  // The callback performs the initial synchronization with the API.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { void fetchAll() }, [fetchAll])
+  useEffect(() => {
+    // The callback performs the initial synchronization with the API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchAll()
+  }, [fetchAll])
 
-  function handleOpenPunish(item: AnyUser) {
-    setPunishTarget(item)
+  const visibleUsers = useMemo(() => {
+    const filter = filtersByTab.users
+    return filter === 'all' ? users : users.filter((user) => user.status === filter)
+  }, [filtersByTab.users, users])
+
+  const visibleCreators = useMemo(() => {
+    const filter = filtersByTab.creators
+    return filter === 'all' ? creators : creators.filter((creator) => creator.status === filter)
+  }, [creators, filtersByTab.creators])
+
+  function setFilter(section: 'users' | 'creators', value: StatusFilter) {
+    setFiltersByTab((current) => ({ ...current, [section]: value }))
+  }
+
+  function punishmentCount(userId: string) {
+    return punishRecords.filter((record) => record.userId === userId).length
   }
 
   async function handleConfirmPunish(level: PunishmentLevel) {
     if (!punishTarget) return
-    await fetch(`/api/users/${punishTarget.id}/punishments`, {
+    const punishmentResponse = await fetch(`/api/users/${punishTarget.id}/punishments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ levelName: level.name }),
     })
+    if (!punishmentResponse.ok) {
+      toaster.error({ title: 'ลงโทษไม่สำเร็จ', description: 'กรุณาลองใหม่อีกครั้ง' })
+      return
+    }
     if (level.level >= 2) {
       await fetch(`/api/users/${punishTarget.id}`, {
         method: 'PATCH',
@@ -152,23 +282,23 @@ export function UsersPanel() {
   }
 
   async function handleAdd() {
-    const userTypeMap: Record<string, string> = { users: 'user', creators: 'creator', admins: 'admin' }
-    const res = await fetch('/api/users', {
+    const userTypeMap: Record<UserTab, UserType> = { users: 'user', creators: 'creator', admins: 'admin' }
+    const response = await fetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: addForm.name,
         email: addForm.email,
         status: addForm.status,
-        userType: userTypeMap[tab] ?? 'user',
+        userType: userTypeMap[tab],
         works: addForm.works,
         followers: addForm.followers,
         role: addForm.role,
         password: addForm.password,
-        permissions: ['dashboard','users','reports'],
+        permissions: ['dashboard', 'users', 'reports'],
       }),
     })
-    if (!res.ok) {
+    if (!response.ok) {
       toaster.error({ title: 'เพิ่มไม่สำเร็จ', description: 'กรุณาลองใหม่อีกครั้ง' })
       return
     }
@@ -202,308 +332,221 @@ export function UsersPanel() {
 
   async function handleSave() {
     if (!selectedUser) return
-    await fetch(`/api/users/${selectedUser.id}`, {
+    const response = await fetch(`/api/users/${selectedUser.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: form.name, status: form.status, role: form.role, permissions: form.permissions }),
     })
+    if (!response.ok) {
+      toaster.error({ title: 'บันทึกไม่สำเร็จ', description: 'กรุณาตรวจสอบสิทธิ์แล้วลองใหม่อีกครั้ง' })
+      return
+    }
     await fetchAll()
-    toaster.success({ title: 'บันทึกสำเร็จ', description: `อัพเดทข้อมูล "${form.name}" แล้ว` })
+    toaster.success({ title: 'บันทึกสำเร็จ', description: `อัปเดตข้อมูล "${form.name}" แล้ว` })
     handleClose()
   }
 
+  const renderActions = (item: AnyUser, type: UserType) => (
+    <ActionButtons
+      onView={() => handleView(item, type)}
+      onEdit={() => handleEdit(item, type)}
+      onPunish={() => setPunishTarget(item)}
+      onHistory={() => setHistoryTarget(item)}
+    />
+  )
+
   return (
     <>
-      <Card.Root bg="white" shadow="sm">
-        <Card.Body p={0}>
-          <Tabs.Root value={tab} variant="line">
-            <Flex px={4} pt={2} borderBottomWidth="1px" borderColor="gray.200" align="center" justify="space-between">
-              <Tabs.List>
-                <Tabs.Trigger value="users" asChild><a href="/users?tab=users">Users</a></Tabs.Trigger>
-                <Tabs.Trigger value="creators" asChild><a href="/users?tab=creators">Creators</a></Tabs.Trigger>
-                <Tabs.Trigger value="admins" asChild><a href="/users?tab=admins">Admins</a></Tabs.Trigger>
-              </Tabs.List>
-              <Button colorPalette="teal" size="sm" mb={2} onClick={handleOpenAdd}>
-                <Plus size={16} />{addButtonLabel[tab] ?? 'เพิ่ม'}
-              </Button>
-            </Flex>
+      {tab === 'creators' && <ModerationPanel />}
 
-            <Tabs.Content value="users" p={0}>
-              <Box overflowX="auto">
-                <Table.Root>
-                  <Table.Header>
-                    <Table.Row bg="gray.50">
-                      <Table.ColumnHeader>ชื่อ</Table.ColumnHeader>
-                      <Table.ColumnHeader>ไอดีแอดมิน</Table.ColumnHeader>
-                      <Table.ColumnHeader>วันที่สมัคร</Table.ColumnHeader>
-                      <Table.ColumnHeader>โทษ</Table.ColumnHeader>
-                      <Table.ColumnHeader>สถานะ</Table.ColumnHeader>
-                      <Table.ColumnHeader>จัดการ</Table.ColumnHeader>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {users.map((row) => {
-                      const count = punishRecords.filter(r => r.userId === row.id).length
-                      return (
-                      <Table.Row key={row.id}>
-                        <Table.Cell fontWeight="medium">{row.name}</Table.Cell>
-                        <Table.Cell color="gray.600">{row.email}</Table.Cell>
-                        <Table.Cell color="gray.600">{row.joinedAt}</Table.Cell>
-                        <Table.Cell>
-                          {count > 0
-                            ? <Badge colorPalette="orange" variant="subtle" cursor="pointer" onClick={() => setHistoryTarget(row)}>{count} ครั้ง</Badge>
-                            : <Text color="gray.400" fontSize="sm">—</Text>}
-                        </Table.Cell>
-                        <Table.Cell><Badge colorPalette={statusMap[row.status].color} variant="subtle">{statusMap[row.status].label}</Badge></Table.Cell>
-                        <Table.Cell>
-                          <ActionButtons onView={() => handleView(row, 'user')} onEdit={() => handleEdit(row, 'user')} onPunish={() => handleOpenPunish(row)} onHistory={() => setHistoryTarget(row)} />
-                        </Table.Cell>
-                      </Table.Row>
-                      )
-                    })}
-                  </Table.Body>
-                </Table.Root>
-              </Box>
-            </Tabs.Content>
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>{currentPage.title}</h1>
+          <p className={styles.pageDescription}>{currentPage.description}</p>
+        </div>
+        <button type="button" className={styles.primaryButton} onClick={handleOpenAdd}>
+          <Plus aria-hidden="true" />
+          {currentPage.addLabel}
+        </button>
+      </div>
 
-            <Tabs.Content value="creators" p={0}>
-              <ModerationPanel />
-              <Box overflowX="auto">
-                <Table.Root>
-                  <Table.Header>
-                    <Table.Row bg="gray.50">
-                      <Table.ColumnHeader>ชื่อ</Table.ColumnHeader>
-                      <Table.ColumnHeader>อีเมล</Table.ColumnHeader>
-                      <Table.ColumnHeader>ผลงาน</Table.ColumnHeader>
-                      <Table.ColumnHeader>ผู้ติดตาม</Table.ColumnHeader>
-                      <Table.ColumnHeader>โทษ</Table.ColumnHeader>
-                      <Table.ColumnHeader>สถานะ</Table.ColumnHeader>
-                      <Table.ColumnHeader>จัดการ</Table.ColumnHeader>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {creators.map((c) => {
-                      const count = punishRecords.filter(r => r.userId === c.id).length
-                      return (
-                      <Table.Row key={c.id}>
-                        <Table.Cell fontWeight="medium">{c.name}</Table.Cell>
-                        <Table.Cell color="gray.600">{c.email}</Table.Cell>
-                        <Table.Cell color="gray.600">{c.works}</Table.Cell>
-                        <Table.Cell color="gray.600">{c.followers.toLocaleString()}</Table.Cell>
-                        <Table.Cell>
-                          {count > 0
-                            ? <Badge colorPalette="orange" variant="subtle" cursor="pointer" onClick={() => setHistoryTarget(c)}>{count} ครั้ง</Badge>
-                            : <Text color="gray.400" fontSize="sm">—</Text>}
-                        </Table.Cell>
-                        <Table.Cell><Badge colorPalette={statusMap[c.status].color} variant="subtle">{statusMap[c.status].label}</Badge></Table.Cell>
-                        <Table.Cell>
-                          <ActionButtons onView={() => handleView(c, 'creator')} onEdit={() => handleEdit(c, 'creator')} onPunish={() => handleOpenPunish(c)} onHistory={() => setHistoryTarget(c)} />
-                        </Table.Cell>
-                      </Table.Row>
-                      )
-                    })}
-                  </Table.Body>
-                </Table.Root>
-              </Box>
-            </Tabs.Content>
+      {loadError && (
+        <div className={styles.errorBanner} role="alert">
+          <span>{loadError}</span>
+          <button type="button" className={styles.smallButton} onClick={() => void fetchAll()}>ลองใหม่</button>
+        </div>
+      )}
 
-            <Tabs.Content value="admins" p={0}>
-              <Box overflowX="auto">
-                <Table.Root>
-                  <Table.Header>
-                    <Table.Row bg="gray.50">
-                      <Table.ColumnHeader>ชื่อ</Table.ColumnHeader>
-                      <Table.ColumnHeader>อีเมล</Table.ColumnHeader>
-                      <Table.ColumnHeader>บทบาท</Table.ColumnHeader>
-                      <Table.ColumnHeader>เมนูที่เห็น</Table.ColumnHeader>
-                      <Table.ColumnHeader>สถานะ</Table.ColumnHeader>
-                      <Table.ColumnHeader>จัดการ</Table.ColumnHeader>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {admins.map((a) => {
-                      return (
-                      <Table.Row key={a.id}>
-                        <Table.Cell fontWeight="medium">{a.name}</Table.Cell>
-                        <Table.Cell color="gray.600">{a.adminCode ?? '—'}</Table.Cell>
-                        <Table.Cell color="gray.600">{a.role}</Table.Cell>
-                        <Table.Cell><Flex gap={1} wrap="wrap">{a.isOwner?<Badge colorPalette="red">ทุกเมนู</Badge>:a.permissions?.map(p=><Badge key={p} variant="subtle">{permissionLabels[p]??p}</Badge>)}</Flex></Table.Cell>
-                        <Table.Cell><Badge colorPalette={statusMap[a.status].color} variant="subtle">{statusMap[a.status].label}</Badge></Table.Cell>
-                        <Table.Cell>
-                          <ActionButtons onView={() => handleView(a, 'admin')} onEdit={() => handleEdit(a, 'admin')} onPunish={() => handleOpenPunish(a)} onHistory={() => setHistoryTarget(a)} />
-                        </Table.Cell>
-                      </Table.Row>
-                      )
-                    })}
-                  </Table.Body>
-                </Table.Root>
-              </Box>
-            </Tabs.Content>
-          </Tabs.Root>
-        </Card.Body>
-      </Card.Root>
+      {tab === 'users' && (
+        <section className={styles.panel} aria-label="รายชื่อผู้ใช้งาน">
+          <div className={styles.panelHeader}>
+            <FilterPills value={filtersByTab.users} onChange={(value) => setFilter('users', value)} />
+          </div>
+          {isLoading ? <TableState message="กำลังโหลดข้อมูลผู้ใช้งาน…" /> : (
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead><tr><th>ผู้ใช้</th><th>ไอดี</th><th>อีเมล</th><th>สมัครเมื่อ</th><th>โทษ</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+                <tbody>
+                  {visibleUsers.map((user) => {
+                    const count = punishmentCount(user.id)
+                    return (
+                      <tr key={user.id}>
+                        <td><UserIdentity item={user} /></td>
+                        <td className={styles.mutedCell}>{user.id}</td>
+                        <td className={styles.mutedCell}>{user.email}</td>
+                        <td className={styles.mutedCell}>{formatThaiDate(user.joinedAt)}</td>
+                        <td>{count > 0 ? <button type="button" className={styles.punishmentCount} onClick={() => setHistoryTarget(user)}>{count} ครั้ง</button> : <span className={styles.emptyValue}>—</span>}</td>
+                        <td><StatusBadge status={user.status} /></td>
+                        <td>{renderActions(user, 'user')}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {visibleUsers.length === 0 && <TableState message="ไม่มีบัญชีในหมวดนี้" />}
+            </div>
+          )}
+        </section>
+      )}
 
-      {/* View Dialog */}
-      <Dialog.Root open={mode === 'view'} onOpenChange={(e) => { if (!e.open) handleClose() }}>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Header>
-              <Dialog.Title>ข้อมูลผู้ใช้</Dialog.Title>
-              <Dialog.CloseTrigger />
+      {tab === 'creators' && (
+        <section className={styles.panel} aria-label="รายชื่อนักเขียน">
+          <div className={styles.panelHeader}>
+            <FilterPills value={filtersByTab.creators} onChange={(value) => setFilter('creators', value)} />
+          </div>
+          {isLoading ? <TableState message="กำลังโหลดข้อมูลนักเขียน…" /> : (
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead><tr><th>นักเขียน</th><th>ไอดี</th><th>ผลงาน</th><th>ผู้ติดตาม</th><th>โทษ</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+                <tbody>
+                  {visibleCreators.map((creator) => {
+                    const count = punishmentCount(creator.id)
+                    return (
+                      <tr key={creator.id}>
+                        <td><UserIdentity item={creator} /></td>
+                        <td className={styles.mutedCell}>{creator.id}</td>
+                        <td>{creator.works.toLocaleString('th-TH')}</td>
+                        <td>{creator.followers.toLocaleString('th-TH')}</td>
+                        <td>{count > 0 ? <button type="button" className={styles.punishmentCount} onClick={() => setHistoryTarget(creator)}>{count} ครั้ง</button> : <span className={styles.emptyValue}>—</span>}</td>
+                        <td><StatusBadge status={creator.status} /></td>
+                        <td>{renderActions(creator, 'creator')}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {visibleCreators.length === 0 && <TableState message="ไม่มีบัญชีนักเขียนในหมวดนี้" />}
+            </div>
+          )}
+        </section>
+      )}
+
+      {tab === 'admins' && (
+        <section className={styles.panel} aria-label="รายชื่อแอดมิน">
+          {isLoading ? <TableState message="กำลังโหลดข้อมูลแอดมิน…" /> : (
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead><tr><th>ชื่อ</th><th>ไอดีแอดมิน</th><th>บทบาท</th><th>เมนูที่เห็น</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+                <tbody>
+                  {admins.map((admin) => (
+                    <tr key={admin.id}>
+                      <td><UserIdentity item={admin} /></td>
+                      <td className={styles.mutedCell}>{admin.adminCode ?? '—'}</td>
+                      <td className={styles.mutedCell}>{admin.role || '—'}</td>
+                      <td>
+                        <div className={styles.permissionChips}>
+                          {admin.isOwner ? <span className={`${styles.permissionChip} ${styles.allPermissions}`}>ทุกเมนู</span> : admin.permissions?.map((permission) => <span className={styles.permissionChip} key={permission}>{permissionLabels[permission] ?? permission}</span>)}
+                        </div>
+                      </td>
+                      <td><StatusBadge status={admin.status} /></td>
+                      <td>{renderActions(admin, 'admin')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {admins.length === 0 && <TableState message="ยังไม่มีบัญชีแอดมิน" />}
+            </div>
+          )}
+        </section>
+      )}
+
+      <Dialog.Root open={mode === 'view'} onOpenChange={(event) => { if (!event.open) handleClose() }}>
+        <Dialog.Backdrop className={styles.modalBackdrop} />
+        <Dialog.Positioner className={styles.modalPositioner}>
+          <Dialog.Content className={styles.modalContent}>
+            <Dialog.Header className={styles.modalHeader}>
+              <Dialog.Title className={styles.modalTitle}>ข้อมูลผู้ใช้</Dialog.Title>
+              <Dialog.CloseTrigger className={styles.modalClose} />
             </Dialog.Header>
-            <Dialog.Body>
+            <Dialog.Body className={styles.modalBody}>
               {selectedUser && (
-                <Flex direction="column" gap={3}>
-                  <Box><Text fontSize="xs" color="gray.500">ชื่อ</Text><Text fontWeight="medium">{selectedUser.name}</Text></Box>
-                  <Box><Text fontSize="xs" color="gray.500">อีเมล</Text><Text>{selectedUser.email}</Text></Box>
-                  <Box><Text fontSize="xs" color="gray.500">วันที่สมัคร</Text><Text>{selectedUser.joinedAt}</Text></Box>
-                  <Box>
-                    <Text fontSize="xs" color="gray.500">สถานะ</Text>
-                    <Badge colorPalette={statusMap[selectedUser.status].color} variant="subtle" mt={1}>
-                      {statusMap[selectedUser.status].label}
-                    </Badge>
-                  </Box>
-                  {userType === 'creator' && (
-                    <>
-                      <Box><Text fontSize="xs" color="gray.500">ผลงาน</Text><Text>{(selectedUser as CreatorItem).works} เรื่อง</Text></Box>
-                      <Box><Text fontSize="xs" color="gray.500">ผู้ติดตาม</Text><Text>{(selectedUser as CreatorItem).followers.toLocaleString()} คน</Text></Box>
-                    </>
-                  )}
-                  {userType === 'admin' && (
-                    <>
-                      <Box><Text fontSize="xs" color="gray.500">บทบาท</Text><Text>{(selectedUser as AdminItem).role}</Text></Box>
-                      <Box><Text fontSize="xs" color="gray.500">เข้าสู่ระบบล่าสุด</Text><Text>{(selectedUser as AdminItem).lastLogin}</Text></Box>
-                    </>
-                  )}
-                </Flex>
+                <div className={styles.detailList}>
+                  <div><span>ชื่อ</span><strong>{selectedUser.name}</strong></div>
+                  <div><span>อีเมล</span><strong>{selectedUser.email}</strong></div>
+                  <div><span>วันที่สมัคร</span><strong>{formatThaiDate(selectedUser.joinedAt)}</strong></div>
+                  <div><span>สถานะ</span><StatusBadge status={selectedUser.status} /></div>
+                  {userType === 'creator' && <><div><span>ผลงาน</span><strong>{(selectedUser as CreatorItem).works.toLocaleString('th-TH')} เรื่อง</strong></div><div><span>ผู้ติดตาม</span><strong>{(selectedUser as CreatorItem).followers.toLocaleString('th-TH')} คน</strong></div></>}
+                  {userType === 'admin' && <><div><span>บทบาท</span><strong>{(selectedUser as AdminItem).role || '—'}</strong></div><div><span>เข้าสู่ระบบล่าสุด</span><strong>{formatThaiDate((selectedUser as AdminItem).lastLogin)}</strong></div></>}
+                </div>
               )}
             </Dialog.Body>
-            <Dialog.Footer gap={2}>
-              <Button variant="outline" onClick={handleClose}>ปิด</Button>
-              {selectedUser && (
-                <Button colorPalette="teal" onClick={() => selectedUser && handleEdit(selectedUser, userType)}>แก้ไข</Button>
-              )}
+            <Dialog.Footer className={styles.modalFooter}>
+              <Button className={styles.dialogGhostButton} onClick={handleClose}>ปิด</Button>
+              {selectedUser && <Button className={styles.dialogPrimaryButton} onClick={() => handleEdit(selectedUser, userType)}>แก้ไข</Button>}
             </Dialog.Footer>
           </Dialog.Content>
         </Dialog.Positioner>
       </Dialog.Root>
 
-      {/* Add Dialog */}
-      <Dialog.Root open={isAddOpen} onOpenChange={(e) => { if (!e.open) setIsAddOpen(false) }}>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Header>
-              <Dialog.Title>{addButtonLabel[tab] ?? 'เพิ่ม'}</Dialog.Title>
-              <Dialog.CloseTrigger />
+      <Dialog.Root open={isAddOpen} onOpenChange={(event) => { if (!event.open) setIsAddOpen(false) }}>
+        <Dialog.Backdrop className={styles.modalBackdrop} />
+        <Dialog.Positioner className={styles.modalPositioner}>
+          <Dialog.Content className={styles.modalContent}>
+            <Dialog.Header className={styles.modalHeader}>
+              <Dialog.Title className={styles.modalTitle}>{currentPage.addLabel}</Dialog.Title>
+              <Dialog.CloseTrigger className={styles.modalClose} />
             </Dialog.Header>
-            <Dialog.Body>
+            <Dialog.Body className={styles.modalBody}>
               <Flex direction="column" gap={4}>
+                <Field.Root><Field.Label className={styles.fieldLabel}>ชื่อ</Field.Label><Input className={styles.fieldInput} placeholder="ชื่อ-นามสกุล" value={addForm.name} onChange={(event) => setAddForm({ ...addForm, name: event.target.value })} /></Field.Root>
+                <Field.Root><Field.Label className={styles.fieldLabel}>อีเมล</Field.Label><Input className={styles.fieldInput} type="email" placeholder="email@example.com" value={addForm.email} onChange={(event) => setAddForm({ ...addForm, email: event.target.value })} /></Field.Root>
                 <Field.Root>
-                  <Field.Label>ชื่อ</Field.Label>
-                  <Input placeholder="ชื่อ-นามสกุล" value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} />
+                  <Field.Label className={styles.fieldLabel}>สถานะ</Field.Label>
+                  <NativeSelect.Root><NativeSelect.Field className={styles.fieldInput} value={addForm.status} onChange={(event) => setAddForm({ ...addForm, status: event.target.value as UserStatus })}><option value="active">ใช้งาน</option><option value="inactive">ไม่ใช้งาน</option><option value="banned">ถูกระงับ</option></NativeSelect.Field><NativeSelect.Indicator /></NativeSelect.Root>
                 </Field.Root>
-                <Field.Root>
-                  <Field.Label>อีเมล</Field.Label>
-                  <Input type="email" placeholder="email@example.com" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} />
-                </Field.Root>
-                <Field.Root>
-                  <Field.Label>สถานะ</Field.Label>
-                  <NativeSelect.Root>
-                    <NativeSelect.Field value={addForm.status} onChange={(e) => setAddForm({ ...addForm, status: e.target.value as UserStatus })}>
-                      <option value="active">ใช้งาน</option>
-                      <option value="inactive">ไม่ใช้งาน</option>
-                      <option value="banned">ถูกระงับ</option>
-                    </NativeSelect.Field>
-                    <NativeSelect.Indicator />
-                  </NativeSelect.Root>
-                </Field.Root>
-                {tab === 'creators' && (
-                  <>
-                    <Field.Root>
-                      <Field.Label>จำนวนผลงาน</Field.Label>
-                      <NumberInput.Root min={0} value={String(addForm.works)} onValueChange={(e) => setAddForm({ ...addForm, works: Number(e.value) })}>
-                        <NumberInput.Input />
-                        <NumberInput.Control><NumberInput.IncrementTrigger /><NumberInput.DecrementTrigger /></NumberInput.Control>
-                      </NumberInput.Root>
-                    </Field.Root>
-                    <Field.Root>
-                      <Field.Label>ผู้ติดตาม</Field.Label>
-                      <NumberInput.Root min={0} value={String(addForm.followers)} onValueChange={(e) => setAddForm({ ...addForm, followers: Number(e.value) })}>
-                        <NumberInput.Input />
-                        <NumberInput.Control><NumberInput.IncrementTrigger /><NumberInput.DecrementTrigger /></NumberInput.Control>
-                      </NumberInput.Root>
-                    </Field.Root>
-                  </>
-                )}
-                {tab === 'admins' && (
-                  <><Field.Root><Field.Label>บทบาท</Field.Label><Input placeholder="เช่น ผู้ดูแลเนื้อหา" value={addForm.role} onChange={(e) => setAddForm({ ...addForm, role: e.target.value })} /></Field.Root><Field.Root><Field.Label>รหัสผ่านเริ่มต้น</Field.Label><Input type="password" minLength={8} value={addForm.password} onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}/></Field.Root></>
-                )}
+                {tab === 'creators' && <><Field.Root><Field.Label className={styles.fieldLabel}>จำนวนผลงาน</Field.Label><NumberInput.Root min={0} value={String(addForm.works)} onValueChange={(event) => setAddForm({ ...addForm, works: Number(event.value) })}><NumberInput.Input className={styles.fieldInput} /><NumberInput.Control><NumberInput.IncrementTrigger /><NumberInput.DecrementTrigger /></NumberInput.Control></NumberInput.Root></Field.Root><Field.Root><Field.Label className={styles.fieldLabel}>ผู้ติดตาม</Field.Label><NumberInput.Root min={0} value={String(addForm.followers)} onValueChange={(event) => setAddForm({ ...addForm, followers: Number(event.value) })}><NumberInput.Input className={styles.fieldInput} /><NumberInput.Control><NumberInput.IncrementTrigger /><NumberInput.DecrementTrigger /></NumberInput.Control></NumberInput.Root></Field.Root></>}
+                {tab === 'admins' && <><Field.Root><Field.Label className={styles.fieldLabel}>บทบาท</Field.Label><Input className={styles.fieldInput} placeholder="เช่น ผู้ดูแลเนื้อหา" value={addForm.role} onChange={(event) => setAddForm({ ...addForm, role: event.target.value })} /></Field.Root><Field.Root><Field.Label className={styles.fieldLabel}>รหัสผ่านเริ่มต้น</Field.Label><Input className={styles.fieldInput} type="password" minLength={8} value={addForm.password} onChange={(event) => setAddForm({ ...addForm, password: event.target.value })} /></Field.Root></>}
               </Flex>
             </Dialog.Body>
-            <Dialog.Footer gap={2}>
-              <Button variant="outline" onClick={() => setIsAddOpen(false)}>ยกเลิก</Button>
-              <Button bg="#b9232f" color="white" onClick={handleAdd} disabled={!addForm.name.trim() || !addForm.email.trim() || (tab === 'admins' && (!addForm.role.trim() || addForm.password.length < 8))}>เพิ่ม</Button>
+            <Dialog.Footer className={styles.modalFooter}>
+              <Button className={styles.dialogGhostButton} onClick={() => setIsAddOpen(false)}>ยกเลิก</Button>
+              <Button className={styles.dialogPrimaryButton} onClick={handleAdd} disabled={!addForm.name.trim() || !addForm.email.trim() || (tab === 'admins' && (!addForm.role.trim() || addForm.password.length < 8))}>เพิ่ม</Button>
             </Dialog.Footer>
           </Dialog.Content>
         </Dialog.Positioner>
       </Dialog.Root>
 
-      <PunishmentDialog
-        open={!!punishTarget}
-        targetName={punishTarget?.name ?? ''}
-        onClose={() => setPunishTarget(null)}
-        onConfirm={handleConfirmPunish}
-      />
+      <PunishmentDialog open={!!punishTarget} targetName={punishTarget?.name ?? ''} onClose={() => setPunishTarget(null)} onConfirm={handleConfirmPunish} />
+      <PunishmentHistoryDialog open={!!historyTarget} userName={historyTarget?.name ?? ''} records={punishRecords.filter((record) => record.userId === historyTarget?.id)} onClose={() => setHistoryTarget(null)} />
 
-      <PunishmentHistoryDialog
-        open={!!historyTarget}
-        userName={historyTarget?.name ?? ''}
-        records={punishRecords.filter(r => r.userId === historyTarget?.id)}
-        onClose={() => setHistoryTarget(null)}
-      />
-
-      {/* Edit Dialog */}
-      <Dialog.Root open={mode === 'edit'} onOpenChange={(e) => { if (!e.open) handleClose() }}>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Header>
-              <Dialog.Title>แก้ไขข้อมูลผู้ใช้</Dialog.Title>
-              <Dialog.CloseTrigger />
+      <Dialog.Root open={mode === 'edit'} onOpenChange={(event) => { if (!event.open) handleClose() }}>
+        <Dialog.Backdrop className={styles.modalBackdrop} />
+        <Dialog.Positioner className={styles.modalPositioner}>
+          <Dialog.Content className={styles.modalContent}>
+            <Dialog.Header className={styles.modalHeader}>
+              <Dialog.Title className={styles.modalTitle}>แก้ไขข้อมูลผู้ใช้</Dialog.Title>
+              <Dialog.CloseTrigger className={styles.modalClose} />
             </Dialog.Header>
-            <Dialog.Body>
+            <Dialog.Body className={styles.modalBody}>
               <Flex direction="column" gap={4}>
-                <Field.Root>
-                  <Field.Label>ชื่อ</Field.Label>
-                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                </Field.Root>
-                <Field.Root>
-                  <Field.Label>สถานะ</Field.Label>
-                  <NativeSelect.Root>
-                    <NativeSelect.Field
-                      value={form.status}
-                      onChange={(e) => setForm({ ...form, status: e.target.value as UserStatus })}
-                    >
-                      <option value="active">ใช้งาน</option>
-                      <option value="inactive">ไม่ใช้งาน</option>
-                      <option value="banned">ถูกระงับ</option>
-                    </NativeSelect.Field>
-                    <NativeSelect.Indicator />
-                  </NativeSelect.Root>
-                </Field.Root>
-                {userType === 'admin' && (
-                  <><Field.Root>
-                    <Field.Label>บทบาท</Field.Label>
-                    <Input value={form.role ?? ''} onChange={(e) => setForm({ ...form, role: e.target.value })} />
-                  </Field.Root>{!(selectedUser as AdminItem)?.isOwner&&<Field.Root><Field.Label>เมนูที่เห็น</Field.Label><Flex gap={2} wrap="wrap">{Object.entries(permissionLabels).map(([key,label])=><Box as="label" key={key} borderWidth="1px" borderRadius="md" px={2} py={1} cursor="pointer"><input type="checkbox" checked={form.permissions?.includes(key)??false} onChange={e=>setForm({...form,permissions:e.target.checked?[...(form.permissions??[]),key]:(form.permissions??[]).filter(p=>p!==key)})}/> <Text as="span" fontSize="sm">{label}</Text></Box>)}</Flex></Field.Root>}</>
-                )}
+                <Field.Root><Field.Label className={styles.fieldLabel}>ชื่อ</Field.Label><Input className={styles.fieldInput} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></Field.Root>
+                <Field.Root><Field.Label className={styles.fieldLabel}>สถานะ</Field.Label><NativeSelect.Root><NativeSelect.Field className={styles.fieldInput} value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as UserStatus })}><option value="active">ใช้งาน</option><option value="inactive">ไม่ใช้งาน</option><option value="banned">ถูกระงับ</option></NativeSelect.Field><NativeSelect.Indicator /></NativeSelect.Root></Field.Root>
+                {userType === 'admin' && <><Field.Root><Field.Label className={styles.fieldLabel}>บทบาท</Field.Label><Input className={styles.fieldInput} value={form.role ?? ''} onChange={(event) => setForm({ ...form, role: event.target.value })} /></Field.Root>{!(selectedUser as AdminItem)?.isOwner && <Field.Root><Field.Label className={styles.fieldLabel}>เมนูที่เห็น</Field.Label><div className={styles.permissionGrid}>{Object.entries(permissionLabels).map(([key, label]) => <label className={styles.permissionOption} key={key}><input type="checkbox" checked={form.permissions?.includes(key) ?? false} onChange={(event) => setForm({ ...form, permissions: event.target.checked ? [...(form.permissions ?? []), key] : (form.permissions ?? []).filter((permission) => permission !== key) })} /><span>{label}</span></label>)}</div></Field.Root>}</>}
               </Flex>
             </Dialog.Body>
-            <Dialog.Footer gap={2}>
-              <Button variant="outline" onClick={handleClose}>ยกเลิก</Button>
-              <Button colorPalette="teal" onClick={handleSave}>บันทึก</Button>
+            <Dialog.Footer className={styles.modalFooter}>
+              <Button className={styles.dialogGhostButton} onClick={handleClose}>ยกเลิก</Button>
+              <Button className={styles.dialogPrimaryButton} onClick={handleSave}>บันทึก</Button>
             </Dialog.Footer>
           </Dialog.Content>
         </Dialog.Positioner>

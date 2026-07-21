@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic'
 
-import { Box } from '@chakra-ui/react'
 import { ReportTable } from '@/components/report/ReportTable'
 import { getReports } from '@/lib/db/reports'
 import type { ReportStatus as DbReportStatus, ReportType as DbReportType } from '@/lib/generated/prisma/enums'
@@ -39,13 +38,5 @@ export default async function ReportPage() {
     support: r.isSupport,
   }))
 
-  return (
-    <Box>
-      <Box mb={6}>
-        <div className="rl-page-title">รายงาน</div>
-        <div className="rl-page-sub">เรื่องที่ผู้ใช้แจ้งเข้ามา เช่น สแปม เนื้อหาไม่เหมาะสม ละเมิดลิขสิทธิ์</div>
-      </Box>
-      <ReportTable data={reports} />
-    </Box>
-  )
+  return <ReportTable data={reports} />
 }

@@ -3,29 +3,41 @@ export const dynamic = 'force-dynamic'
 import { getPrisma } from '@/lib/prisma'
 
 const NEW_WORK_LIMIT = 14
+const POPULAR_LIMIT = 14
+const RANKING_LIMIT = 10
 const LATEST_UPDATE_LIMIT = 26
+const NEW_WORK_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
 
-const publishedNovelWhere = {
-  type: 'novel' as const,
-  status: 'published' as const,
-  publishedAt: { not: null },
-  episodes: { some: { status: 'published' as const } },
+function publishedNovelWhere(category?: string) {
+  return {
+    type: 'novel' as const,
+    status: 'published' as const,
+    publishedAt: { not: null },
+    episodes: { some: { status: 'published' as const } },
+    ...(category ? { category } : {}),
+  }
 }
 
-const approvedNovelWhere = {
-  type: 'novel' as const,
-  status: 'approved' as const,
-  approvedAt: { not: null },
+function approvedNovelWhere(category?: string) {
+  return {
+    type: 'novel' as const,
+    status: 'approved' as const,
+    approvedAt: { not: null },
+    ...(category ? { category } : {}),
+  }
 }
 
 const cardSelect = {
   id: true,
+  type: true,
   title: true,
   category: true,
   origin: true,
   tagline: true,
   synopsis: true,
   views: true,
+  dailyVotes: true,
+  monthlyVotes: true,
   publishedAt: true,
   approvedAt: true,
   status: true,
@@ -70,39 +82,102 @@ function newestCards<T extends Parameters<typeof presentCard>[0]>(...groups: T[]
     .slice(0, NEW_WORK_LIMIT)
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const prisma = getPrisma()
-  const [publishedWorks, approvedWorks, publishedThaiWorks, approvedThaiWorks, latestGroups] = await prisma.$transaction([
+  const categoryParam = new URL(request.url).searchParams.get('category')?.trim() ?? ''
+  if (categoryParam.length > 100) {
+    return Response.json({ error: 'หมวดหมู่ไม่ถูกต้อง' }, { status: 400 })
+  }
+  const category = categoryParam || undefined
+  const publishedWhere = publishedNovelWhere(category)
+  const approvedWhere = approvedNovelWhere(category)
+  const recentCutoff = new Date(Date.now() - NEW_WORK_WINDOW_MS)
+  const [
+    publishedWorks,
+    approvedWorks,
+    publishedThaiWorks,
+    approvedThaiWorks,
+    publishedTranslatedWorks,
+    approvedTranslatedWorks,
+    categoryPopular,
+    daily,
+    monthly,
+    views,
+    newRankings,
+    latestGroups,
+  ] = await prisma.$transaction([
     prisma.creatorWork.findMany({
-      where: publishedNovelWhere,
+      where: publishedWhere,
       select: cardSelect,
       orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
       take: NEW_WORK_LIMIT,
     }),
     prisma.creatorWork.findMany({
-      where: approvedNovelWhere,
+      where: approvedWhere,
       select: cardSelect,
       orderBy: [{ approvedAt: 'desc' }, { id: 'desc' }],
       take: NEW_WORK_LIMIT,
     }),
     prisma.creatorWork.findMany({
-      where: { ...publishedNovelWhere, origin: 'original' },
+      where: { ...publishedWhere, origin: 'original' },
       select: cardSelect,
       orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
       take: NEW_WORK_LIMIT,
     }),
     prisma.creatorWork.findMany({
-      where: { ...approvedNovelWhere, origin: 'original' },
+      where: { ...approvedWhere, origin: 'original' },
       select: cardSelect,
       orderBy: [{ approvedAt: 'desc' }, { id: 'desc' }],
       take: NEW_WORK_LIMIT,
+    }),
+    prisma.creatorWork.findMany({
+      where: { ...publishedWhere, origin: 'translated' },
+      select: cardSelect,
+      orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
+      take: NEW_WORK_LIMIT,
+    }),
+    prisma.creatorWork.findMany({
+      where: { ...approvedWhere, origin: 'translated' },
+      select: cardSelect,
+      orderBy: [{ approvedAt: 'desc' }, { id: 'desc' }],
+      take: NEW_WORK_LIMIT,
+    }),
+    prisma.creatorWork.findMany({
+      where: publishedWhere,
+      select: cardSelect,
+      orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }, { id: 'desc' }],
+      take: POPULAR_LIMIT,
+    }),
+    prisma.creatorWork.findMany({
+      where: publishedWhere,
+      select: cardSelect,
+      orderBy: [{ dailyVotes: 'desc' }, { views: 'desc' }, { publishedAt: 'desc' }, { id: 'desc' }],
+      take: RANKING_LIMIT,
+    }),
+    prisma.creatorWork.findMany({
+      where: publishedWhere,
+      select: cardSelect,
+      orderBy: [{ monthlyVotes: 'desc' }, { views: 'desc' }, { publishedAt: 'desc' }, { id: 'desc' }],
+      take: RANKING_LIMIT,
+    }),
+    prisma.creatorWork.findMany({
+      where: publishedWhere,
+      select: cardSelect,
+      orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }, { id: 'desc' }],
+      take: RANKING_LIMIT,
+    }),
+    prisma.creatorWork.findMany({
+      where: { ...publishedWhere, publishedAt: { gte: recentCutoff } },
+      select: cardSelect,
+      orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }, { id: 'desc' }],
+      take: RANKING_LIMIT,
     }),
     prisma.creatorEpisode.groupBy({
       by: ['workId'],
       where: {
         status: 'published',
         publishedAt: { not: null },
-        work: { type: 'novel', status: 'published', publishedAt: { not: null } },
+        work: { type: 'novel', status: 'published', publishedAt: { not: null }, ...(category ? { category } : {}) },
       },
       _max: { publishedAt: true },
       orderBy: [{ _max: { publishedAt: 'desc' } }, { workId: 'desc' }],
@@ -119,7 +194,7 @@ export async function GET() {
   const [latestWorks, latestEpisodes] = latestWorkIds.length
     ? await prisma.$transaction([
         prisma.creatorWork.findMany({
-          where: { id: { in: latestWorkIds }, ...publishedNovelWhere },
+          where: { id: { in: latestWorkIds }, ...publishedWhere },
           select: cardSelect,
         }),
         prisma.creatorEpisode.findMany({
@@ -145,6 +220,15 @@ export async function GET() {
   return Response.json({
     newWorks: newestCards(publishedWorks, approvedWorks),
     newThaiWorks: newestCards(publishedThaiWorks, approvedThaiWorks),
+    translatedWorks: newestCards(publishedTranslatedWorks, approvedTranslatedWorks),
+    categoryPopular: categoryPopular.map(presentCard),
+    popular: categoryPopular.map(presentCard),
+    rankings: {
+      daily: daily.map(presentCard),
+      monthly: monthly.map(presentCard),
+      views: views.map(presentCard),
+      new: newRankings.map(presentCard),
+    },
     latestUpdates,
   }, {
     headers: { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=60' },

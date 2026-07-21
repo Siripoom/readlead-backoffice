@@ -1,14 +1,11 @@
 import { getPrisma } from '@/lib/prisma'
+import { modernizeItemConfig, normalizeElements, safeUrl } from '@/lib/cms-config'
 
 const cacheHeaders = {
   'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
 }
 
 const defaultVisual = { x: 8, y: 55, size: 100, color: '#ffffff' }
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
 
 function text(value: unknown, fallback = '') {
   return typeof value === 'string' ? value.trim() || fallback : fallback
@@ -75,21 +72,26 @@ export async function GET() {
         const desktopImageUrl = mediaUrl(item.imageUrl)
         const title = item.title.trim()
         if (!desktopImageUrl || !title) return []
-        const config = isRecord(item.config) ? item.config : {}
+        const config = modernizeItemConfig(item.config, item)
+        const elements = normalizeElements(config.elements)
+        const titleElement = elements.find((element) => element.type === 'title')
+        const badgeElement = elements.find((element) => element.type === 'badge')
+        const textElement = elements.find((element) => element.type === 'text')
+        const buttonElement = elements.find((element) => element.type === 'button')
         return [{
           id: item.id,
-          badge: text(config.badge),
-          title,
-          description: item.subtitle?.trim() ?? '',
-          ctaLabel: text(config.ctaLabel, 'อ่านเลย'),
-          href: href(item.linkUrl),
+          badge: badgeElement?.text || text(config.badge),
+          title: titleElement?.text || title,
+          description: textElement?.text || item.subtitle?.trim() || '',
+          ctaLabel: buttonElement?.text || text(config.ctaLabel, 'อ่านเลย'),
+          href: href(buttonElement?.link || item.linkUrl),
           desktopImageUrl,
-          mobileImageUrl: mediaUrl(config.mobileImageUrl) ?? desktopImageUrl,
+          mobileImageUrl: mediaUrl(safeUrl(config.mobileImageUrl)) ?? desktopImageUrl,
           visual: {
-            x: clamp(config.x, defaultVisual.x, 0, 90),
-            y: clamp(config.y, defaultVisual.y, 10, 90),
-            size: clamp(config.size, defaultVisual.size, 50, 240),
-            color: color(config.color),
+            x: clamp(titleElement?.x ?? config.x, defaultVisual.x, 0, 90),
+            y: clamp(titleElement?.y ?? config.y, defaultVisual.y, 10, 90),
+            size: clamp((titleElement?.scale ?? 0) * 100 || config.size, defaultVisual.size, 50, 240),
+            color: color(titleElement?.color ?? config.color),
           },
         }]
       })

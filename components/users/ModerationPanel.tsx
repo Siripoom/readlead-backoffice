@@ -1,18 +1,144 @@
 'use client'
-import { Badge, Box, Button, Card, Flex, Input, Table, Text } from '@chakra-ui/react'
+
 import { useCallback, useEffect, useState } from 'react'
 import { toaster } from '@/lib/toaster'
+import styles from './UsersPanel.module.css'
 
-type Queue={id:string;title:string;creatorName:string;reason:string;chapter?:string;status:string;submittedAt:string}
-type Blacklist={id:string;term:string}
+type Queue = {
+  id: string
+  title: string
+  creatorName: string
+  reason: string
+  chapter?: string
+  status: string
+  submittedAt: string
+}
 
-export function ModerationPanel(){
- const [queue,setQueue]=useState<Queue[]>([]),[blacklist,setBlacklist]=useState<Blacklist[]>([]),[term,setTerm]=useState('')
- const load=useCallback(()=>fetch('/api/moderation').then(r=>r.json()).then(d=>{setQueue(d.queue??[]);setBlacklist(d.blacklist??[])}),[])
- useEffect(()=>{void load()},[load])
- async function decide(id:string,decision:string){await fetch('/api/moderation',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({id,decision})});toaster.success({title:'อัปเดตคิวแล้ว'});load()}
- async function add(){if(!term.trim())return;const r=await fetch('/api/moderation',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({term})});if(!r.ok)return toaster.error({title:'เพิ่ม blacklist ไม่สำเร็จ'});setTerm('');load()}
- async function remove(id:string){await fetch(`/api/moderation?blacklistId=${id}`,{method:'DELETE'});load()}
- const pending=queue.filter(q=>q.status==='pending')
- return <Card.Root mb={5} borderColor="orange.200"><Card.Header><Flex justify="space-between" align="center"><Text fontWeight="800">🚨 เรื่องถูกระบบคัดกรองดักไว้ <Badge colorPalette="orange">{pending.length}</Badge></Text></Flex></Card.Header><Card.Body pt={0}><Box overflowX="auto"><Table.Root size="sm"><Table.Header><Table.Row><Table.ColumnHeader>เรื่อง</Table.ColumnHeader><Table.ColumnHeader>นักเขียน</Table.ColumnHeader><Table.ColumnHeader>เหตุที่ดัก</Table.ColumnHeader><Table.ColumnHeader>ตอน</Table.ColumnHeader><Table.ColumnHeader>จัดการ</Table.ColumnHeader></Table.Row></Table.Header><Table.Body>{pending.map(q=><Table.Row key={q.id}><Table.Cell fontWeight="700">{q.title}</Table.Cell><Table.Cell>{q.creatorName}</Table.Cell><Table.Cell color="orange.700">{q.reason}</Table.Cell><Table.Cell>{q.chapter??'—'}</Table.Cell><Table.Cell><Flex gap={2}><Button size="xs" colorPalette="green" onClick={()=>decide(q.id,'approved')}>อนุมัติ</Button><Button size="xs" colorPalette="red" variant="outline" onClick={()=>decide(q.id,'rejected')}>ปฏิเสธ</Button></Flex></Table.Cell></Table.Row>)}</Table.Body></Table.Root>{pending.length===0&&<Text textAlign="center" color="gray.400" py={5}>ไม่มีเรื่องรอตรวจ</Text>}</Box><Flex mt={4} gap={2} align="center" wrap="wrap"><Input maxW="300px" placeholder="ชื่อเรื่อง / IP / คำที่ต้องบล็อก" value={term} onChange={e=>setTerm(e.target.value)}/><Button size="sm" onClick={add}>+ เพิ่ม</Button>{blacklist.map(b=><Badge key={b.id} colorPalette="red" px={2} py={1} cursor="pointer" onClick={()=>remove(b.id)}>{b.term} ×</Badge>)}</Flex></Card.Body></Card.Root>
+type Blacklist = { id: string; term: string }
+
+function formatThaiDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value || '—'
+  return new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }).format(date)
+}
+
+export function ModerationPanel() {
+  const [queue, setQueue] = useState<Queue[]>([])
+  const [blacklist, setBlacklist] = useState<Blacklist[]>([])
+  const [term, setTerm] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    setError('')
+    try {
+      const response = await fetch('/api/moderation')
+      if (!response.ok) throw new Error('Unable to load moderation queue')
+      const data = await response.json()
+      setQueue(data.queue ?? [])
+      setBlacklist(data.blacklist ?? [])
+    } catch {
+      setError('โหลดคิวตรวจเนื้อหาไม่สำเร็จ')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    // The callback performs the initial synchronization with the API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load()
+  }, [load])
+
+  async function decide(id: string, decision: string) {
+    const response = await fetch('/api/moderation', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, decision }),
+    })
+    if (!response.ok) {
+      toaster.error({ title: 'อัปเดตคิวไม่สำเร็จ' })
+      return
+    }
+    toaster.success({ title: 'อัปเดตคิวแล้ว' })
+    await load()
+  }
+
+  async function add() {
+    if (!term.trim()) return
+    const response = await fetch('/api/moderation', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ term }),
+    })
+    if (!response.ok) {
+      toaster.error({ title: 'เพิ่มรายการเฝ้าระวังไม่สำเร็จ' })
+      return
+    }
+    setTerm('')
+    await load()
+  }
+
+  async function remove(id: string) {
+    const response = await fetch(`/api/moderation?blacklistId=${id}`, { method: 'DELETE' })
+    if (!response.ok) {
+      toaster.error({ title: 'ลบรายการเฝ้าระวังไม่สำเร็จ' })
+      return
+    }
+    await load()
+  }
+
+  const pending = queue.filter((item) => item.status === 'pending')
+
+  return (
+    <section className={styles.moderationPanel} aria-label="คิวตรวจเนื้อหา">
+      <div className={styles.moderationHeader}>
+        <h2 className={styles.moderationTitle}>
+          🚨 เรื่องถูกระบบคัดกรองดักไว้
+          <span className={styles.moderationCount}>{pending.length}</span>
+        </h2>
+      </div>
+
+      {error && (
+        <div className={styles.errorBanner} role="alert">
+          <span>{error}</span>
+          <button type="button" className={styles.smallButton} onClick={() => void load()}>ลองใหม่</button>
+        </div>
+      )}
+
+      {isLoading ? <div className={styles.tableState}>กำลังโหลดคิวตรวจเนื้อหา…</div> : (
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead><tr><th>เรื่อง</th><th>นักเขียน</th><th>เหตุที่ระบบดัก</th><th>ตอน</th><th>ส่งเมื่อ</th><th>จัดการ</th></tr></thead>
+            <tbody>
+              {pending.map((item) => (
+                <tr key={item.id}>
+                  <td className={styles.userName}>{item.title}</td>
+                  <td>{item.creatorName}</td>
+                  <td className={styles.reasonCell}>{item.reason}</td>
+                  <td>{item.chapter ?? '—'}</td>
+                  <td className={styles.mutedCell}>{formatThaiDate(item.submittedAt)}</td>
+                  <td>
+                    <div className={styles.actions}>
+                      <button type="button" className={`${styles.smallButton} ${styles.successButton}`} onClick={() => void decide(item.id, 'approved')}>อนุมัติ</button>
+                      <button type="button" className={`${styles.smallButton} ${styles.dangerButton}`} onClick={() => void decide(item.id, 'rejected')}>ปฏิเสธ</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {pending.length === 0 && <div className={styles.tableState}>ไม่มีเรื่องรอตรวจ</div>}
+        </div>
+      )}
+
+      <div className={styles.blacklistRow}>
+        <span className={styles.blacklistLabel}>🛡️ รายการเฝ้าระวังลิขสิทธิ์:</span>
+        <input className={styles.blacklistInput} placeholder="ชื่อเรื่อง / IP / คำที่ต้องบล็อก" value={term} onChange={(event) => setTerm(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void add() }} />
+        <button type="button" className={styles.smallButton} onClick={() => void add()}>+ เพิ่ม</button>
+        {blacklist.map((item) => <button type="button" className={styles.blacklistChip} key={item.id} onClick={() => void remove(item.id)} title="ลบรายการ">{item.term} ×</button>)}
+      </div>
+    </section>
+  )
 }
