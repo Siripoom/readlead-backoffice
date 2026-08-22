@@ -1,5 +1,16 @@
-export const CMS_PAGE_SLUGS = ['home', 'novel', 'manga', 'audio'] as const
+export const CMS_PAGE_SLUGS = ['home', 'novel', 'manga', 'audio', 'rank', 'search'] as const
 export type CmsPageSlug = (typeof CMS_PAGE_SLUGS)[number]
+
+export const CMS_PAGE_LABELS: Record<CmsPageSlug, string> = {
+  home: 'หน้าหลัก',
+  novel: 'นิยาย',
+  manga: 'เว็บตูน',
+  audio: 'หนังสือเสียง',
+  rank: 'จัดอันดับ',
+  search: 'ค้นหา',
+}
+
+export type CmsAutoMode = 'manual' | 'popular' | 'views' | 'votes' | 'random'
 
 export type CmsElementType = 'badge' | 'title' | 'text' | 'button' | 'votes' | 'countdown'
 
@@ -26,6 +37,7 @@ export type CmsItemConfig = {
   variant?: string
   column?: number
   slot?: number
+  group?: string
   source?: 'manual' | 'generated'
   bookId?: string
   badge?: string
@@ -44,12 +56,13 @@ export type CmsItemConfig = {
 }
 
 export type CmsSectionConfig = {
-  mode?: 'manual' | 'popular' | 'random'
+  mode?: CmsAutoMode
+  groupModes?: Record<string, CmsAutoMode>
   slotEnabled?: Record<string, boolean>
   [key: string]: unknown
 }
 
-export type CmsSectionKind = 'visual' | 'book' | 'recommend' | 'coverflow' | 'fixed'
+export type CmsSectionKind = 'visual' | 'book' | 'recommend' | 'coverflow' | 'fixed' | 'grouped-books' | 'image-grid' | 'promo-grid'
 
 export type CmsSectionDefinition = {
   key: string
@@ -61,50 +74,84 @@ export type CmsSectionDefinition = {
   hint?: string
   allowSpecial?: boolean
   toggleable?: boolean
+  maxItems?: number
+  groupKeys?: string[]
+  groupLimits?: Record<string, number>
+  columnLabels?: string[]
+  slotAspects?: string[]
+  adminVisible?: boolean
+  toggleLabel?: boolean
+  clearable?: boolean
+  modeOptions?: CmsAutoMode[]
 }
 
 const shared = {
-  hero: { key: 'hero', title: 'แบนเนอร์ใหญ่ (Hero)', kind: 'visual', columns: 1, aspect: '1280 / 318', addLabel: 'เพิ่มแบนเนอร์', toggleable: true },
-  sale: { key: 'sale', title: 'ลดราคาพิเศษ', kind: 'book', columns: 1, aspect: '3 / 4', addLabel: 'เพิ่มเรื่อง', toggleable: true },
-  'writer-banner': { key: 'writer-banner', title: 'แบนเนอร์ “มาเป็นนักเขียนกับเรา”', kind: 'visual', columns: 1, aspect: '1152 / 244', addLabel: 'เพิ่มแบนเนอร์', toggleable: true },
-  'row-3': { key: 'row-3', title: 'แบนเนอร์แถว 3 (ใต้อันดับรวมยอดนิยม)', kind: 'visual', columns: 1, aspect: '1152 / 138', addLabel: 'เพิ่มแบนเนอร์', toggleable: true },
-  narrator: { key: 'narrator', title: 'แบนเนอร์เชิญชวนนักพากย์', kind: 'visual', columns: 1, aspect: '1152 / 138', addLabel: 'เพิ่มแบนเนอร์', toggleable: true },
-  'web-coverflow': { key: 'web-coverflow', title: 'แนะนำโดยเว็บ — แบนเนอร์คอเวอร์โฟลว์', kind: 'coverflow', columns: 1, aspect: '1152 / 280', addLabel: 'เพิ่มปก', toggleable: true },
-  'web-sides': { key: 'web-sides', title: 'แบนเนอร์ “แนะนำโดยเว็บ” — ซ้าย/ขวา', kind: 'visual', columns: 2, aspect: '567 / 135', addLabel: 'เพิ่มแบนเนอร์', toggleable: true },
-  'web-books': { key: 'web-books', title: 'แนะนำโดยเว็บ — แถวการ์ดหนังสือ', kind: 'book', columns: 1, aspect: '3 / 4', addLabel: 'เพิ่มเรื่อง', toggleable: true },
-  category: { key: 'category', title: 'แบนเนอร์ “เติมเต็มทุกอารมณ์”', kind: 'visual', columns: 1, aspect: '1152 / 228', addLabel: 'แก้ไขแบนเนอร์', toggleable: true },
-  'bottom-cta': { key: 'bottom-cta', title: 'แบนเนอร์ CTA 4 ช่อง', kind: 'fixed', columns: 4, aspect: '276 / 130', addLabel: 'แก้ไข', toggleable: true },
-  'web-recommend': { key: 'web-recommend', title: 'แนะนำโดยเว็บ', kind: 'visual', columns: 2, aspect: '567 / 169', addLabel: 'เพิ่มแบนเนอร์', toggleable: true },
-  launch: { key: 'launch', title: 'แบนเนอร์เปิดตัวใหม่ยอดฮิต', kind: 'visual', columns: 2, aspect: '1140 / 400', addLabel: 'เพิ่มแบนเนอร์', toggleable: true },
+  hero: { key: 'hero', title: 'แบนเนอร์ใหญ่ (Hero)', kind: 'visual', columns: 1, aspect: '1280 / 318', addLabel: 'เพิ่มแบนเนอร์', maxItems: 10 },
+  sale: { key: 'sale', title: 'ลดราคาพิเศษ', kind: 'book', columns: 1, aspect: '3 / 4', addLabel: 'เพิ่มเรื่อง', toggleable: true, toggleLabel: false },
+  'writer-banner': { key: 'writer-banner', title: 'แบนเนอร์แถว 5 “มาเป็นนักเขียนกับเรา” (หลายแบนเนอร์ + ไข่ปลา)', kind: 'visual', columns: 1, aspect: '1152 / 244', addLabel: 'เพิ่มแบนเนอร์', toggleable: true, maxItems: 10 },
+  'row-3': { key: 'row-3', title: 'แบนเนอร์แถว 3 (ใต้อันดับรวมยอดนิยม)', kind: 'visual', columns: 1, aspect: '1152 / 138', addLabel: 'เพิ่มแบนเนอร์', toggleable: true, maxItems: 10, hint: 'แบนเนอร์เต็มกว้างใต้อันดับ · เพิ่มได้หลายอัน (มีไข่ปลาสลับอัตโนมัติ) · ปิด หรือ ไม่มีแบนเนอร์ = ซ่อนทั้งแถบ' },
+  narrator: { key: 'narrator', title: 'แบนเนอร์เชิญชวนนักพากย์', kind: 'visual', columns: 1, aspect: '1152 / 138', addLabel: 'เพิ่มแบนเนอร์', toggleable: true, maxItems: 10, hint: 'แบนเนอร์เต็มกว้าง (ระหว่างเปิดตัวใหม่กับเปิดตัวพากย์) · เพิ่มได้หลายอัน (มีไข่ปลาสลับอัตโนมัติ) · ปิด หรือ ไม่มีแบนเนอร์ = ซ่อนทั้งแถบ' },
+  'web-coverflow': { key: 'web-coverflow', title: 'แบนเนอร์แถว 4 (แนะนำโดยเว็บ) แบนเนอร์ม่วง (คอเวอร์โฟลว์)', kind: 'coverflow', columns: 1, aspect: '1152 / 280', addLabel: 'เพิ่มปก', toggleable: true },
+  'web-sides': { key: 'web-sides', title: 'แบนเนอร์ “แนะนำโดยเว็บ” ซ้าย/ขวา (เพิ่มได้หลายอัน + ไข่ปลา)', kind: 'visual', columns: 2, aspect: '567 / 135', addLabel: 'เพิ่มแบนเนอร์', toggleable: true, maxItems: 10, columnLabels: ['ใบซ้าย (ใบละ 567×135)', 'ใบขวา (ใบละ 567×135)'], hint: 'ปิด หรือ ทั้งสองข้างว่าง = ซ่อนทั้งแถว · หลายอันต่อข้าง = มีไข่ปลาสลับอัตโนมัติ' },
+  'web-books': { key: 'web-books', title: 'แนะนำโดยเว็บ แถวการ์ดหนังสือ (เลือกเอง/ยอดนิยม/สุ่ม · ว่าง=ซ่อนแถว)', kind: 'book', columns: 1, aspect: '3 / 4', addLabel: 'เพิ่มเรื่อง', toggleable: true, modeOptions: ['manual', 'popular', 'random'] },
+  category: { key: 'category', title: 'แบนเนอร์ “เติมเต็มทุกอารมณ์” (เลือกหมวด)', kind: 'visual', columns: 1, aspect: '1152 / 228', addLabel: 'แก้ไขแบนเนอร์ (ลากวางอิสระ)', toggleable: true, hint: 'ปิด = ซ่อนเฉพาะแบนเนอร์ม่วง เหลือแถบฟิลเตอร์หมวด · วางข้อความ/ใส่รูปพื้นหลังได้เหมือนแบนเนอร์อื่น (ฟิลเตอร์หมวดคงเดิม ไม่อยู่ในตัวแก้นี้)' },
+  'bottom-cta': { key: 'bottom-cta', title: 'แบนเนอร์ CTA 4 ช่อง (ล่างสุด · ก่อน Footer)', kind: 'fixed', columns: 4, aspect: '276 / 130', addLabel: 'แก้ไข', toggleable: true },
+  'web-recommend': { key: 'web-recommend', title: 'แนะนำโดยเว็บ', kind: 'visual', columns: 2, aspect: '567 / 169', addLabel: 'เพิ่มแบนเนอร์', toggleable: true, adminVisible: false },
+  launch: { key: 'launch', title: 'แบนเนอร์เปิดตัวใหม่ยอดฮิต', kind: 'visual', columns: 2, aspect: '1140 / 400', addLabel: 'เพิ่มแบนเนอร์', toggleable: true, adminVisible: false },
 } satisfies Record<string, CmsSectionDefinition>
 
 export const CMS_PAGE_SECTIONS: Record<CmsPageSlug, CmsSectionDefinition[]> = {
   home: [
-    shared.hero,
-    { key: 'activity', title: 'แบนเนอร์แถว 2 (กิจกรรม)', kind: 'visual', columns: 3, aspect: '370 / 169', addLabel: 'เพิ่ม', toggleable: true },
-    shared.sale,
-    { key: 'act3', title: 'แบนเนอร์แถว 3 (กิจกรรม) — เหนือจัดอันดับรวม', kind: 'visual', columns: 1, aspect: '1180 / 247', addLabel: 'เพิ่มแบนเนอร์', allowSpecial: true, toggleable: true },
-    { key: 'act4', title: 'แบนเนอร์แถว 4 (กิจกรรม) — ใต้จัดอันดับรวม', kind: 'visual', columns: 1, aspect: '1180 / 247', addLabel: 'เพิ่มแบนเนอร์', allowSpecial: true, toggleable: true },
-    { key: 'recommend', title: 'แนะนำสำหรับคุณ', kind: 'recommend', columns: 3, aspect: '372 / 174', addLabel: 'เพิ่ม', toggleable: true },
+    { ...shared.hero, aspect: '804 / 296' },
+    { key: 'side', title: 'แบนเนอร์กล่องข้าง Hero (ขวา · 330×296)', kind: 'visual', columns: 1, aspect: '330 / 296', addLabel: 'เพิ่มแบนเนอร์', toggleable: true, toggleLabel: false, maxItems: 10, hint: 'ระบบเดียวกับแบนเนอร์ใหญ่ จัดวางข้อความ/ป้าย/ปุ่มอิสระ · มีมากกว่า 1 อันจะสไลด์อัตโนมัติ + ไข่ปลาใต้กล่อง · ปิดสวิตช์หรือไม่มีแบนเนอร์ = ซ่อนกล่อง แล้ว Hero ขยายเต็มแถว' },
+    { key: 'recommend-columns', title: 'แนะนำ 3 คอลัมน์ (นิยาย / เว็บตูน / หนังสือเสียง) สูงสุดคอลัมน์ละ 15 เรื่อง', kind: 'grouped-books', columns: 3, aspect: '3 / 4', addLabel: 'เพิ่มเรื่อง', groupKeys: ['novel', 'manga', 'audio'], groupLimits: { novel: 15, manga: 15, audio: 15 }, columnLabels: ['แนะนำนิยาย', 'แนะนำเว็บตูน', 'แนะนำหนังสือเสียง'], hint: 'หน้าเว็บโชว์ทีละ 3 เรื่องแล้วเลื่อนทีละเรื่องวนครบทั้งลิสต์ (1-2-3 → 2-3-4 … → 15-1-2) ตามความเร็วสไลด์ด้านบน · โหมดอัตโนมัติกด “ดึงรายการใหม่” เพื่ออัปเดตจากคะแนนล่าสุด · ไม่มีเรื่อง = ซ่อนคอลัมน์', modeOptions: ['manual', 'views', 'votes', 'random'] },
+    { key: 'editors-choice', title: "แบนเนอร์ Editor's Choice (ซ้ายแถวคัดสรร · 452×172 · สูงสุด 5)", kind: 'visual', columns: 1, aspect: '452 / 172', addLabel: 'เพิ่มแบนเนอร์', maxItems: 5, hint: 'มีมากกว่า 1 อันจะสไลด์พร้อมไข่ปลา · ไม่มีแบนเนอร์ = ซ่อนกล่อง แล้วแถวเรื่องขยายเต็ม' },
+    { key: 'curated-picks', title: 'คัดสรรพิเศษสำหรับคุณ (เรื่องคละประเภท · เลื่อนทีละเรื่องวนลูป)', kind: 'grouped-books', columns: 2, aspect: '3 / 4', addLabel: 'เพิ่มเรื่อง', groupKeys: ['top', 'bottom'], groupLimits: { top: 15, bottom: 30 }, columnLabels: ['แถวบน (โชว์ 3 · สูงสุด 15 เรื่อง)', 'แถวล่าง (โชว์ 5 · สูงสุด 30 เรื่อง)'], hint: 'ไม่มีเรื่อง = ซ่อนแถวนั้นบนหน้าเว็บ · ไข่ปลาใต้แถวตามจำนวนหน้าอัตโนมัติ', modeOptions: ['manual', 'views', 'votes', 'random'] },
+    { key: 'promo-4', title: 'แบนเนอร์แถวโปรโม (ใต้คัดสรรพิเศษ · 4 ช่อง)', kind: 'promo-grid', columns: 4, aspect: '369 / 171', slotAspects: ['369 / 171', '250 / 171', '228 / 171', '250 / 171'], columnLabels: ['ช่อง 1 · 369×171', 'ช่อง 2 · 250×171', 'ช่อง 3 · 228×171', 'ช่อง 4 · 250×171'], addLabel: 'เพิ่ม', maxItems: 10, hint: 'ช่องละสูงสุด 10 อัน · มีมากกว่า 1 อันจะสไลด์พร้อมไข่ปลา · ว่างทั้ง 4 ช่อง = ซ่อนทั้งแถว' },
+    { key: 'activity', title: 'แบนเนอร์แถว 2 (กิจกรรม)', kind: 'visual', columns: 3, aspect: '370 / 169', addLabel: 'เพิ่ม', toggleable: true, adminVisible: false },
+    { ...shared.sale, adminVisible: false },
+    { key: 'act3', title: 'แบนเนอร์แถว 3 (กิจกรรม) — เหนือจัดอันดับรวม', kind: 'visual', columns: 1, aspect: '1180 / 247', addLabel: 'เพิ่มแบนเนอร์', allowSpecial: true, toggleable: true, adminVisible: false },
+    { key: 'act4', title: 'แบนเนอร์แถว 4 (กิจกรรม) — ใต้จัดอันดับรวม', kind: 'visual', columns: 1, aspect: '1180 / 247', addLabel: 'เพิ่มแบนเนอร์', allowSpecial: true, toggleable: true, adminVisible: false },
+    { key: 'recommend', title: 'แนะนำสำหรับคุณ', kind: 'recommend', columns: 3, aspect: '372 / 174', addLabel: 'เพิ่ม', toggleable: true, adminVisible: false },
   ],
   novel: [
     shared.hero,
-    { key: 'activity', title: 'แบนเนอร์แถว 2 (ใต้แบนเนอร์ใหญ่)', kind: 'visual', columns: 2, aspect: '566 / 169', addLabel: 'เพิ่ม', toggleable: true },
+    { key: 'activity', title: 'แบนเนอร์แถว 2 (ใต้แบนเนอร์ใหญ่)', kind: 'visual', columns: 2, aspect: '566 / 169', addLabel: 'เพิ่ม', toggleable: true, maxItems: 10 },
     shared.sale,
-    shared['writer-banner'], shared['web-coverflow'], shared['web-books'], shared.category, shared['web-recommend'], shared.launch,
+    { key: 'act3', title: 'แบนเนอร์แถว 3 (กิจกรรม) เหนือจัดอันดับรวม', kind: 'visual', columns: 1, aspect: '1180 / 247', addLabel: 'เพิ่มแบนเนอร์', allowSpecial: true, toggleable: true, clearable: true, maxItems: 10 },
+    shared['web-coverflow'], shared['web-books'], shared['writer-banner'], shared.category, shared['web-recommend'], shared.launch,
   ],
   manga: [
     shared.hero,
-    { key: 'activity', title: 'แบนเนอร์แถว 2 (ใต้แบนเนอร์ใหญ่)', kind: 'visual', columns: 2, aspect: '566 / 169', addLabel: 'เพิ่ม', toggleable: true },
+    { key: 'activity', title: 'แบนเนอร์แถว 2 (ใต้แบนเนอร์ใหญ่)', kind: 'visual', columns: 2, aspect: '566 / 169', addLabel: 'เพิ่ม', toggleable: true, maxItems: 10 },
     shared.sale,
     shared['row-3'], shared['web-sides'], shared['web-books'], shared.category, shared['bottom-cta'], shared['web-recommend'], shared.launch,
   ],
   audio: [
     shared.hero,
-    { key: 'activity', title: 'แบนเนอร์แถว 2 (ใต้แบนเนอร์ใหญ่)', kind: 'visual', columns: 2, aspect: '566 / 169', addLabel: 'เพิ่ม', toggleable: true },
+    { key: 'activity', title: 'แบนเนอร์แถว 2 (ใต้แบนเนอร์ใหญ่)', kind: 'visual', columns: 2, aspect: '566 / 169', addLabel: 'เพิ่ม', toggleable: true, maxItems: 10 },
     shared.sale,
     shared['row-3'], shared.narrator, shared['web-sides'], shared['web-books'], shared.category, shared['bottom-cta'], shared['web-recommend'], shared.launch,
   ],
+  rank: [
+    { ...shared.hero, aspect: '1280 / 320' },
+    { key: 'side', title: 'แบนเนอร์ใต้เมนูข้าง (หน้าจัดอันดับ)', kind: 'visual', columns: 1, aspect: '330 / 296', addLabel: 'เพิ่มแบนเนอร์', toggleable: true, toggleLabel: false, maxItems: 10, hint: 'มีมากกว่า 1 อันจะสไลด์อัตโนมัติพร้อมไข่ปลา · ปิดหรือไม่มีรายการ = ซ่อนพื้นที่นี้' },
+  ],
+  search: [
+    { ...shared.hero, aspect: '1486 / 276', maxItems: 1, toggleable: false, hint: 'Hero หน้าค้นหามีหนึ่งรายการคงที่ · ตำแหน่งช่องค้นหาบนหน้าจริงถูกตรึงไว้' },
+    { key: 'search-categories', title: 'รูปพื้นช่องหมวดหมู่ยอดนิยม (หน้าค้นหา · ใส่ได้เฉพาะรูป)', kind: 'image-grid', columns: 4, aspect: '2 / 1', addLabel: 'อัปโหลดรูป', maxItems: 1, groupKeys: ['0', '1', '2', '3', '4', '5', '6'], columnLabels: ['กำลังภายใน', 'แฟนตาซี', 'แอ็กชัน', 'ผจญภัย', 'ต่างโลก', 'ระบบ', 'ทั้งหมด'], hint: 'ขนาดแนะนำ 760 × 380px (สัดส่วน 2:1 · ขั้นต่ำ 380 × 190px) ชื่อหมวดและจำนวนเรื่องมาจากระบบ' },
+  ],
+}
+
+export function getSectionDefinition(page: CmsPageSlug, key: string) {
+  return CMS_PAGE_SECTIONS[page].find((definition) => definition.key === key)
+}
+
+export function cmsItemLimit(definition: CmsSectionDefinition, configValue: unknown) {
+  const config = asItemConfig(configValue)
+  if (definition.groupLimits && typeof config.group === 'string') return definition.groupLimits[config.group] ?? definition.maxItems ?? 10
+  if (definition.kind === 'book' || config.variant === 'book') return definition.maxItems ?? 21
+  return definition.maxItems ?? 10
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -197,6 +244,7 @@ export function modernizeItemConfig(configValue: unknown, item: { title: string;
   if (config.mobileImageUrl !== undefined) config.mobileImageUrl = safeUrl(config.mobileImageUrl)
   const elements = normalizeElements(config.elements)
   if (elements.length) return { ...config, elements, focal: normalizeFocal(config.focal) }
+  if (config.variant === 'book' || config.variant === 'cover' || config.variant === 'image') return { ...config, elements: [], focal: normalizeFocal(config.focal) }
   const legacyTitle: CmsVisualElement = {
     id: 'title-1', type: 'title', text: item.title, x: clamp(config.x, 8, 0, 90), y: clamp(config.y, 55, 0, 90),
     scale: clamp(config.size, 100, 50, 240) / 100, color: safeColor(config.color), bold: true, shadow: true,

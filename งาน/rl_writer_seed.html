@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>สร้างบัญชีนักเขียน · ReadLead</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Noto Sans Thai',sans-serif;}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f4f5f8;padding:24px;}
+  .card{background:#fff;border:1px solid #e7e8ee;border-radius:18px;max-width:460px;width:100%;padding:40px 34px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.035),0 18px 40px -18px rgba(20,20,40,.18);}
+  .ic{width:64px;height:64px;border-radius:50%;background:#fdf3f4;display:grid;place-items:center;margin:0 auto 20px;font-size:30px;}
+  h1{font-size:20px;font-weight:800;color:#2b2d3a;margin-bottom:8px;}
+  p{font-size:14px;color:#8a8fa0;line-height:1.7;margin-bottom:6px;}
+  .creds{text-align:left;background:#f8f9fb;border:1px solid #eceef3;border-radius:12px;padding:16px 18px;margin:20px 0 22px;font-size:13.5px;color:#3c4050;line-height:2;}
+  .creds b{color:#cc4452;font-weight:800;}
+  .creds .k{display:inline-block;width:96px;color:#8a8fa0;font-weight:600;}
+  .note{font-size:12px;color:#a0a5b4;margin-bottom:22px;}
+  .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  a.btn{display:inline-flex;align-items:center;justify-content:center;height:46px;padding:0 22px;border-radius:12px;font-size:15px;font-weight:700;text-decoration:none;transition:.15s;cursor:pointer;border:none;}
+  a.primary{background:#cc4452;color:#fff;}
+  a.primary:hover{background:#b8323f;}
+  a.ghost{background:#f6f7fa;color:#5b5f6e;}
+  a.ghost:hover{background:#eceef3;}
+  .err{color:#cc4452;font-size:13px;margin-top:10px;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="ic">✍️</div>
+    <h1 id="title">สร้างบัญชีนักเขียนแล้ว</h1>
+    <p id="desc">บัญชีนี้เป็นนักเขียนเรียบร้อย และล็อกอินให้อัตโนมัติแล้ว</p>
+    <div class="creds">
+      <div><span class="k">ชื่อผู้ใช้</span><b id="cUser">—</b></div>
+      <div><span class="k">อีเมล</span><span id="cEmail">—</span></div>
+      <div><span class="k">รหัสผ่าน</span><b id="cPass">—</b></div>
+      <div><span class="k">สถานะ</span>นักเขียน ✓</div>
+    </div>
+    <div class="note">จำรหัสไว้เผื่อออกจากระบบแล้วต้องล็อกอินใหม่ · ถ้าล้างข้อมูล เปิดไฟล์นี้อีกครั้งเพื่อสร้างใหม่</div>
+    <div class="row">
+      <a class="btn primary" href="readify_auth_1.html">เปิด Readify (แดชบอร์ดนักเขียน)</a>
+      <a class="btn ghost" href="home_auth_1.html">ไปหน้าหลัก</a>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+<script>
+(function(){
+  'use strict';
+  // ── ตั้งค่าบัญชีนักเขียน (แก้ได้ตามใจ) ──
+  var USER  = 'writer';
+  var EMAIL = 'writer@readlead.local';
+  var PASS  = 'writer123';
+  var PEN   = 'นักเขียนทดสอบ';
+  var COLOR = ['#fde2e4','#b2455a'];
+
+  try{
+    var users = JSON.parse(localStorage.getItem('rl_users')||'[]');
+    if(!Array.isArray(users)) users = [];
+
+    // มีบัญชีชื่อนี้อยู่แล้ว → อัปเกรดเป็นนักเขียน + ล็อกอิน (ไม่สร้างซ้ำ)
+    var rec = users.find(function(x){
+      return x && String(x.user||'').toLowerCase()===USER.toLowerCase();
+    });
+
+    if(rec){
+      rec.isWriter = true;
+      if(!rec.writerSince) rec.writerSince = Date.now();
+      if(!rec.penName) rec.penName = PEN;
+      document.getElementById('title').textContent = 'บัญชีนักเขียนพร้อมใช้แล้ว';
+      document.getElementById('desc').textContent = 'พบบัญชีนี้อยู่แล้ว อัปเกรดเป็นนักเขียนและล็อกอินให้แล้ว';
+    } else {
+      rec = {
+        id: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+        user: USER, email: EMAIL, pass: PASS,
+        penName: PEN, displayName: PEN,
+        color: COLOR, coins: 0, exp: 0, level: 0,
+        isWriter: true, writerSince: Date.now(),
+        createdAt: new Date().toISOString()
+      };
+      users.push(rec);
+    }
+
+    localStorage.setItem('rl_users', JSON.stringify(users));
+    localStorage.setItem('rl_session', JSON.stringify({ uid: rec.id, at: Date.now() }));
+
+    document.getElementById('cUser').textContent  = rec.user;
+    document.getElementById('cEmail').textContent = rec.email;
+    document.getElementById('cPass').textContent  = PASS;
+  }catch(e){
+    document.getElementById('err').textContent = 'ผิดพลาด: ' + (e && e.message ? e.message : e);
+  }
+})();
+</script>
+</body>
+</html>

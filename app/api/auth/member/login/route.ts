@@ -12,7 +12,10 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, password } = result.data
-    const user = await getPrisma().user.findUnique({ where: { email } })
+    const user = await getPrisma().user.findUnique({
+      where: { email },
+      include: { authIdentities: { select: { provider: true } } },
+    })
     const isMember = user?.userType === 'user' || user?.userType === 'creator'
     const isValid = isMember && user.status === 'active' && user.passwordHash
       ? verifyPassword(password, user.passwordHash)

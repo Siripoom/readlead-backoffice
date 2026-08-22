@@ -10,6 +10,7 @@ import {
   safeBackground,
   safeUrl,
 } from '@/lib/cms-config'
+import { ensureCmsPage } from '@/lib/cms-bootstrap'
 import { getPrisma } from '@/lib/prisma'
 
 type Params = { params: Promise<{ page: string }> }
@@ -19,6 +20,7 @@ const cacheHeaders = { 'Cache-Control': 'public, max-age=30, stale-while-revalid
 export async function GET(_request: Request, { params }: Params) {
   const { page: slug } = await params
   if (!isCmsPageSlug(slug)) return NextResponse.json({ error: 'ไม่พบหน้า CMS' }, { status: 404, headers: cacheHeaders })
+  await ensureCmsPage(slug)
   const page = await getPrisma().cmsPage.findUnique({
     where: { slug },
     include: { sections: { orderBy: { sortOrder: 'asc' }, include: { items: { where: { enabled: true }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } } } },
@@ -70,14 +72,15 @@ export async function GET(_request: Request, { params }: Params) {
     const items = section.enabled ? section.items.filter((item) => {
       const config = asItemConfig(item.config)
       const inferredVariant = typeof config.variant === 'string' ? config.variant : ['sale', 'recommend', 'web-books'].includes(section.key) ? 'book' : 'default'
-      const isBookGroup = ['recommend', 'web-books'].includes(section.key) && inferredVariant === 'book'
+      const isBookGroup = (definition.kind === 'grouped-books' || ['recommend', 'web-books'].includes(section.key)) && inferredVariant === 'book'
       if (!isBookGroup) return true
-      return mode === 'manual' ? config.source !== 'generated' : config.source === 'generated'
+      const itemMode = typeof config.group === 'string' ? sectionConfig.groupModes?.[config.group] ?? mode : mode
+      return itemMode === 'manual' ? config.source !== 'generated' : config.source === 'generated'
     }).flatMap((item) => {
       const config = modernizeItemConfig(item.config, item)
       const inferredVariant = typeof config.variant === 'string' ? config.variant : ['sale', 'recommend', 'web-books'].includes(section.key) ? 'book' : 'default'
       const book = typeof config.bookId === 'string' ? workById.get(config.bookId) : undefined
-      const requiresPublishedBook = ['sale', 'recommend', 'web-books'].includes(section.key) && inferredVariant === 'book'
+      const requiresPublishedBook = (definition.kind === 'grouped-books' || ['sale', 'recommend', 'web-books'].includes(section.key)) && inferredVariant === 'book'
       if (requiresPublishedBook && !book) return []
       return [{
         id: item.id,
@@ -90,6 +93,7 @@ export async function GET(_request: Request, { params }: Params) {
           variant: inferredVariant,
           column: Number.isInteger(config.column) ? config.column : 0,
           slot: Number.isInteger(config.slot) ? config.slot : null,
+          group: typeof config.group === 'string' ? config.group : null,
         },
         source: config.source === 'generated' ? 'generated' : 'manual',
         book: book ? {
@@ -122,8 +126,8 @@ export async function GET(_request: Request, { params }: Params) {
       key: section.key,
       title: section.title,
       enabled: section.enabled,
-      layout: { kind: definition.kind, columns: definition.columns, aspect: definition.aspect },
-      config: { mode, slotEnabled: sectionConfig.slotEnabled ?? {} },
+      layout: { kind: definition.kind, columns: definition.columns, aspect: definition.aspect, slotAspects: definition.slotAspects ?? [], groupKeys: definition.groupKeys ?? [] },
+      config: { mode, groupModes: sectionConfig.groupModes ?? {}, slotEnabled: sectionConfig.slotEnabled ?? {} },
       items,
     }]
   })

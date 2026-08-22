@@ -26,6 +26,12 @@ enum UserType {
   admin
 }
 
+enum MemberAuthProvider {
+  google
+  facebook
+  apple
+}
+
 enum ContentStatus {
   pending
   approved
@@ -135,6 +141,9 @@ enum CoinTopUpStatus {
   pending
   approved
   rejected
+  authorizing // gateway charge created, awaiting 3DS/QR/webhook
+  failed      // gateway declined/errored
+  expired     // QR/redirect expired unpaid
 }
 
 enum WorkFeature {
@@ -168,6 +177,7 @@ model User {
   expEntries         ExpLedger[]
   ticketEntries      TicketLedger[]
   memberSessions     MemberSession[]
+  authIdentities     MemberAuthIdentity[]
   writerApplication  WriterApplication?
   creatorWorks       CreatorWork[]          @relation("CreatorWorks")
   followedCreators   CreatorFollow[]        @relation("CreatorFollowers")
@@ -188,6 +198,22 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model MemberAuthIdentity {
+  id          String             @id @default(cuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider    MemberAuthProvider
+  providerUid String
+  email       String
+  applePrivateRelayConsentAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([provider, providerUid])
+  @@unique([userId, provider])
+  @@index([userId])
 }
 
 model MemberSession {
@@ -590,11 +616,23 @@ model CoinTopUpRequest {
   amountSatang     Int
   status           CoinTopUpStatus @default(pending)
   idempotencyKey   String          @unique
-  slipObjectKey    String          @unique
-  slipUrl          String
-  slipContentType  String
-  slipSizeBytes    Int
-  slipOriginalName String
+  paymentMethod    String          @default("proof-upload")
+
+  // Slip fields: populated for the manual proof-upload flow, null for
+  // gateway-originated top-ups.
+  slipObjectKey    String?         @unique
+  slipUrl          String?
+  slipContentType  String?
+  slipSizeBytes    Int?
+  slipOriginalName String?
+
+  // Omise gateway fields: populated for gateway-originated top-ups, null
+  // for the proof-upload flow.
+  omiseChargeId        String?     @unique
+  omiseChargeStatus    String?
+  omiseSourceType      String?
+  amountReceivedSatang Int?
+
   rejectionReason  String?
   reviewerId       String?
   reviewer         AdminProfile?   @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
@@ -818,7 +856,7 @@ model ExpAccount {
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   balance   Int      @default(0)
-  level     Int      @default(1)
+  level     Int      @default(0)
   updatedAt DateTime @updatedAt
 }
 

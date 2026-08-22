@@ -1,6 +1,7 @@
 import { getPrisma } from '@/lib/prisma'
 import { memberTopUpDto } from '@/lib/member-topups'
 import { getWalletPackage, WALLET_PACKAGES } from '@/lib/wallet-packages'
+import { WALLET_CHANNELS } from '@/lib/wallet-channels'
 
 function record(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {}
@@ -55,8 +56,9 @@ export async function getMemberWallet(userId: string) {
 
   return {
     balance: account?.balance ?? 0,
-    topUpEnabled: true,
+    topUpEnabled: WALLET_CHANNELS.some((channel) => channel.enabled),
     packages: WALLET_PACKAGES,
+    channels: WALLET_CHANNELS,
     transactions,
   }
 }

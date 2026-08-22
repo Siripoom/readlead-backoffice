@@ -3,7 +3,8 @@ import { authorizeApi } from '@/lib/auth'
 import {
   asItemConfig,
   clamp,
-  CMS_PAGE_SECTIONS,
+  cmsItemLimit,
+  getSectionDefinition,
   isCmsPageSlug,
   isRecord,
   normalizeElements,
@@ -14,16 +15,19 @@ import {
   type CmsItemConfig,
   type CmsSectionConfig,
 } from '@/lib/cms-config'
+import { ensureCmsPage } from '@/lib/cms-bootstrap'
+import { cmsGenerationWorkType } from '@/lib/cms-generation'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { getPrisma } from '@/lib/prisma'
 
-const variants = new Set(['default', 'banner', 'book', 'main', 'cover'])
+const variants = new Set(['default', 'banner', 'book', 'main', 'cover', 'image'])
 
 function cleanItemConfig(value: unknown): CmsItemConfig | null {
   if (!isRecord(value) || JSON.stringify(value).length > 60_000) return null
   if (value.variant !== undefined && (typeof value.variant !== 'string' || !variants.has(value.variant))) return null
-  if (value.column !== undefined && (!Number.isInteger(value.column) || Number(value.column) < 0 || Number(value.column) > 3)) return null
-  if (value.slot !== undefined && (!Number.isInteger(value.slot) || Number(value.slot) < 0 || Number(value.slot) > 3)) return null
+  if (value.column !== undefined && (!Number.isInteger(value.column) || Number(value.column) < 0 || Number(value.column) > 6)) return null
+  if (value.slot !== undefined && (!Number.isInteger(value.slot) || Number(value.slot) < 0 || Number(value.slot) > 6)) return null
+  if (value.group !== undefined && (typeof value.group !== 'string' || !/^[a-z0-9_-]{1,30}$/i.test(value.group))) return null
   if (value.source !== undefined && value.source !== 'manual' && value.source !== 'generated') return null
 
   const config: CmsItemConfig = {
@@ -32,6 +36,7 @@ function cleanItemConfig(value: unknown): CmsItemConfig | null {
     source: value.source === 'generated' ? 'generated' : 'manual',
   }
   if (Number.isInteger(value.slot)) config.slot = Number(value.slot)
+  if (typeof value.group === 'string') config.group = value.group
   if (typeof value.bookId === 'string') config.bookId = value.bookId.trim().slice(0, 100)
   if (typeof value.workType === 'string' && ['novel', 'manga', 'audiobook'].includes(value.workType)) config.workType = value.workType
   if (typeof value.creatorName === 'string') config.creatorName = value.creatorName.trim().slice(0, 200)
@@ -53,11 +58,15 @@ function cleanItemConfig(value: unknown): CmsItemConfig | null {
 
 function cleanSectionConfig(value: unknown): CmsSectionConfig | null {
   if (!isRecord(value) || JSON.stringify(value).length > 10_000) return null
-  if (value.mode !== undefined && !['manual', 'popular', 'random'].includes(String(value.mode))) return null
+  const modes = new Set(['manual', 'popular', 'views', 'votes', 'random'])
+  if (value.mode !== undefined && !modes.has(String(value.mode))) return null
   const config: CmsSectionConfig = {}
-  if (value.mode === 'manual' || value.mode === 'popular' || value.mode === 'random') config.mode = value.mode
+  if (typeof value.mode === 'string' && modes.has(value.mode)) config.mode = value.mode as CmsSectionConfig['mode']
+  if (isRecord(value.groupModes)) {
+    config.groupModes = Object.fromEntries(Object.entries(value.groupModes).filter(([key, mode]) => /^[a-z0-9_-]{1,30}$/i.test(key) && typeof mode === 'string' && modes.has(mode))) as NonNullable<CmsSectionConfig['groupModes']>
+  }
   if (isRecord(value.slotEnabled)) {
-    config.slotEnabled = Object.fromEntries(Object.entries(value.slotEnabled).filter(([key, enabled]) => /^[0-3]$/.test(key) && typeof enabled === 'boolean')) as Record<string, boolean>
+    config.slotEnabled = Object.fromEntries(Object.entries(value.slotEnabled).filter(([key, enabled]) => /^[0-6]$/.test(key) && typeof enabled === 'boolean')) as Record<string, boolean>
   }
   return config
 }
@@ -72,21 +81,25 @@ function cleanText(value: unknown, maximum: number) {
 
 function placement(configValue: unknown) {
   const config = asItemConfig(configValue)
-  return `${typeof config.variant === 'string' ? config.variant : 'default'}:${Number(config.column) || 0}:${Number(config.slot) || 0}:${config.source === 'generated' ? 'generated' : 'manual'}`
+  return `${typeof config.variant === 'string' ? config.variant : 'default'}:${Number(config.column) || 0}:${Number(config.slot) || 0}:${typeof config.group === 'string' ? config.group : ''}:${config.source === 'generated' ? 'generated' : 'manual'}`
+}
+
+function validPlacement(definition: NonNullable<ReturnType<typeof getSectionDefinition>>, config: CmsItemConfig) {
+  const column = Number(config.column) || 0
+  if (column < 0 || column >= Math.max(definition.columns, definition.kind === 'image-grid' ? 7 : 1)) return false
+  if (definition.groupKeys?.length && (typeof config.group !== 'string' || !definition.groupKeys.includes(config.group))) return false
+  if (!definition.groupKeys?.length && config.group !== undefined) return false
+  if ((definition.kind === 'book' || definition.kind === 'grouped-books') && config.variant !== 'book') return false
+  if (definition.kind === 'image-grid' && config.variant !== 'image') return false
+  return true
 }
 
 export async function GET(request: NextRequest) {
   const auth = await authorizeApi('cms'); if (!auth.ok) return auth.response
   const slug = request.nextUrl.searchParams.get('page') ?? 'home'
   const prisma = getPrisma()
-  if (isCmsPageSlug(slug)) {
-    const existing = await prisma.cmsPage.findUnique({ where: { slug }, select: { id: true, sections: { select: { key: true } } } })
-    if (existing) {
-      const keys = new Set(existing.sections.map((section) => section.key))
-      const missing = CMS_PAGE_SECTIONS[slug].flatMap((definition, sortOrder) => keys.has(definition.key) ? [] : [{ pageId: existing.id, key: definition.key, title: definition.title, sortOrder }])
-      if (missing.length) await prisma.cmsSection.createMany({ data: missing, skipDuplicates: true })
-    }
-  }
+  if (!isCmsPageSlug(slug)) return NextResponse.json({ error: 'ไม่พบหน้า CMS' }, { status: 404 })
+  await ensureCmsPage(slug)
   const page = await prisma.cmsPage.findUnique({
     where: { slug },
     include: { sections: { orderBy: { sortOrder: 'asc' }, include: { items: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } } } },
@@ -102,11 +115,22 @@ export async function POST(request: NextRequest) {
   if (!body.sectionId || !title || !config) return NextResponse.json({ error: 'ข้อมูลไม่ครบหรือ config ไม่ถูกต้อง' }, { status: 400 })
 
   const prisma = getPrisma()
-  const section = await prisma.cmsSection.findUnique({ where: { id: body.sectionId }, include: { items: true } })
+  const section = await prisma.cmsSection.findUnique({ where: { id: body.sectionId }, include: { items: true, page: true } })
   if (!section) return NextResponse.json({ error: 'ไม่พบ section' }, { status: 404 })
+  if (!isCmsPageSlug(section.page.slug)) return NextResponse.json({ error: 'หน้า CMS ไม่ถูกต้อง' }, { status: 400 })
+  const definition = getSectionDefinition(section.page.slug, section.key)
+  if (!definition || !validPlacement(definition, config)) return NextResponse.json({ error: 'ตำแหน่งรายการไม่ถูกต้อง' }, { status: 400 })
+  if (section.page.slug === 'search' && section.key === 'hero') return NextResponse.json({ error: 'Hero หน้าค้นหามีหนึ่งรายการคงที่' }, { status: 409 })
+  if (config.variant === 'book') {
+    if (typeof config.bookId !== 'string' || !config.bookId) return NextResponse.json({ error: 'กรุณาเลือกเรื่อง' }, { status: 400 })
+    const expectedType = cmsGenerationWorkType(section.page.slug, section.key, config.group)
+    const work = await prisma.creatorWork.findFirst({ where: { id: config.bookId, status: 'published', episodes: { some: { status: 'published' } }, ...(expectedType ? { type: expectedType } : {}) }, select: { id: true } })
+    if (!work) return NextResponse.json({ error: 'ไม่พบผลงานที่เผยแพร่หรือประเภทไม่ตรงกับกลุ่ม' }, { status: 400 })
+    if (section.items.some((item) => placement(item.config) === placement(config) && asItemConfig(item.config).bookId === config.bookId)) return NextResponse.json({ error: 'เรื่องนี้อยู่ในกลุ่มแล้ว' }, { status: 409 })
+  }
   const signature = placement(config)
   const groupCount = section.items.filter((item) => placement(item.config) === signature).length
-  const limit = config.variant === 'book' ? 21 : 10
+  const limit = cmsItemLimit(definition, config)
   if (groupCount >= limit) return NextResponse.json({ error: `เพิ่มได้สูงสุด ${limit} รายการต่อกลุ่ม` }, { status: 409 })
 
   const item = await prisma.cmsItem.create({
@@ -168,9 +192,32 @@ export async function PATCH(request: NextRequest) {
     await prisma.cmsPage.update({ where: { id: body.id }, data: { slideSeconds } })
   }
   if (body.type === 'section') {
+    if (sectionConfig?.groupModes) {
+      const existing = await prisma.cmsSection.findUnique({ where: { id: body.id }, include: { page: true } })
+      if (!existing || !isCmsPageSlug(existing.page.slug)) return NextResponse.json({ error: 'ไม่พบ section' }, { status: 404 })
+      const definition = getSectionDefinition(existing.page.slug, existing.key)
+      if (!definition?.groupKeys || Object.keys(sectionConfig.groupModes).some((key) => !definition.groupKeys!.includes(key))) return NextResponse.json({ error: 'โหมดของกลุ่มไม่ถูกต้อง' }, { status: 400 })
+    }
     await prisma.cmsSection.update({ where: { id: body.id }, data: { enabled: body.enabled, sortOrder: body.sortOrder, config: sectionConfig ? jsonConfig(sectionConfig) : undefined } })
   }
   if (body.type === 'item') {
+    const existing = await prisma.cmsItem.findUnique({ where: { id: body.id }, include: { section: { include: { page: true } } } })
+    if (!existing) return NextResponse.json({ error: 'ไม่พบรายการ' }, { status: 404 })
+    if (existing.section.page.slug === 'search' && existing.section.key === 'hero' && body.enabled === false) return NextResponse.json({ error: 'Hero หน้าค้นหาต้องเปิดใช้งานเสมอ' }, { status: 409 })
+    if (itemConfig) {
+      if (!isCmsPageSlug(existing.section.page.slug)) return NextResponse.json({ error: 'หน้า CMS ไม่ถูกต้อง' }, { status: 400 })
+      const definition = getSectionDefinition(existing.section.page.slug, existing.section.key)
+      if (!definition || !validPlacement(definition, itemConfig)) return NextResponse.json({ error: 'ตำแหน่งรายการไม่ถูกต้อง' }, { status: 400 })
+      const siblings = await prisma.cmsItem.findMany({ where: { sectionId: existing.sectionId, id: { not: existing.id } }, select: { config: true } })
+      if (siblings.filter((item) => placement(item.config) === placement(itemConfig)).length >= cmsItemLimit(definition, itemConfig)) return NextResponse.json({ error: 'กลุ่มปลายทางเต็มแล้ว' }, { status: 409 })
+      if (itemConfig.variant === 'book') {
+        if (typeof itemConfig.bookId !== 'string' || !itemConfig.bookId) return NextResponse.json({ error: 'กรุณาเลือกเรื่อง' }, { status: 400 })
+        const expectedType = cmsGenerationWorkType(existing.section.page.slug, existing.section.key, itemConfig.group)
+        const work = await prisma.creatorWork.findFirst({ where: { id: itemConfig.bookId, status: 'published', episodes: { some: { status: 'published' } }, ...(expectedType ? { type: expectedType } : {}) }, select: { id: true } })
+        if (!work) return NextResponse.json({ error: 'ไม่พบผลงานที่เผยแพร่หรือประเภทไม่ตรงกับกลุ่ม' }, { status: 400 })
+        if (siblings.some((item) => placement(item.config) === placement(itemConfig) && asItemConfig(item.config).bookId === itemConfig.bookId)) return NextResponse.json({ error: 'เรื่องนี้อยู่ในกลุ่มแล้ว' }, { status: 409 })
+      }
+    }
     await prisma.cmsItem.update({
       where: { id: body.id },
       data: {
@@ -195,6 +242,8 @@ export async function DELETE(request: NextRequest) {
   const prisma = getPrisma()
   const item = await prisma.cmsItem.findUnique({ where: { id }, include: { section: true } })
   if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  const page = await prisma.cmsPage.findUnique({ where: { id: item.section.pageId }, select: { slug: true } })
+  if (page?.slug === 'search' && item.section.key === 'hero') return NextResponse.json({ error: 'Hero หน้าค้นหาไม่สามารถลบได้' }, { status: 409 })
   if (item.section.key === 'hero') {
     const count = await prisma.cmsItem.count({ where: { sectionId: item.sectionId } })
     if (count <= 1) return NextResponse.json({ error: 'ต้องเหลือ Hero อย่างน้อย 1 รายการ' }, { status: 409 })

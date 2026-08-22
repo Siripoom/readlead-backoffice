@@ -1,5 +1,6 @@
 import { getPrisma } from '@/lib/prisma'
-import { modernizeItemConfig, normalizeElements, safeUrl } from '@/lib/cms-config'
+import { modernizeItemConfig, normalizeElements, normalizeFocal, safeBackground, safeUrl } from '@/lib/cms-config'
+import { ensureCmsPage } from '@/lib/cms-bootstrap'
 
 const cacheHeaders = {
   'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
@@ -45,6 +46,7 @@ function href(value: unknown) {
 }
 
 export async function GET() {
+  await ensureCmsPage('home')
   const prisma = getPrisma()
   const page = await prisma.cmsPage.findUnique({
     where: { slug: 'home' },
@@ -71,7 +73,7 @@ export async function GET() {
     ? (section?.items ?? []).flatMap((item) => {
         const desktopImageUrl = mediaUrl(item.imageUrl)
         const title = item.title.trim()
-        if (!desktopImageUrl || !title) return []
+        if (!title) return []
         const config = modernizeItemConfig(item.config, item)
         const elements = normalizeElements(config.elements)
         const titleElement = elements.find((element) => element.type === 'title')
@@ -85,8 +87,10 @@ export async function GET() {
           description: textElement?.text || item.subtitle?.trim() || '',
           ctaLabel: buttonElement?.text || text(config.ctaLabel, 'อ่านเลย'),
           href: href(buttonElement?.link || item.linkUrl),
-          desktopImageUrl,
-          mobileImageUrl: mediaUrl(safeUrl(config.mobileImageUrl)) ?? desktopImageUrl,
+          desktopImageUrl: desktopImageUrl ?? '',
+          mobileImageUrl: mediaUrl(safeUrl(config.mobileImageUrl)) ?? desktopImageUrl ?? '',
+          background: safeBackground(config.background),
+          focal: normalizeFocal(config.focal),
           visual: {
             x: clamp(titleElement?.x ?? config.x, defaultVisual.x, 0, 90),
             y: clamp(titleElement?.y ?? config.y, defaultVisual.y, 10, 90),

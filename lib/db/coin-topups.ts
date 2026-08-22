@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { getPrisma } from '@/lib/prisma'
+import type { PrismaClient } from '@/lib/generated/prisma/client'
 import { topUpReference } from '@/lib/member-topups'
 
 export type CoinTopUpFilter = 'all' | 'pending' | 'approved' | 'rejected'
@@ -13,6 +14,51 @@ export class CoinTopUpReviewError extends Error {
   }
 }
 
+type TransactionClient = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0]
+
+// Credits a top-up's coins to the user's balance and writes the ledger entry
+// — the only place CoinAccount.balance may change. Shared by the admin
+// approval path (decideCoinTopUp) and the Omise webhook handler, so a
+// retried webhook can't double-credit: the unique CoinLedger.idempotencyKey
+// constraint is what actually dedupes, not any caller-side check.
+export async function creditTopUp(
+  tx: TransactionClient,
+  request: {
+    id: string
+    userId: string
+    packageId: string
+    baseCoins: number
+    bonusCoins: number
+    totalCoins: number
+    amountSatang: number
+    paymentMethod: string
+  },
+  idempotencyKey: string,
+) {
+  const account = await tx.coinAccount.upsert({
+    where: { userId: request.userId },
+    create: { userId: request.userId, balance: request.totalCoins },
+    update: { balance: { increment: request.totalCoins } },
+  })
+  await tx.coinLedger.create({
+    data: {
+      userId: request.userId,
+      kind: 'topup',
+      amount: request.totalCoins,
+      balanceAfter: account.balance,
+      referenceId: request.id,
+      idempotencyKey,
+      metadata: {
+        packageId: request.packageId,
+        baseCoins: request.baseCoins,
+        bonusCoins: request.bonusCoins,
+        paidAmountBaht: request.amountSatang / 100,
+        paymentMethod: request.paymentMethod,
+      },
+    },
+  })
+}
+
 const adminSelect = {
   id: true,
   packageId: true,
@@ -20,8 +66,8 @@ const adminSelect = {
   bonusCoins: true,
   totalCoins: true,
   amountSatang: true,
+  paymentMethod: true,
   status: true,
-  slipUrl: true,
   slipContentType: true,
   slipSizeBytes: true,
   slipOriginalName: true,
@@ -32,6 +78,10 @@ const adminSelect = {
   reviewer: { select: { id: true, user: { select: { name: true } } } },
 } as const
 
+// listCoinTopUps scopes to paymentMethod: 'proof-upload' (gateway-originated
+// top-ups are auto-approved/rejected via the Omise webhook and never reach
+// this admin review queue), so slip fields are always populated here even
+// though the column is nullable at the schema level.
 export function adminTopUpDto(item: {
   id: string
   packageId: string
@@ -39,10 +89,11 @@ export function adminTopUpDto(item: {
   bonusCoins: number
   totalCoins: number
   amountSatang: number
-  status: 'pending' | 'approved' | 'rejected'
-  slipContentType: string
-  slipSizeBytes: number
-  slipOriginalName: string
+  paymentMethod: string
+  status: 'pending' | 'approved' | 'rejected' | 'authorizing' | 'failed' | 'expired'
+  slipContentType: string | null
+  slipSizeBytes: number | null
+  slipOriginalName: string | null
   rejectionReason: string | null
   reviewedAt: Date | null
   submittedAt: Date
@@ -57,6 +108,7 @@ export function adminTopUpDto(item: {
     bonusCoins: item.bonusCoins,
     totalCoins: item.totalCoins,
     amountBaht: item.amountSatang / 100,
+    paymentMethod: item.paymentMethod,
     status: item.status,
     slip: {
       url: `/api/finance/topups/${encodeURIComponent(item.id)}/slip`,
@@ -81,7 +133,11 @@ export async function listCoinTopUps(input: {
   const prisma = getPrisma()
   const query = input.query.trim()
   const idQuery = query.replace(/^#?TU-/i, '').trim()
+  // Gateway-originated top-ups are settled automatically by the Omise
+  // webhook and never need human review, so this admin queue only ever
+  // shows the manual proof-upload flow.
   const where = {
+    paymentMethod: 'proof-upload',
     ...(input.status === 'all' ? {} : { status: input.status }),
     ...(query ? {
       OR: [
@@ -92,10 +148,10 @@ export async function listCoinTopUps(input: {
     } : {}),
   }
   const [all, pending, approved, rejected, total, items] = await prisma.$transaction([
-    prisma.coinTopUpRequest.count(),
-    prisma.coinTopUpRequest.count({ where: { status: 'pending' } }),
-    prisma.coinTopUpRequest.count({ where: { status: 'approved' } }),
-    prisma.coinTopUpRequest.count({ where: { status: 'rejected' } }),
+    prisma.coinTopUpRequest.count({ where: { paymentMethod: 'proof-upload' } }),
+    prisma.coinTopUpRequest.count({ where: { paymentMethod: 'proof-upload', status: 'pending' } }),
+    prisma.coinTopUpRequest.count({ where: { paymentMethod: 'proof-upload', status: 'approved' } }),
+    prisma.coinTopUpRequest.count({ where: { paymentMethod: 'proof-upload', status: 'rejected' } }),
     prisma.coinTopUpRequest.count({ where }),
     prisma.coinTopUpRequest.findMany({
       where,
@@ -163,28 +219,7 @@ export async function decideCoinTopUp(input: {
     }
 
     if (input.decision === 'approved') {
-      const account = await tx.coinAccount.upsert({
-        where: { userId: current.userId },
-        create: { userId: current.userId, balance: current.totalCoins },
-        update: { balance: { increment: current.totalCoins } },
-      })
-      await tx.coinLedger.create({
-        data: {
-          userId: current.userId,
-          kind: 'topup',
-          amount: current.totalCoins,
-          balanceAfter: account.balance,
-          referenceId: current.id,
-          idempotencyKey: `topup-approval:${current.id}`,
-          metadata: {
-            packageId: current.packageId,
-            baseCoins: current.baseCoins,
-            bonusCoins: current.bonusCoins,
-            paidAmountBaht: current.amountSatang / 100,
-            paymentMethod: 'proof-upload',
-          },
-        },
-      })
+      await creditTopUp(tx, current, `topup-approval:${current.id}`)
     }
 
     await tx.auditLog.create({

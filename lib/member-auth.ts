@@ -2,7 +2,7 @@ import 'server-only'
 import { createHash, randomBytes } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { getPrisma } from '@/lib/prisma'
-import type { UserType } from '@/lib/generated/prisma/enums'
+import type { MemberAuthProvider, UserType } from '@/lib/generated/prisma/enums'
 
 export const MEMBER_SESSION_COOKIE = 'rl_user_session'
 const MEMBER_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000
@@ -12,13 +12,28 @@ export interface AuthUser {
   name: string
   email: string
   userType: Extract<UserType, 'user' | 'creator'>
+  authProviders: MemberAuthProvider[]
 }
 
 const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex')
 
-function toAuthUser(user: { id: string; name: string; email: string; userType: UserType }): AuthUser | null {
+type SerializableMember = {
+  id: string
+  name: string
+  email: string
+  userType: UserType
+  authIdentities?: Array<{ provider: MemberAuthProvider }>
+}
+
+function toAuthUser(user: SerializableMember): AuthUser | null {
   if (user.userType !== 'user' && user.userType !== 'creator') return null
-  return { id: user.id, name: user.name, email: user.email, userType: user.userType }
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    userType: user.userType,
+    authProviders: [...new Set(user.authIdentities?.map((identity) => identity.provider) ?? [])],
+  }
 }
 
 export async function createMemberSession(userId: string) {
@@ -58,13 +73,13 @@ export async function getMemberSessionUser(): Promise<AuthUser | null> {
 
   const session = await getPrisma().memberSession.findUnique({
     where: { tokenHash: tokenHash(token) },
-    include: { user: true },
+    include: { user: { include: { authIdentities: { select: { provider: true } } } } },
   })
 
   if (!session || session.expiresAt <= new Date() || session.user.status !== 'active') return null
   return toAuthUser(session.user)
 }
 
-export function serializeAuthUser(user: { id: string; name: string; email: string; userType: UserType }) {
+export function serializeAuthUser(user: SerializableMember) {
   return toAuthUser(user)
 }

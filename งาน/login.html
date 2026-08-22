@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<!-- ReadLead เข้าสู่ระบบ / สมัครสมาชิก -->
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReadLead · เข้าสู่ระบบ</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700;800&family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#ffffff;--soft:#f7f4fc;--line:#ece8f4;--ink:#2e2a3d;--ink2:#6b6580;--ink3:#a8a2bd;--red:#cc4452;--red-deep:#9c3340;--red-soft:#fdecee;--radius:14px}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:rgba(30,25,50,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);color:var(--ink);font-family:'Noto Sans Thai',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+
+.auth{width:100%;max-width:430px}
+
+.auth-card{background:#fff;border-radius:22px;padding:34px 30px 30px;position:relative;animation:popin .24s cubic-bezier(.34,1.2,.64,1)}
+@keyframes popin{from{transform:translateY(12px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+.auth-back{display:none;position:absolute;top:16px;left:16px;align-items:center;gap:2px;border:none;background:none;color:var(--ink2);font-family:'Noto Sans Thai',sans-serif;font-size:14px;font-weight:600;cursor:pointer;padding:6px 6px 6px 2px;line-height:1}
+.auth-back svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+body[data-mode="register"] .auth-back,body[data-mode="forgot"] .auth-back{display:inline-flex}
+
+.brand{display:flex;align-items:center;justify-content:center;gap:10px;font-size:26px;font-weight:800;color:var(--red);margin-bottom:6px}
+.brand svg{width:29px;height:29px;fill:none;stroke:currentColor;stroke-width:2.5}
+.auth-title{text-align:center;font-size:22px;font-weight:800;color:var(--ink);margin:14px 0 22px}
+
+/* social buttons */
+.soc{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.soc-btn{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;height:46px;border-radius:12px;font-family:'Noto Sans Thai',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:filter .15s,background .15s}
+
+.soc-btn .ic{width:19px;height:19px;flex:0 0 19px;display:grid;place-items:center}
+.soc-google{background:#fff;border:1px solid var(--line);color:#3c4043}
+.soc-facebook{background:#1877F2;color:#fff}
+.soc-apple{background:#000;color:#fff}
+.soc-btn svg{width:19px;height:19px;display:block}
+
+/* divider */
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--ink3);font-size:12.5px}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* form */
+.field{margin-bottom:15px}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--ink2);margin-bottom:7px}
+.inp-wrap{position:relative}
+.field input{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font-family:'Noto Sans Thai',sans-serif;font-size:14px;color:var(--ink);background:#fff;outline:none;transition:border-color .15s}
+.field .field input::placeholder{color:var(--ink3)}
+.field .eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ink3);display:grid;place-items:center;padding:4px}
+.field .eye svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8}
+.field .hint{font-size:12px;color:var(--ink3);margin-top:6px;text-align:left}
+.pw-check{margin-top:9px;display:none;flex-direction:column;gap:5px}
+.pw-check.show{display:flex}
+.pw-item{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--ink3);line-height:1.45}
+.pw-item .ci{flex:0 0 16px;width:16px;height:16px;border-radius:50%;border:1.6px solid var(--line);display:grid;place-items:center;margin-top:1px;transition:.15s}
+.pw-item .ci svg{width:10px;height:10px;stroke:#fff;fill:none;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:.15s}
+.pw-item.ok{color:#17a673}
+.pw-item.ok .ci{background:#17a673;border-color:#17a673}
+.pw-item.ok .ci svg{opacity:1}
+.field.pw input{padding-right:44px}
+
+.forgot{text-align:right;margin:-6px 0 16px}
+.forgot a{font-size:13px;font-weight:600;color:var(--red);text-decoration:none}
+
+
+/* terms checkbox */
+.terms{display:flex;align-items:flex-start;gap:10px;margin:4px 0 20px;cursor:pointer}
+.terms input{display:none}
+.terms .box{flex:0 0 20px;width:20px;height:20px;border:1.8px solid var(--line);border-radius:6px;display:grid;place-items:center;margin-top:1px;transition:.15s}
+.terms .box svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:.15s}
+.terms input:checked+.box{background:var(--red);border-color:var(--red)}
+.terms input:checked+.box svg{opacity:1}
+.terms .txt{font-size:13px;color:var(--ink2);line-height:1.55}
+.terms .txt a{color:var(--red);font-weight:600;text-decoration:none}
+.terms .txt a:hover{text-decoration:underline}
+
+/* submit */
+.submit{width:100%;height:46px;border-radius:12px;background:var(--red);color:#fff;border:none;font-family:'Noto Sans Thai',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s}
+.submit:hover{background:var(--red-deep)}
+.submit:disabled{background:#e2ddec;color:#fff;cursor:not-allowed}
+
+/* switch */
+.switch{text-align:center;font-size:13.5px;color:var(--ink2);margin-top:20px}
+.switch a{color:var(--red);font-weight:700;text-decoration:none;cursor:pointer}
+
+
+.only-login,.only-register{display:none}
+body[data-mode="login"] .only-login{display:block}
+body[data-mode="register"] .only-register{display:block}
+body[data-mode="login"] .switch .to-login,body[data-mode="register"] .switch .to-register{display:none}
+.only-forgot{display:none}
+body[data-mode="forgot"] .only-forgot{display:block}
+body[data-mode="forgot"] .divider,body[data-mode="forgot"] .soc,body[data-mode="forgot"] .switch{display:none}
+.forgot a{cursor:pointer}
+.forgot-sub{font-size:13px;color:var(--ink3);margin:-4px 0 18px;line-height:1.55}
+.forgot-back{text-align:center;font-size:13.5px;color:var(--ink2);margin-top:18px}
+.forgot-back a{color:var(--red);font-weight:600;cursor:pointer;text-decoration:none}
+
+
+</style>
+</head>
+<body data-mode="login" onclick="closePopup()">
+
+<div class="auth" onclick="event.stopPropagation()">
+
+  <div class="auth-card">
+    <button class="auth-back" onclick="setMode('login')" aria-label="กลับ"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>กลับ</button>
+    <div class="brand"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>ReadLead</div>
+    <h1 class="auth-title"><span class="only-login">เข้าสู่ระบบ</span><span class="only-register">สมัครสมาชิก</span><span class="only-forgot">ลืมรหัสผ่าน</span></h1>
+
+
+    <!-- ===== LOGIN ===== -->
+    <div class="only-login">
+      <div class="field">
+        <label>ชื่อผู้ใช้ หรืออีเมล</label>
+        <input type="text" id="loginUser" placeholder="ชื่อผู้ใช้ หรืออีเมล">
+      </div>
+      <div class="field pw">
+        <label>รหัสผ่าน</label>
+        <div class="inp-wrap">
+          <input type="password" id="loginPass" placeholder="รหัสผ่าน">
+          <button class="eye" type="button" onclick="togglePw('loginPass',this)"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
+      </div>
+      <div class="forgot"><a onclick="setMode('forgot')">ลืมรหัสผ่าน?</a></div>
+      <button class="submit" type="button">เข้าสู่ระบบ</button>
+    </div>
+
+    <!-- ===== REGISTER ===== -->
+    <div class="only-register">
+      <div class="field">
+        <label>ชื่อผู้ใช้</label>
+        <input type="text" id="regUser" placeholder="ชื่อผู้ใช้">
+        <div class="hint">ใช้ได้เฉพาะ a–z, 0–9 และ _ โดยไม่เว้นวรรค</div>
+      </div>
+      <div class="field">
+        <label>อีเมล</label>
+        <input type="email" id="regEmail" placeholder="อีเมล">
+      </div>
+      <div class="field pw">
+        <label>รหัสผ่าน</label>
+        <div class="inp-wrap">
+          <input type="password" id="regPass" placeholder="รหัสผ่าน" oninput="validatePw()">
+          <button class="eye" type="button" onclick="togglePw('regPass',this)"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
+        <div class="pw-check">
+          <div class="pw-item" data-rule="len"><span class="ci"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>มีอักขระอย่างน้อย 8 ตัวขึ้นไป</div>
+          <div class="pw-item" data-rule="case"><span class="ci"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>มีทั้งตัวพิมพ์เล็ก (a-z) และตัวพิมพ์ใหญ่ (A-Z)</div>
+          <div class="pw-item" data-rule="num"><span class="ci"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>มีตัวเลขอย่างน้อยหนึ่ง (0-9) หรือสัญลักษณ์หนึ่งตัว</div>
+          <div class="pw-item" data-rule="sp"><span class="ci"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>มีอักขระพิเศษ ! @ # $ % ^ &amp; * _ + - = ? อย่างน้อยหนึ่งตัว</div>
+        </div>
+      </div>
+      <label class="terms">
+        <input type="checkbox" id="agree" onchange="validatePw()">
+        <span class="box"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="txt">ฉันได้อ่านและยอมรับ <a href="#">ข้อตกลงและเงื่อนไขการใช้บริการ</a> และ <a href="#">นโยบายความเป็นส่วนตัว</a> ของบริษัท รีดลีด จำกัด</span>
+      </label>
+      <button class="submit" type="button" id="regSubmit" disabled>สมัครสมาชิก</button>
+    </div>
+
+    <!-- ===== FORGOT PASSWORD ===== -->
+    <div class="only-forgot">
+      <p class="forgot-sub">กรอกอีเมลที่ใช้สมัคร ระบบจะส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ไปให้คุณ</p>
+      <div class="field">
+        <label>อีเมล</label>
+        <input type="email" id="forgotEmail" placeholder="อีเมลของคุณ">
+      </div>
+      <button class="submit" type="button">ยืนยัน</button>
+      <div class="forgot-back">จำรหัสผ่านได้แล้ว? <a onclick="setMode('login')">กลับไปเข้าสู่ระบบ</a></div>
+    </div>
+
+    <div class="divider">หรือ</div>
+    <!-- social -->
+    <div class="soc">
+      <button class="soc-btn soc-google" type="button">
+        <span class="ic"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1a11 11 0 0 0-9.82 6.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/></svg></span>
+        ดำเนินการต่อด้วย Google
+      </button>
+      <button class="soc-btn soc-facebook" type="button">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="#fff"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07c0 6.02 4.39 11.01 10.13 11.93v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.08 24 18.09 24 12.07z"/></svg></span>
+        ดำเนินการต่อด้วย Facebook
+      </button>
+      <button class="soc-btn soc-apple" type="button">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="#fff"><path d="M17.05 12.54c-.02-2.06 1.68-3.05 1.76-3.1-.96-1.4-2.45-1.6-2.98-1.62-1.27-.13-2.48.75-3.12.75-.64 0-1.64-.73-2.7-.71-1.39.02-2.67.81-3.38 2.05-1.44 2.5-.37 6.2 1.03 8.23.69.99 1.5 2.1 2.57 2.06 1.03-.04 1.42-.67 2.67-.67 1.24 0 1.6.67 2.69.65 1.11-.02 1.81-1.01 2.49-2.01.78-1.15 1.11-2.26 1.12-2.32-.02-.01-2.15-.83-2.17-3.28zM15 6.24c.57-.69.95-1.65.85-2.6-.82.03-1.81.54-2.4 1.23-.52.6-.98 1.58-.86 2.51.91.07 1.84-.46 2.41-1.14z"/></svg></span>
+        ดำเนินการต่อด้วย Apple
+      </button>
+    </div>
+
+
+    <div class="switch">
+      <span class="to-register">ยังไม่มีบัญชีผู้ใช้? <a onclick="setMode('register')">สมัครสมาชิก</a></span>
+      <span class="to-login">มีบัญชีผู้ใช้อยู่แล้ว? <a onclick="setMode('login')">เข้าสู่ระบบ</a></span>
+    </div>
+  </div>
+</div>
+
+<script>
+function setMode(m){document.body.setAttribute('data-mode',m);}
+function validatePw(){
+  var v=(document.getElementById('regPass')||{}).value||'';
+  var len=v.length>=8;
+  var cse=/[a-z]/.test(v)&&/[A-Z]/.test(v);
+  var sp=/[!@#$%^&*_+\-=?]/.test(v);
+  var num=/[0-9]/.test(v)||sp;
+  function set(r,ok){var e=document.querySelector('.pw-item[data-rule="'+r+'"]'); if(e)e.classList.toggle('ok',ok);}
+  set('len',len); set('case',cse); set('num',num); set('sp',sp);
+  var pc=document.querySelector('.pw-check'); if(pc)pc.classList.toggle('show', v.length>0);
+  var agree=(document.getElementById('agree')||{}).checked;
+  var btn=document.getElementById('regSubmit'); if(btn)btn.disabled=!(len&&cse&&num&&sp&&agree);
+}
+function closePopup(){if(history.length>1)history.back();}
+function goBack(){
+  var m=document.body.getAttribute('data-mode');
+  if(m==='register'||m==='forgot'){setMode('login');}
+  else{closePopup();}
+}
+function togglePw(id,btn){var i=document.getElementById(id);var on=i.type==='password';i.type=on?'text':'password';btn.innerHTML=on?'<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18" stroke-width="1.8"/></svg>':'<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';}
+</script>
+</body>
+</html>

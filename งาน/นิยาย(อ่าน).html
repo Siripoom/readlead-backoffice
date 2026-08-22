@@ -1,0 +1,2849 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReadLead · อ่านนิยาย</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700;800&family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--red:#cc4452;--red-deep:#b23a48;--gold:#F2C879;--ink:#3A1F24;--ink-soft:#7A5560;--cream:#FFF6F2;--cream-deep:#FCE9E4;--line:#e7e8ee;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#f4f5f8;font-family:'Sarabun',sans-serif;}
+/* site header */
+header{position:relative;z-index:200;background:#fff;border-bottom:1px solid var(--line);}
+.nav-wrap{max-width:1200px;margin:0 auto;padding:6px 24px;display:flex;align-items:center;gap:24px;}
+.brand{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:900;color:var(--red);text-decoration:none;white-space:nowrap;font-family:'Noto Sans Thai',sans-serif;}
+.brand svg{width:22px;height:22px;}
+.site-nav{display:flex;gap:20px;flex:1;}
+.site-nav a{color:var(--ink);text-decoration:none;font-weight:600;font-size:14px;font-family:'Noto Sans Thai',sans-serif;}
+.site-nav a.active{color:var(--red-deep);}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--cream-deep);border-radius:999px;padding:8px 16px;font-size:13px;color:var(--ink-soft);flex:0 1 240px;font-family:'Noto Sans Thai',sans-serif;}
+.search-box svg{width:14px;height:14px;flex-shrink:0;}
+.btn-primary{background:var(--red);color:#fff;padding:7px 18px;border-radius:999px;font-weight:700;font-size:13px;text-decoration:none;white-space:nowrap;font-family:'Noto Sans Thai',sans-serif;}
+.login-link{color:var(--ink);text-decoration:none;font-weight:600;font-size:13px;font-family:'Noto Sans Thai',sans-serif;}
+
+.paper{max-width:822px;margin:0 auto;background:#fff;transition:transform .35s cubic-bezier(.4,0,.2,1);}
+.paper.shifted{transform:none;}
+
+/* topbar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:4px 12px;border-bottom:1px solid #e7e8ee;position:sticky;top:0;z-index:100;background:#fff;transition:transform .25s ease;}
+.topbar.hide{transform:translateY(-100%);}
+.topbar-title{position:absolute;left:0;right:0;text-align:center;font-size:13px;font-weight:700;color:var(--ink);pointer-events:none;}
+.tb-btn{background:none;border:none;cursor:pointer;padding:6px;display:flex;align-items:center;color:#888;}
+.tb-btn.disabled{color:#dcdcdc;cursor:default;pointer-events:none;}
+.tb-right{display:flex;align-items:center;gap:4px;position:relative;}
+
+/* settings popup */
+.sbox{display:none;position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid #e3e5ea;border-radius:14px;padding:18px;width:240px;box-shadow:0 2px 10px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.035);z-index:200;font-family:'Noto Sans Thai',sans-serif;}
+.sbox.show{display:block;}
+.s-row{display:flex;gap:6px;margin-bottom:14px;}
+.s-btn{flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid #e7e8ee;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;background:#fff;}
+.s-btn.on{border-color:var(--red);color:var(--red);}
+.fs-row{display:flex;align-items:center;gap:8px;}
+.fs-row button{width:32px;height:32px;border-radius:8px;border:1.5px solid #e7e8ee;background:#fff;cursor:pointer;font-weight:800;font-size:13px;}
+.fs-row span{flex:1;text-align:center;font-size:13px;font-weight:700;font-family:'Noto Sans Thai',sans-serif;}
+
+/* content */
+.content{padding:32px 40px 80px;min-height:calc(100vh - 96px);box-sizing:border-box;display:flex;flex-direction:column;}
+.rl-crumb{display:flex;flex-wrap:wrap;align-items:center;gap:6px;max-width:822px;margin:0 auto;padding:16px 16px 10px;font-size:12px;font-weight:600;color:#9aa0ac;line-height:1.5;font-family:'Noto Sans Thai',sans-serif;}
+.rl-crumb:empty{display:none;}
+.rl-crumb a{color:#9aa0ac;text-decoration:none;transition:color .15s;}
+.rl-crumb a:hover{color:var(--red);}
+.rl-crumb .sep{color:#cfd2da;font-weight:400;}
+.rl-crumb .cur{color:#5b5f6e;font-weight:700;}
+.ch-title{font-size:20px;font-weight:700;text-align:center;margin-bottom:4px;color:var(--ink);}
+.ch-author{font-size:12px;color:var(--red-deep);font-weight:700;text-align:center;margin-bottom:28px;}
+.ch-author-link{color:inherit;text-decoration:none;cursor:pointer}
+.ch-author-link:hover{text-decoration:none;opacity:.8}
+#bodyText{font-size:16px;line-height:1.95;color:#222;flex:1 0 auto;}
+#bodyText p{margin-bottom:6px;text-indent:2.2em;cursor:default;}
+#bodyText p[style*="center"],#bodyText p[style*="right"]{text-indent:0;}
+#bodyText.comments-on p{cursor:pointer;}
+#bodyText p.hl{text-decoration:underline;text-decoration-style:dashed;text-decoration-color:var(--red);text-underline-offset:4px;}
+.ch-title.hl{text-decoration:underline;text-decoration-style:dashed;text-decoration-color:var(--red);text-underline-offset:5px;}
+/* end of chapter */
+.ch-end{margin-top:44px;padding-top:26px;border-top:1px solid var(--line);}
+.next-ch{text-align:center;}
+.next-ch-label{font-size:11px;font-weight:700;color:#aaa;font-family:'Noto Sans Thai',sans-serif;margin-bottom:5px;}
+.next-ch-title{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:16px;}
+.read-next{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:#cc4452;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;}
+.read-next svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.4;}
+.read-next:hover{background:#b8323f;}
+.read-next:focus{outline:none;}
+.read-next:focus-visible{outline:2px solid #cc4452;outline-offset:2px;}
+.cont-mode{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:24px;font-size:13px;color:#888;font-family:'Noto Sans Thai',sans-serif;}
+.cont-btn{width:40px;height:22px;border-radius:999px;background:#d9d9d9;cursor:pointer;position:relative;border:none;transition:.2s;flex-shrink:0;}
+.cont-btn.on{background:var(--red);}
+.cont-btn::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.2s;}
+.cont-btn.on::after{left:20px;}
+
+/* badge */
+.cb{display:inline-flex;align-items:center;cursor:pointer;margin-left:2px;vertical-align:text-top;position:relative;top:-2px;background:none;border:none;padding:0;}
+.cb svg{stroke:var(--red);transition:.15s;}
+.cb:hover svg{fill:var(--red);}
+.cb:hover .bt{fill:#fff;}
+.bt{fill:var(--red);transition:.15s;}
+
+/* float */
+.float-btns{position:fixed;left:calc(50% + 425px);top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px;z-index:50;}
+.f-btn{width:42px;height:42px;border-radius:50%;background:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.12);color:#888;transition:.2s;}
+.f-btn.on{background:var(--red);color:#fff;}
+
+
+/* comment panel */
+.cpanel{position:fixed;top:0;right:0;width:360px;height:100vh;background:#fff;border-left:1px solid var(--line);padding:20px;display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);z-index:300;scrollbar-width:none;-ms-overflow-style:none;}
+.cpanel::-webkit-scrollbar{display:none;width:0;height:0;}
+.cpanel.show{transform:translateX(0);box-shadow:-4px 0 20px rgba(0,0,0,.15);}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:299;}
+.overlay.show{display:block;}
+/* ===== สารบัญ (table of contents) panel ===== */
+.topbar{position:sticky;top:0;}
+.toc-panel{position:absolute;top:100%;left:0;width:430px;max-width:94%;max-height:72vh;overflow-y:auto;background:#fff;border:1px solid #e3e5ea;border-top:none;border-radius:0 0 14px 14px;box-shadow:0 3px 12px rgba(0,0,0,.07),0 1px 3px rgba(0,0,0,.035);z-index:250;transform:translateY(-8px);opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;}
+.toc-panel{scrollbar-width:none;-ms-overflow-style:none}
+.toc-panel::-webkit-scrollbar{display:none;width:0;height:0}
+.sb-thumb{position:absolute;right:2px;width:5px;border-radius:999px;background:#c9ccd6;opacity:0;transition:opacity .25s;z-index:5}
+.sb-thumb.on{opacity:1}
+.toc-panel.show{transform:none;opacity:1;pointer-events:auto;}
+.toc-head{display:flex;gap:12px;padding:16px;border-bottom:1px solid #f0f1f5;}
+.toc-cover{width:54px;height:72px;border-radius:8px;flex-shrink:0;background-size:cover;background-position:center;box-shadow:0 2px 6px rgba(0,0,0,.15);}
+.toc-info{min-width:0;display:flex;flex-direction:column;justify-content:center;}
+.toc-title{font-weight:800;font-size:15px;color:var(--ink);font-family:'Noto Sans Thai',sans-serif;line-height:1.3;}
+.toc-author{font-size:12.5px;color:#8b91a0;margin-top:3px;font-family:'Noto Sans Thai',sans-serif;}
+.toc-list{padding:5px 0;}
+.toc-item{display:block;width:100%;text-align:left;background:none;border:none;border-left:3px solid transparent;padding:13px 16px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;line-height:1.4;}
+.toc-item:hover{background:#faf7f8;}
+.toc-item.current{background:#fdeef0;border-left-color:#cc4452;color:#cc4452;font-weight:700;}
+.toc-empty{padding:26px 16px;text-align:center;color:#999;font-size:13px;font-family:'Noto Sans Thai',sans-serif;}
+.cp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line);flex-shrink:0;}
+.cp-head span{font-size:13px;font-weight:800;color:#000;}
+.cp-close{background:none;border:none;font-size:20px;cursor:pointer;color:#999;line-height:1;}
+.cp-quote{display:none;}
+#cpList{flex:1 1 auto;overflow-y:auto;min-height:0;margin:0 -4px;padding:0 4px;scrollbar-width:none;}
+#cpList::-webkit-scrollbar{display:none;}
+.cp-input{display:block;flex-shrink:0;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+
+/* comment item */
+.ci{display:flex;gap:8px;margin-bottom:10px;position:relative;z-index:1;}
+.ci img{border-radius:50%;object-fit:cover;flex-shrink:0;}
+.ci-body{flex:1;min-width:0;}
+.ci-bubble{display:block;background:none;padding:0;}
+.ci-author-tag{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--red);font-weight:700;margin-bottom:1px;}
+.ci-name{font-size:12px;font-weight:800;color:var(--ink);line-height:1.45;font-family:'Noto Sans Thai',sans-serif;}
+.ci-text{font-size:13px;color:#333;line-height:1.55;font-family:'Sarabun',sans-serif;word-break:break-word;}
+.ci-mention{color:var(--red-deep);font-family:'Noto Sans Thai',sans-serif;font-size:12px;font-weight:800;margin-right:4px;}
+.ci-meta{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin:3px 0 0 0;}
+.ci-time{font-size:11px;color:#aaa;}
+.ci-act{background:none;border:none;cursor:pointer;font-size:11px;font-weight:700;color:#888;font-family:'Noto Sans Thai',sans-serif;padding:0;}
+.ci-act:hover{text-decoration:none;color:#cc4452;}
+.ci-like.liked{color:var(--red);}
+.ci-likecount{display:none;align-items:center;gap:3px;font-size:11px;color:#aaa;}
+.ci-likecount svg{fill:var(--red);}
+.ci-rbox{display:none;margin:8px 0 0 0;}
+.ci-rbox.show{display:block;}
+.ci-rbox-inner{display:flex;gap:6px;}
+.ci-rbox-inner input{flex:1;min-width:0;padding:6px 12px;border:1.5px solid var(--line);border-radius:20px;font-size:12px;font-family:'Noto Sans Thai',sans-serif;outline:none;}
+.ci-rbox-inner input:focus{border-color:#dfe1e7;}
+.ci-rbox-inner button{flex-shrink:0;padding:6px 14px;background:var(--red);color:#fff;border:none;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;}
+.ci-replies{margin-top:6px;padding-left:0;margin-left:0;}
+#cpList{position:relative;}
+.cp-lines{position:absolute;inset:0;pointer-events:none;z-index:0;}
+.cl-v,.cl-h{position:absolute;background:var(--line);}
+.cl-v{width:1px;}
+.cl-h{height:1px;}
+.ci-more{display:inline-flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;font-size:12px;font-weight:700;color:#cc4452;padding:5px 0 2px;}
+.ci-more svg{fill:#cc4452;}
+.ci-thread{margin-bottom:18px;}
+/* per-thread composer */
+.ci-composer{display:flex;align-items:center;gap:8px;margin:8px 0 2px 0;}
+.ci-composer img{width:28px;height:28px;border-radius:50%;flex-shrink:0;object-fit:cover;}
+.cc-input{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:var(--cream);border:1.5px solid var(--line);border-radius:20px;padding:5px 12px;}
+.cc-input input{flex:1;min-width:0;border:none;background:none;outline:none;font-size:12px;font-family:'Noto Sans Thai',sans-serif;}
+.cc-icons{display:flex;gap:7px;flex-shrink:0;color:#cda9a4;}
+.cc-icons svg{cursor:pointer;}
+.rb{display:flex;align-items:center;gap:3px;background:var(--cream);border:1px solid var(--line);border-radius:22px;padding:3px 5px 3px 8px;}
+.rb:focus-within{background:#fff;}
+.rb-input{flex:1;min-width:0;border:none;background:none;outline:none;font-size:12px;font-family:'Noto Sans Thai',sans-serif;padding:6px 2px;color:#333;}
+.rb-emoji,.rb-flag,.rb-send{flex-shrink:0;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+.rb-emoji{color:#c9a9a4;padding:4px;}
+.rb-emoji:hover{color:var(--red);}
+.rb-flag{width:30px;height:30px;color:#c9a9a4;}
+.rb-flag:hover{color:var(--red);background:rgba(230,57,80,.10);}
+.rb-send{width:auto;height:auto;color:var(--red);padding:0;}
+.rb-send:hover{opacity:.85;}
+.cp-input .rb,.ci-composer .rb{flex:1;min-width:0;}
+.rb-box{flex-direction:column;align-items:stretch;border-radius:16px;padding:8px 12px 7px;}
+.rb-box .rb-input{padding:3px 2px 7px;}
+.cmt-box{position:relative;background:#fff;border:1px solid #e7e8ee;border-radius:14px;padding:12px 14px 10px;}
+.cmt-tip{position:absolute;transform:translateX(-50%);width:max-content;max-width:250px;background:#fff;border:1px solid #e3e5ea;border-radius:10px;padding:9px 12px;font-size:12px;line-height:1.6;color:#555;font-family:'Noto Sans Thai',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.035);display:none;z-index:10;}
+.cmt-tip.show{display:block;}
+.cmt-box .rb-input{flex:none;min-height:24px;padding:6px 2px;font-size:13.5px;width:100%;box-sizing:border-box;display:block;resize:none;overflow:hidden;line-height:1.55;max-height:170px;}
+.cp-loginhint{width:100%;}
+.cp-loginhint button{width:100%;border:none;background:none;padding:12px 2px;font-family:'Noto Sans Thai',sans-serif;font-size:11px;font-weight:600;color:#8a8fa0;cursor:pointer;text-align:center;transition:color .15s;}
+.cp-loginhint button:hover{color:#cc4452;}
+.cmt-bar{display:flex;align-items:center;gap:9px;margin-top:8px;padding-top:9px;border-top:1px solid #f0f1f5;}
+.cmt-spacer{flex:1;}
+.cmt-rep{width:28px;height:15px;}
+.cmt-rep::after{width:11px;height:11px;top:2px;}
+.cmt-rep.on::after{left:15px;}
+.cmt-rep-lb{font-size:11px;font-weight:600;color:#888;font-family:'Noto Sans Thai',sans-serif;}
+.cmt-help{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;color:#9aa0ad;cursor:pointer;flex-shrink:0;margin-left:-4px;}
+.cmt-help:hover{border-color:#cc4452;color:#cc4452;}
+.cmt-cancel{background:#fff;border:1px solid #dfe1e7;color:#6b7080;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;padding:4px 0;min-width:52px;text-align:center;border-radius:7px;}
+.cmt-cancel:hover{background:#f7f8fa;}
+.cmt-send{background:#cc4452;color:#fff;border:1px solid #cc4452;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;padding:4px 0;min-width:52px;text-align:center;}
+.cmt-send:hover{background:#b23a48;}
+/* name row: name + timestamp + hover report icon */
+.ci-namerow{display:flex;align-items:center;gap:7px;}
+.ci-time2{font-size:10.5px;color:#b0b4bf;font-weight:400;white-space:nowrap;}
+.ci-report{margin-left:auto;opacity:0;background:none;border:none;cursor:pointer;padding:1px;color:#c2c6d0;display:inline-flex;flex-shrink:0;transition:.15s;}
+.ci-bubble:hover .ci-report{opacity:1;}
+.ci-report:hover{opacity:1;}
+.ci-report:hover{color:#cc4452;}
+/* report popup (center screen) */
+.rpt-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:400;display:none;align-items:center;justify-content:center;padding:20px;}
+.rpt-overlay.show{display:flex;}
+.rpt-modal{background:#fff;border-radius:16px;width:340px;max-width:100%;padding:20px;border:1px solid #e3e5ea;box-shadow:0 4px 20px rgba(0,0,0,.10),0 1px 4px rgba(0,0,0,.05);font-family:'Noto Sans Thai',sans-serif;}
+.rpt-title{font-size:16px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:8px;}
+.rpt-title svg{color:#cc4452;}
+.rpt-sub{font-size:12px;color:#8b91a0;margin:4px 0 14px;}
+.rpt-reasons{display:flex;flex-direction:column;gap:7px;}
+.rpt-reason{display:flex;align-items:center;gap:10px;text-align:left;background:#f7f8fa;border:1.5px solid #eef0f4;border-radius:9px;padding:10px 13px;font-size:13px;font-family:'Noto Sans Thai',sans-serif;color:var(--ink);cursor:pointer;transition:.12s;}
+.rpt-reason::before{content:'';width:16px;height:16px;border-radius:50%;border:2px solid #c9ccd6;background:#fff;flex-shrink:0;box-sizing:border-box;transition:.12s;}
+.rpt-reason:hover::before{border-color:#cc4452;}
+.rpt-reason.sel::before{border:5px solid #cc4452;}
+.rpt-other{display:none;margin-top:7px;}
+.rpt-other.show{display:block;}
+.rpt-other textarea{width:100%;box-sizing:border-box;background:#f7f8fa;border:1.5px solid #eef0f4;border-radius:9px;padding:10px 13px;font-size:13px;font-family:'Sarabun',sans-serif;color:var(--ink);resize:none;outline:none;line-height:1.5;display:block;}
+.rpt-other textarea:focus{background:#fff;}
+.rpt-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+.rpt-cancel{background:#fff;border:1px solid #dfe1e7;color:#6b7080;font-size:12.5px;font-weight:600;border-radius:8px;padding:8px 0;min-width:96px;text-align:center;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;}
+.rpt-send{background:#cc4452;border:1px solid #cc4452;color:#fff;font-size:12.5px;font-weight:700;border-radius:8px;padding:8px 0;min-width:96px;text-align:center;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;}
+.rpt-send:disabled{background:#e8b9c0;border-color:#e8b9c0;cursor:not-allowed;}
+.rpt-toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:#2b2d3a;color:#fff;font-size:13px;font-family:'Noto Sans Thai',sans-serif;padding:11px 20px;border-radius:10px;z-index:401;opacity:0;transition:.25s;pointer-events:none;}
+.rpt-toast.show{opacity:1;}
+.rb-bar{display:flex;align-items:center;gap:4px;}
+.rb-spacer{flex:1;}
+.ci-text.report{color:var(--red);}
+
+/* ===== ReadLead header in own 1536 scaled bar (identical to readlead2_5_17) ===== */
+#rlhdrwrap{width:100%;overflow:hidden;}
+#rlhdrstage{width:1536px;transform-origin:top left;background:#fff;}
+.rl-header{display:flex;align-items:center;padding:9px 40px;gap:40px;border-bottom:1px solid #e7e8ee;background:#fff;box-sizing:border-box;width:100%;}
+.rl-header *{box-sizing:border-box;}
+.rl-header,.rl-header *{font-family:'Noto Sans Thai','Sarabun',sans-serif;line-height:1.45;}
+.rl-header .rl-brand{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:800;color:#F23E55;text-decoration:none;white-space:nowrap;flex-shrink:0;}
+.rl-header .rl-brand svg{width:22px;height:22px;}
+.rl-header .rl-nav{display:flex;align-items:center;gap:3px;flex-shrink:0;}
+.rl-header .rl-nav a{font-size:14.5px;font-weight:500;color:#64748B;padding:8px 15px;border-radius:9px;position:relative;text-decoration:none;cursor:pointer;white-space:nowrap;}
+.rl-header .rl-nav a:hover{color:#1E293B;}
+.rl-header .rl-nav a.on{color:#F23E55;font-weight:600;}
+.rl-header .rl-nav a.on::after{content:"";position:absolute;left:15px;right:15px;bottom:-9px;height:3px;background:#F23E55;border-radius:3px;}
+.rl-header .rl-sep{width:1px;height:18px;background:#E9EDF2;align-self:center;margin:0 7px;}
+.rl-header .rl-right{display:flex;align-items:center;gap:20px;margin-left:auto;flex-shrink:0;}
+.rl-header .rl-search{color:#475569;cursor:pointer;display:flex;align-items:center;}
+.rl-header .rl-search svg{width:22px;height:22px;}
+.rl-header .rl-bell{position:relative;color:#475569;cursor:pointer;display:flex;align-items:center;}
+.rl-header .rl-bell svg{width:22px;height:22px;}
+.rl-header .rl-bell .rl-dot{position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#F23E55;border-radius:50%;border:1.5px solid #fff;}
+.rl-header .rl-profile{display:flex;align-items:center;gap:10px;cursor:pointer;}
+.rl-header .rl-avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;background:#cbd5e1;flex-shrink:0;}
+.rl-header .rl-avatar img{width:100%;height:100%;object-fit:cover;}
+.rl-header .rl-name{font-size:14.5px;font-weight:600;color:#334155;white-space:nowrap;}
+.rl-header .rl-chev{color:#94A3B8;display:flex;}
+.rl-header .rl-chev svg{width:16px;height:16px;}
+.rl-header .rl-right svg,.rl-header .rl-nav svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.foot{margin-top:0;background:#f8f4f7;border-top:1px solid #efe4ec}
+.fbot{border-top:1px solid #efe4ec;padding:18px 24px;text-align:center;font-size:12px;color:#a89fa8}
+
+/* ===== dark mode: ชื่อบท + ปุ่ม (Aa/สารบัญ) + โหมดต่อเนื่อง เป็นสีขาว ===== */
+#paper[data-theme="dark"] .topbar-title,
+#paper[data-theme="dark"] .ch-title,
+#paper[data-theme="dark"] .next-ch-title{color:#eee}
+#paper[data-theme="dark"] .tb-btn{color:#eee}
+#paper[data-theme="dark"] .cont-mode{color:#ddd}
+</style>
+<div id="rlhdrwrap"><div id="rlhdrstage"><header class="rl-header">
+  <a href="#" class="rl-brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>ReadLead</a>
+  <nav class="rl-nav"><a href="#">หน้าหลัก</a><a href="#">กระดานอันดับ</a><span class="rl-sep"></span><a href="#">นิยาย</a><a href="#">เว็บตูน</a><a href="#">หนังสือเสียง</a></nav>
+  <div class="rl-right">
+    <div class="rl-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg></div>
+    <div class="rl-bell"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="rl-dot"></span></div>
+    <button class="rl-login" onclick="RLAuth.open('login')">เข้าสู่ระบบ</button>
+    <div class="rl-user" id="rlUserBox" style="display:none">
+      <button class="rl-ava" id="rlAvaBtn" onclick="RLAuth.toggleMenu()">P</button>
+      <div class="rl-menu" id="rlUserMenu" style="display:none">
+        <div class="rl-menu-head">
+          <span class="ava2" id="rlMenuAva">P</span>
+          <div style="flex:1;min-width:0"><div class="nm" id="rlMenuName">ผู้ใช้</div><div class="hd" id="rlMenuHandle">@user</div></div>
+        </div>
+        <div class="rl-menu-sep"></div>
+        <div class="rl-menu-coin">
+          <span class="cico">RL</span><span class="cval" id="rlMenuCoins">0.00</span>
+          <button class="topup" type="button">เติมเหรียญ</button>
+        </div>
+        <div class="rl-menu-sep"></div>
+        <button class="rl-menu-item" type="button"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2.5"/><path d="M2 10h20"/></svg>กระเป๋าเงิน</button>
+        <button class="rl-menu-item" type="button"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>หน้านักเขียน</button>
+        <button class="rl-menu-item" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>ประวัติการซื้อ</button>
+        <button class="rl-menu-item" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>การตั้งค่า</button>
+        <div class="rl-menu-sep"></div>
+        <button class="rl-menu-item out" type="button" onclick="RLAuth.logout()"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>ออกจากระบบ</button>
+      </div>
+  </div>
+</header></div></div>
+<script>(function(){var w=document.getElementById('rlhdrwrap'),s=document.getElementById('rlhdrstage');if(!w||!s)return;function f(){var k=Math.min(1,window.innerWidth/1536);s.style.transform='scale('+k+')';w.style.height=(s.offsetHeight*k)+'px';}window.addEventListener('resize',f);window.addEventListener('load',f);f();setTimeout(f,200);setTimeout(f,150);})();</script>
+
+</head>
+<body>
+
+
+
+<nav class="rl-crumb" id="rlCrumb" aria-label="breadcrumb"></nav>
+
+<div class="paper" id="paper">
+
+  <!-- topbar -->
+  <div class="topbar">
+    <button class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg></button>
+    <div class="topbar-title"></div>
+    <div class="tb-right">
+      <button class="tb-btn" onclick="toggleSetting(event)"><span style="font-size:13px;font-weight:800;font-family:'Noto Sans Thai',sans-serif;">Aa</span></button>
+      <button class="tb-btn disabled" onclick="prevCh()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <button class="tb-btn disabled" onclick="nextCh()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="9 18 15 12 9 6"/></svg></button>
+      <div class="sbox" id="sbox">
+        <div style="font-size:11px;font-weight:800;color:#888;margin-bottom:8px;">ธีม</div>
+        <div class="s-row">
+          <button class="s-btn on" onclick="setTheme('light',this)">กลางวัน</button>
+          <button class="s-btn" onclick="setTheme('sepia',this)">ซีเปีย</button>
+          <button class="s-btn" onclick="setTheme('dark',this)">กลางคืน</button>
+        </div>
+        <div style="font-size:11px;font-weight:800;color:#888;margin-bottom:8px;">ขนาดตัวอักษร</div>
+        <div class="fs-row">
+          <button onclick="chFont(-1)">A−</button>
+          <span id="fsLabel">16</span>
+          <button onclick="chFont(1)">A+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- content -->
+  <div class="content">
+    <div class="ch-title"></div>
+    <div class="ch-author"></div>
+    <div id="bodyText"></div>
+
+    <div class="ch-end">
+      <div class="next-ch">
+        <div class="next-ch-label">บทต่อไป</div>
+        <div class="next-ch-title"></div>
+        <button class="read-next" onclick="nextCh()">อ่านต่อ <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="cont-mode">
+        <span>โหมดอ่านต่อเนื่อง</span>
+        <button class="cont-btn" id="contBtn" onclick="toggleCont(this)"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- float -->
+<div class="float-btns">
+  <button class="f-btn" id="toggleCmBtn" onclick="toggleBadges()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  </button>
+  <button class="f-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+</div>
+
+<!-- overlay -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<!-- report popup -->
+<div class="rpt-overlay" id="rptOverlay">
+  <div class="rpt-modal">
+    <div class="rpt-title"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 L21.5 20 L2.5 20 Z"/><line x1="12" y1="10" x2="12" y2="14.5"/><line x1="12" y1="17.4" x2="12" y2="17.4"/></svg>รายงานความคิดเห็น</div>
+    <div class="rpt-sub">เลือกเหตุผลที่ต้องการรายงาน</div>
+    <div class="rpt-reasons" id="rptReasons">
+      <button type="button" class="rpt-reason" data-r="คำหยาบคาย">คำหยาบคาย</button>
+      <button type="button" class="rpt-reason" data-r="สแปม">สแปม</button>
+      <button type="button" class="rpt-reason" data-r="โฆษณา">โฆษณา</button>
+      <button type="button" class="rpt-reason" data-r="คุกคาม">คุกคาม</button>
+      <button type="button" class="rpt-reason" data-r="อื่น ๆ">อื่น ๆ</button>
+    </div>
+    <div class="rpt-other" id="rptOtherWrap">
+      <textarea id="rptOtherText" maxlength="300" rows="3" placeholder="ระบุเหตุผลเพิ่มเติม..."></textarea>
+    </div>
+    <div class="rpt-actions">
+      <button type="button" class="rpt-cancel" id="rptCancel">ยกเลิก</button>
+      <button type="button" class="rpt-send" id="rptSend" disabled>ส่งรายงาน</button>
+    </div>
+  </div>
+</div>
+<div class="rpt-toast" id="rptToast">ส่งรายงานแล้ว ขอบคุณครับ</div>
+
+<!-- comment panel -->
+<div class="cpanel" id="cpanel">
+  <div class="cp-head">
+    <span id="cpTitle">ความคิดเห็น</span>
+    <button class="cp-close" onclick="closePanel()">×</button>
+  </div>
+  <div class="cp-quote" id="cpQuote"></div>
+  <div id="cpList"></div>
+  <div class="cp-input" id="cpInputWrap"></div>
+</div>
+
+<script>
+// ===== DATA =====
+var SEED = [];   // ไม่มีคอมเมนต์ตัวอย่าง โหลดจากข้อมูลจริง (rl_comments) เท่านั้น
+
+// ===== chapter-title comment slot =====
+// ===== SCALABLE COMMENT STORAGE =====
+// key = novelId:chapter:paraId  (paraId = paragraph position, or 'title')
+// Only this storage layer changes when moving to a real backend (swap to fetch()).
+var _cq = new URLSearchParams(location.search);
+var NOVEL_ID = _cq.get('id') || 'demo';
+var CHAPTER  = _cq.get('ch') || '0';
+function cKey(paraId){ return NOVEL_ID + ':' + CHAPTER + ':' + paraId; }
+var CMT_STORE = 'rl_comments';
+function _allCmt(){ try { return JSON.parse(localStorage.getItem(CMT_STORE)) || {}; } catch(e){ return {}; } }
+function _saveAllCmt(o){ try { localStorage.setItem(CMT_STORE, JSON.stringify(o)); } catch(e){} }
+function loadThread(key){ var a = _allCmt(); return (a[key] !== undefined) ? a[key] : null; }   // null = never seeded
+function saveThread(key, comments){ var a = _allCmt(); a[key] = comments; _saveAllCmt(a); }
+
+var data = {};                 // runtime cache: key -> {para, comments}
+function getThread(key){
+  if (!data[key]) {
+    var stored = loadThread(key);
+    data[key] = { para: '', comments: stored || [] };
+  }
+  return data[key];
+}
+function persist(key){ if (key && data[key]) saveThread(key, data[key].comments); }
+
+// ===== STATE =====
+var curKey = null;
+var badgesOn = false;
+var fs = 16;
+var seed = 0;
+
+// ===== COUNT (comments incl. replies) =====
+function countComments(key) {
+  function cnt(arr){ var t=0; (arr||[]).forEach(function(c){ t+=1; t+=cnt(c.replies); }); return t; }
+  return cnt(getThread(key).comments);
+}
+
+// ===== INIT badges =====
+function initBadges() {
+  if(!window.__NV) return;   // no real chapter loaded -> no badges, no seeded/old comments
+  // --- make EVERY paragraph commentable: assign stable key + seed demo once ---
+  var ps = document.querySelectorAll('#bodyText p');
+  ps.forEach(function(p, i){
+    var key = cKey(i);                             // paraId = position
+    p.setAttribute('data-key', key);               // คอมเมนต์มาจากข้อมูลจริง (rl_comments) เท่านั้น
+  });
+
+  // --- comment badge for every paragraph (shown only when it has comments) ---
+  document.querySelectorAll('#bodyText p[data-key]').forEach(function(p) {
+    if (p.querySelector(':scope > .cb')) return;
+    var key = p.getAttribute('data-key');
+    var btn = document.createElement('button');
+    btn.className = 'cb';
+    btn.dataset.key = key;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.5" width="19" height="19"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><text x="12" y="13" text-anchor="middle" class="bt" stroke="none" font-size="7" font-family="sans-serif" font-weight="600">' + countComments(key) + '</text></svg>';
+    btn.addEventListener('click', function(e) { e.stopPropagation(); openPanel(key, p); });
+    p.appendChild(btn);
+  });
+
+  // --- chapter-title comment badge ---
+  var titleEl = document.querySelector('.ch-title');
+  if (titleEl && !titleEl.querySelector('.cb')) {
+    var tkey = cKey('title');
+    var tb = document.createElement('button');
+    tb.className = 'cb';
+    tb.dataset.key = tkey;
+    tb.style.marginLeft = '6px';
+    tb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.5" width="19" height="19"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><text x="12" y="13" text-anchor="middle" class="bt" stroke="none" font-size="7" font-family="sans-serif" font-weight="600">' + countComments(tkey) + '</text></svg>';
+    tb.addEventListener('click', function(e) { e.stopPropagation(); openPanel(tkey, titleEl); });
+    titleEl.appendChild(tb);
+    titleEl.addEventListener('click', function(e){
+      if (!badgesOn) return;
+      if (e.target.closest('.cb')) return;
+      openPanel(tkey, titleEl);
+    });
+  }
+  syncBadges();
+}
+// every badge shows only when comment mode is on AND it has comments
+function syncBadges(){
+  document.querySelectorAll('.cb').forEach(function(b){
+    var k = b.dataset.key;
+    b.style.display = (badgesOn && countComments(k) > 0) ? 'inline-flex' : 'none';
+  });
+}
+
+// ===== PARAGRAPH click =====
+document.getElementById('bodyText').addEventListener('click', function(e) {
+  if (!badgesOn) return;
+  var p = e.target.closest('p');
+  if (!p) return;
+  openPanel(p.dataset.key || null, p);
+});
+
+// ===== OPEN / CLOSE PANEL =====
+function openPanel(key, p) {
+  document.querySelectorAll('#bodyText p, .ch-title').forEach(function(el){ el.classList.remove('hl'); });
+  if (p) p.classList.add('hl');
+  curKey = key || null;
+
+  if (curKey) {
+    document.getElementById('cpTitle').textContent = 'ความคิดเห็น ' + countComments(curKey) + ' รายการ';
+  } else {
+    document.getElementById('cpTitle').textContent = 'เขียนความคิดเห็น';
+  }
+  var iw = document.getElementById('cpInputWrap');
+  if (iw) {
+    iw.innerHTML = '';
+    if (curKey) iw.appendChild(buildComposer('เขียนความคิดเห็น...', function(t, report){
+      var ts = Date.now();
+      getThread(curKey).comments.push((__cmtExp(),{ name: __meName(), uid:(__me()||{}).id||null, ts: ts, text: t, likes: 0, likedBy: [], replies: [], report: report }));
+      refreshPanel();
+      scrollToComment(ts);
+    }, {report:true, layout:'box', main:true}));
+  }
+  renderList();
+
+  _cpSyncTop();
+  document.getElementById('cpanel').classList.add('show');
+  document.getElementById('overlay').classList.add('show');
+}
+
+/* แผงคอมเมนต์ต้องเริ่มใต้ header ของเว็บ (header z สูงกว่า) — ซิงก์ตามการเลื่อน */
+function _cpSyncTop(){
+  var el=document.getElementById('cpanel'); if(!el) return;
+  var h=document.getElementById('rlhdrwrap');
+  var top=0;
+  if(h){ var r=h.getBoundingClientRect(); top=Math.max(0, r.bottom); }
+  el.style.top=top+'px';
+  el.style.height='calc(100vh - '+top+'px)';
+}
+window.addEventListener('scroll', _cpSyncTop);
+window.addEventListener('resize', _cpSyncTop);
+function closePanel() {
+  document.getElementById('cpanel').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+  document.querySelectorAll('#bodyText p, .ch-title').forEach(function(el){ el.classList.remove('hl'); });
+}
+
+// close settings popup on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.tb-right')) {
+    document.getElementById('sbox').classList.remove('show');
+  }
+});
+
+// ===== THREAD RENDERING (cap depth at 3 tiers, flatten + @mention beyond) =====
+var MAX_TIER = 1;                 // tiers 0,1 only (หลัก+รอง) -> deeper replies flatten into tier 1 with @mention
+function __me(){ return (window.RLAuth&&RLAuth.me&&RLAuth.me())||null; }
+function __meName(){ var u=__me(); return u?(u.displayName||u.user):'ผู้เยี่ยมชม'; }
+function __cmtExp(){ /* EXP คอมเมนต์จ่ายที่ creditComment() ที่เดียว (ตรวจความยาว + บทละครั้ง) */ }
+var ME = 'ผู้เยี่ยมชม';   /* ค่าโชว์ fallback — จุดสร้างคอมเมนต์ใช้ __meName() จริง */
+
+// scroll a specific comment (by timestamp) into view inside the panel list
+function scrollToComment(ts){
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      var el = document.querySelector('#cpList .ci[data-ts="' + ts + '"]');
+      if (el) el.scrollIntoView({ behavior:'smooth', block:'center' });
+    });
+  });
+}
+
+function renderList() {
+  var list = document.getElementById('cpList');
+  list.innerHTML = '';
+  if (!curKey) return;
+  // top-level order: most-liked first, ties broken oldest→newest
+  // (a brand-new comment has 0 likes, so it lands at the bottom)
+  var arr = getThread(curKey).comments.slice();
+  arr.sort(function(a, b){ return (b.likes||0) - (a.likes||0) || (a.ts||0) - (b.ts||0); });
+  arr.forEach(function(c) {
+    var thread = document.createElement('div');
+    thread.className = 'ci-thread';
+    renderComment(c, 0, thread, null);
+    list.appendChild(thread);
+  });
+  requestAnimationFrame(drawConnectors);
+}
+
+// vertical line down from the parent avatar, horizontal into each reply's avatar;
+// both lines keep an equal GAP from the avatar frame
+function drawConnectors() {
+  // connector lines removed (flat reply layout)
+  var list = document.getElementById('cpList');
+  if (!list) return;
+  var old = list.querySelector('.cp-lines'); if (old) old.remove();
+}
+
+// total replies beneath a comment (all tiers, incl. flattened row-3)
+function countDescendants(c){
+  var n = 0;
+  (c.replies || []).forEach(function(r){ n += 1 + countDescendants(r); });
+  return n;
+}
+
+// recursive: indent until MAX_TIER, then flatten replies into the same tier with a name tag
+function renderComment(comment, depth, container, mentionName) {
+  var tier = Math.min(depth, MAX_TIER);
+  var node = makeCI(comment, tier, mentionName);
+  container.appendChild(node);
+
+  if (comment.replies && comment.replies.length) {
+    if (depth < MAX_TIER) {
+      var bodyEl = node.querySelector(':scope > .ci-body');
+      var more = document.createElement('button');
+      more.className = 'ci-more';
+      more.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><g transform="translate(24,0) scale(-1,1)">'
+        + '<path d="M13.5 3.2 L22.8 12 L13.5 20.8 V16.3 C7.6 16.3 3.6 17.9 1.2 21.4 C1.6 13.2 6.2 9.2 13.5 8.8 Z"/></g></svg>'
+        + '<span>' + (comment._open ? 'ซ่อนการตอบกลับ' : ('ดูการตอบกลับ (' + countDescendants(comment) + ')')) + '</span>';
+      more.addEventListener('click', function(e){ e.stopPropagation(); comment._open = !comment._open; refreshPanel(); });
+      bodyEl.appendChild(more);
+      if (comment._open) {
+        var rd = document.createElement('div');
+        rd.className = 'ci-replies';
+        bodyEl.appendChild(rd);
+        comment.replies.forEach(function(r){ renderComment(r, depth + 1, rd, null); });
+      }
+    } else {
+      // capped: keep at same tier, tag the person being replied to
+      comment.replies.forEach(function(r){ renderComment(r, depth, container, comment.name); });
+    }
+  }
+}
+
+// ===== MAKE COMMENT ITEM =====
+function fmtTime(cm){
+  if(cm.ts){ var d=new Date(cm.ts); var M=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    return d.getDate()+' '+M[d.getMonth()]+' '+d.getFullYear()+' '+('0'+d.getHours()).slice(-2)+'.'+('0'+d.getMinutes()).slice(-2)+' น.'; }
+  return cm.time||'';
+}
+function makeCI(cm, tier, mentionName) {
+  var sz = 32;
+
+  var wrap = document.createElement('div');
+  wrap.className = 'ci';
+  if (cm.ts) wrap.setAttribute('data-ts', cm.ts);
+
+  var avatar = document.createElement('img');
+  avatar.src = 'https://picsum.photos/seed/' + encodeURIComponent(cm.name) + '/120/120';
+  avatar.style.cssText = 'width:' + sz + 'px;height:' + sz + 'px;';
+
+  var body = document.createElement('div');
+  body.className = 'ci-body';
+
+  var bubble = document.createElement('div');
+  bubble.className = 'ci-bubble';
+
+  if (cm.author) {
+    var atag = document.createElement('div');
+    atag.className = 'ci-author-tag';
+    atag.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" width="11" height="11"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span>ผู้เขียน</span>';
+    bubble.appendChild(atag);
+  }
+
+  var nameRow = document.createElement('div');
+  nameRow.className = 'ci-namerow';
+  var nameEl = document.createElement('div');
+  nameEl.className = 'ci-name';
+  nameEl.textContent = cm.name;
+  var tEl = document.createElement('span');
+  tEl.className = 'ci-time2';
+  tEl.textContent = fmtTime(cm);
+  var repBtn = document.createElement('button');
+  repBtn.className = 'ci-report';
+  repBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 L21.5 20 L2.5 20 Z"/><line x1="12" y1="10" x2="12" y2="14.5"/><line x1="12" y1="17.4" x2="12" y2="17.4"/></svg>';
+  repBtn.addEventListener('click', function(e){ e.stopPropagation(); openReport(cm); });
+  nameRow.appendChild(nameEl);
+  nameRow.appendChild(tEl);
+  nameRow.appendChild(repBtn);
+  bubble.appendChild(nameRow);
+
+  var textEl = document.createElement('div');
+  textEl.className = 'ci-text' + (cm.report ? ' report' : '');
+  if (mentionName) {
+    var m = document.createElement('span');
+    m.className = 'ci-mention';
+    m.textContent = mentionName;
+    textEl.appendChild(m);
+  }
+  textEl.appendChild(document.createTextNode(cm.text));
+  bubble.appendChild(textEl);
+
+  body.appendChild(bubble);
+
+  // meta row: time · ถูกใจ · ตอบกลับ  (+ like count)
+  var meta = document.createElement('div');
+  meta.className = 'ci-meta';
+
+  cm.likedBy = cm.likedBy || [];
+  cm.liked = cm.likedBy.indexOf(ME) >= 0;
+  var likeBtn = document.createElement('button');
+  likeBtn.className = 'ci-act ci-like' + (cm.liked ? ' liked' : '');
+  likeBtn.textContent = 'ถูกใจ';
+
+  var replyBtn = document.createElement('button');
+  replyBtn.className = 'ci-act ci-reply-btn';
+  replyBtn.textContent = 'ตอบกลับ';
+
+  var countEl = document.createElement('span');
+  countEl.className = 'ci-likecount';
+  function paintCount() {
+    if (cm.likes > 0) {
+      countEl.style.display = 'inline-flex';
+      countEl.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 1 0-7.8 7.8l8.8 8.8 8.8-8.8a5.5 5.5 0 0 0 0-7.8z"/></svg><span>' + cm.likes + '</span>';
+    } else { countEl.style.display = 'none'; }
+  }
+  paintCount();
+
+  likeBtn.addEventListener('click', function() {
+    cm.likedBy = cm.likedBy || [];
+    var li = cm.likedBy.indexOf(ME);
+    if (li >= 0) { cm.likedBy.splice(li, 1); cm.likes = Math.max(0, (cm.likes||0) - 1); }
+    else { cm.likedBy.push(ME); cm.likes = (cm.likes||0) + 1; }
+    cm.liked = cm.likedBy.indexOf(ME) >= 0;
+    likeBtn.classList.toggle('liked', cm.liked);
+    paintCount();
+    persist(curKey);
+  });
+
+  meta.appendChild(likeBtn);
+  meta.appendChild(replyBtn);
+  meta.appendChild(countEl);
+  body.appendChild(meta);
+
+  // inline reply box
+  var rbox = document.createElement('div');
+  rbox.className = 'ci-rbox';
+  rbox.appendChild(buildComposer('ตอบกลับ ' + cm.name + '...', function(t, report) {
+    cm.replies = cm.replies || [];
+    var ts = Date.now();
+    cm.replies.push((__cmtExp(),{ name: __meName(), uid:(__me()||{}).id||null, ts: ts, text: t, likes: 0, likedBy: [], replies: [], report: report }));
+    cm._open = true;
+    refreshPanel();
+    scrollToComment(ts);
+  }, {report:true, main:true, noReport:true, onCancel:function(){ rbox.classList.remove('show'); rbox.style.marginLeft=''; rbox.style.width=''; }}));
+  replyBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    // open one reply box at a time close any other open box so they don't stack up
+    // and throw off the scroll positioning
+    if (!rbox.classList.contains('show')) {
+      document.querySelectorAll('#cpList .ci-rbox.show').forEach(function(other){
+        if (other !== rbox) { other.classList.remove('show'); other.style.marginLeft=''; other.style.width=''; }
+      });
+    }
+    rbox.classList.toggle('show');
+    if (rbox.classList.contains('show')) {
+      // stretch the reply box to the full width of the panel (same as the bottom composer)
+      var list = document.getElementById('cpList');
+      if (list) {
+        var lr = list.getBoundingClientRect();
+        var br = rbox.getBoundingClientRect();
+        rbox.style.marginLeft = -(br.left - lr.left) + 'px';
+        rbox.style.width = lr.width + 'px';
+      }
+      var ri = rbox.querySelector('.rb-input');
+      if (ri) { ri.style.height='auto'; ri.style.height=Math.min(ri.scrollHeight,170)+'px'; ri.focus(); }
+      // bring the reply box down to the bottom edge of the list (just above the main
+      // composer) so the send button is visible same spot every time, not centered.
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          var listEl = document.getElementById('cpList');
+          var bar = rbox.querySelector('.cmt-bar') || rbox.querySelector('.cmt-send') || rbox;
+          if (!listEl || !bar) return;
+          var lr = listEl.getBoundingClientRect(), br = bar.getBoundingClientRect();
+          var over = br.bottom - lr.bottom;   // signed distance of send-bar from the bottom edge
+          listEl.scrollTo({ top: listEl.scrollTop + over + 18, behavior:'smooth' });
+        });
+      });
+    } else {
+      rbox.style.marginLeft = ''; rbox.style.width = '';
+    }
+  });
+  body.appendChild(rbox);
+
+  wrap.appendChild(avatar);
+  wrap.appendChild(body);
+  return wrap;
+}
+
+// ===== PER-THREAD COMPOSER (replies to the top comment) =====
+// reusable composer: emoji + normal send (paper plane) + report send (flag -> red text)
+function buildComposer(placeholder, onSend, opts) {
+  opts = opts || {};
+  // ยังไม่ล็อกอิน → ไม่ต้องมีกล่องส่งข้อความ (อ่านคอมเมนต์ได้ปกติ) แสดงปุ่มชวนเข้าสู่ระบบแทน
+  if (!__me()) {
+    var lh = document.createElement('div');
+    lh.className = 'cp-loginhint';
+    lh.innerHTML = '<button type="button">เข้าสู่ระบบเพื่อแสดงความคิดเห็น</button>';
+    lh.querySelector('button').addEventListener('click', function(e){ e.stopPropagation(); if(window.RLAuth&&RLAuth.open) RLAuth.open('login'); });
+    return lh;
+  }
+  var withReport = !!opts.report;
+  var isBox = opts.layout === 'box';
+  var isMain = !!opts.main;
+  var box = document.createElement('div');
+  var inputEl = '<textarea class="rb-input" maxlength="500" rows="1" placeholder="' + placeholder + '"></textarea>';
+
+  // ===== MAIN comment box: big input + bar (รายงาน toggle / ยกเลิก / ส่ง) =====
+  if (isMain) {
+    box.className = 'rb rb-box cmt-box';
+    var repToggle = opts.noReport ? '' :
+        ('<button type="button" class="cont-btn cmt-rep"></button>'
+       + '<span class="cmt-rep-lb">รายงาน</span>'
+       + '<span class="cmt-help"><svg viewBox="0 0 24 24" width="13" height="13"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.6"/><circle cx="12" cy="7.6" r="1.7" fill="currentColor"/><rect x="10.6" y="10.6" width="2.8" height="7" rx="1.4" fill="currentColor"/></svg></span>');
+    box.innerHTML = inputEl
+      + '<div class="cmt-bar">' + repToggle
+      +   '<span class="cmt-spacer"></span>'
+      +   '<button type="button" class="cmt-cancel">ยกเลิก</button>'
+      +   '<button type="button" class="cmt-send">ส่ง</button>'
+      + '</div>';
+    var inputB = box.querySelector('.rb-input');
+    var rep = box.querySelector('.cmt-rep');
+    function grow(){
+      inputB.style.height='auto'; inputB.style.height=Math.min(inputB.scrollHeight,170)+'px';
+      // if this is a reply box (inside the scrollable list), keep its send bar visible
+      // as the text grows taller so it never sinks below the fold
+      var lst = document.getElementById('cpList');
+      if (lst && lst.contains(box)) {
+        var bar = box.querySelector('.cmt-bar');
+        if (bar) {
+          var lr = lst.getBoundingClientRect(), br = bar.getBoundingClientRect();
+          var over = br.bottom - lr.bottom;
+          if (over > -4) lst.scrollTop = lst.scrollTop + over + 14;
+        }
+      }
+    }
+    function fireB() {
+      var t = inputB.value.trim();
+      if (!t) return;
+      var report = rep ? rep.classList.contains('on') : false;
+      inputB.value = ''; if(rep) rep.classList.remove('on'); grow();
+      onSend(t, report);
+    }
+    if(rep) rep.addEventListener('click', function(e){ e.stopPropagation(); rep.classList.toggle('on'); });
+    var helpIc = box.querySelector('.cmt-help');
+    if(helpIc){
+      var tip = document.createElement('div');
+      tip.className = 'cmt-tip';
+      tip.textContent = 'ใช้แจ้งคำผิด แปลผิดหรือตกหล่น หรือจุดผิดพลาดในบทนี้ ความคิดเห็นจะถูกส่งเป็นรายงานถึงนักเขียนและทีมงานโดยตรง';
+      box.appendChild(tip);
+      function tipPlace(){
+        var hb=helpIc.getBoundingClientRect(), bb=box.getBoundingClientRect();
+        tip.style.left=(hb.left-bb.left+hb.width/2)+'px';
+        tip.style.bottom=(bb.height-(hb.top-bb.top)+8)+'px';
+        /* กันบับเบิลล้นขอบกล่องซ้าย-ขวา */
+        requestAnimationFrame(function(){
+          var tr=tip.getBoundingClientRect();
+          var over=bb.left+6-tr.left;
+          if(over>0) tip.style.left=(parseFloat(tip.style.left)+over)+'px';
+          var over2=tr.right-(bb.right-6);
+          if(over2>0) tip.style.left=(parseFloat(tip.style.left)-over2)+'px';
+        });
+      }
+      function tipShow(){ tipPlace(); tip.classList.add('show'); }
+      function tipHide(){ tip.classList.remove('show'); }
+      var tipT=null;
+      helpIc.addEventListener('mouseenter', function(){ clearTimeout(tipT); tipT=setTimeout(tipShow, 300); });   /* ค้าง ~0.3 วิถึงขึ้น — เลื่อนผ่านไม่ขึ้น */
+      helpIc.addEventListener('mouseleave', function(){ clearTimeout(tipT); tipHide(); });
+      helpIc.addEventListener('click', function(e){ e.stopPropagation(); clearTimeout(tipT); tip.classList.contains('show') ? tipHide() : tipShow(); });
+      document.addEventListener('click', function(e){ if(!tip.contains(e.target) && !helpIc.contains(e.target)) tipHide(); });
+    }
+    box.querySelector('.cmt-send').addEventListener('click', function(e){ e.stopPropagation(); fireB(); });
+    box.querySelector('.cmt-cancel').addEventListener('click', function(e){ e.stopPropagation(); inputB.value=''; if(rep) rep.classList.remove('on'); grow(); if (opts.onCancel) opts.onCancel(); else if (typeof closePanel==='function') closePanel(); });
+    inputB.addEventListener('input', grow);
+    inputB.addEventListener('keydown', function(e){ if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); fireB(); } });
+    requestAnimationFrame(grow);
+    return box;
+  }
+
+  // ===== reply composer (box=column / inline) : emoji + flag + send =====
+  box.className = 'rb' + (isBox ? ' rb-box' : '');
+  var emoji = '<button class="rb-emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>';
+  var flag = withReport ? '<button class="rb-flag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></button>' : '';
+  var send = '<button class="rb-send"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"><path d="M8 5.8 18.5 12 8 18.2Z"/></svg></button>';
+  if (isBox) { box.innerHTML = inputEl + '<div class="rb-bar">' + emoji + '<span class="rb-spacer"></span>' + flag + send + '</div>'; }
+  else { box.innerHTML = emoji + inputEl + flag + send; }
+  var input = box.querySelector('.rb-input');
+  function fire(report) {
+    var t = input.value.trim();
+    if (!t) return;
+    input.value = '';
+    onSend(t, report);
+  }
+  box.querySelector('.rb-send').addEventListener('click', function(e){ e.stopPropagation(); fire(false); });
+  var fb = box.querySelector('.rb-flag');
+  if (fb) fb.addEventListener('click', function(e){ e.stopPropagation(); fire(true); });
+  input.addEventListener('keydown', function(e){ if (e.key === 'Enter') fire(false); });
+  box.querySelector('.rb-emoji').addEventListener('click', function(e){ e.stopPropagation(); input.value += '😊'; input.focus(); });
+  return box;
+}
+
+function makeComposer(topComment) {
+  var row = document.createElement('div');
+  row.className = 'ci-composer';
+  var av = document.createElement('img');
+  av.src = 'https://picsum.photos/seed/me/120/120';
+  var comp = buildComposer('ตอบกลับ ' + topComment.name + '...', function(t, report) {
+    topComment.replies = topComment.replies || [];
+    topComment.replies.push((__cmtExp(),{ name: __meName(), uid:(__me()||{}).id||null, ts: Date.now(), text: t, likes: 0, likedBy: [], replies: [], report: report }));
+    topComment._open = true;
+    refreshPanel();
+  }, {report:true, main:true, noReport:true, onCancel:function(){ row.style.display='none'; }});
+  row.appendChild(av);
+  row.appendChild(comp);
+  return row;
+}
+
+// re-render list + keep header/badge counts in sync
+function refreshPanel() {
+  persist(curKey);   /* บันทึกทุกการเปลี่ยนแปลงลงตู้ rl_comments */
+  persist(curKey);
+  renderList();
+  if (curKey) {
+    document.getElementById('cpTitle').textContent = 'ความคิดเห็น ' + countComments(curKey) + ' รายการ';
+    var badge = document.querySelector('.cb[data-key="' + curKey + '"] text');
+    if (badge) badge.textContent = countComments(curKey);
+    syncBadges();
+  }
+}
+
+// ===== POST MAIN COMMENT =====
+function postComment() {
+  var input = document.getElementById('cpInput');
+  var t = input.value.trim();
+  if (!t || !curKey) return;
+  getThread(curKey).comments.push((__cmtExp(),{ name: __meName(), uid:(__me()||{}).id||null, ts: Date.now(), text: t, likes: 0, likedBy: [] }));
+  input.value = '';
+  refreshPanel();
+}
+
+// ===== BADGES =====
+function toggleBadges() {
+  badgesOn = !badgesOn;
+  document.getElementById('toggleCmBtn').classList.toggle('on', badgesOn);
+  document.getElementById('bodyText').classList.toggle('comments-on', badgesOn);
+  syncBadges();
+  var tEl = document.querySelector('.ch-title');
+  if (tEl) tEl.style.cursor = badgesOn ? 'pointer' : '';
+  if (!badgesOn) closePanel();
+}
+
+// ===== SETTINGS =====
+function toggleSetting(e) {
+  e.stopPropagation();
+  document.getElementById('sbox').classList.toggle('show');
+}
+function setTheme(t, btn) {
+  document.querySelectorAll('.s-btn').forEach(function(b){ b.classList.remove('on'); });
+  btn.classList.add('on');
+  var p = document.getElementById('paper');
+  var body = document.getElementById('bodyText');
+  var topbar = document.querySelector('.topbar');
+  p.setAttribute('data-theme', t);
+  if (t==='dark'){p.style.background='#1c1c1e';body.style.color='#ccc';topbar.style.background='#1c1c1e';}
+  else if(t==='sepia'){p.style.background='#f5edd6';body.style.color='#4a3728';topbar.style.background='#f5edd6';}
+  else{p.style.background='#fff';body.style.color='#222';topbar.style.background='#fff';}
+}
+function chFont(d) {
+  fs = Math.min(24, Math.max(12, fs+d));
+  document.getElementById('bodyText').style.fontSize = fs+'px';
+  document.getElementById('fsLabel').textContent = fs;
+}
+function prevCh(){alert('บทก่อนหน้า');}
+function nextCh(){alert('บทถัดไป');}
+function toggleCont(btn){ btn.classList.toggle('on'); }
+
+// ===== connect real chapter data + สารบัญ =====
+function _esc(x){ return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function _novelData(){
+  try{
+    var id=_cq.get('id');
+    if(id){ var m=JSON.parse(localStorage.getItem('rl_novels')||'{}');
+      if(Array.isArray(m)){ var f=m.find(function(x){return x&&x.id===id;}); if(f) return f; }   /* ทะเบียน RLNV (array) */
+      else if(m && m[id]) return m[id]; }                                                        /* โครงเก่า (map) */
+    var cur=localStorage.getItem('rl_novel_current'); if(cur){ var n=JSON.parse(cur); if(n && (!id || n.id===id)) return n; }
+  }catch(e){}
+  return null;
+}
+function _pubChapters(nv){ return ((nv&&nv.chapters)||[]).filter(function(c){return c.status==='published';}).sort(function(a,b){return (a.num||0)-(b.num||0);}); }
+// chapters a reader can navigate to: published + closed (closed ones show a "content closed" notice)
+function _readableChapters(nv){ return ((nv&&nv.chapters)||[]).filter(function(c){return c.status==='published'||c.status==='hidden';}).sort(function(a,b){return (a.num||0)-(b.num||0);}); }
+
+function normalizeChapter(html){
+  // Turn ANY editor output (bare text / <div> / <br> / mixed <p>) into clean <p> paragraphs
+  // so every paragraph is indexable and commentable.
+  var tmp=document.createElement('div'); tmp.innerHTML=(html==null?'':html);
+  var paras=[]; var buf='';
+  function clean(t){ return String(t).replace(/<br\s*\/?>/gi,'').replace(/&nbsp;/gi,' ').trim(); }
+  function flush(){ if(clean(buf)) paras.push('<p>'+buf.trim()+'</p>'); buf=''; }
+  Array.prototype.forEach.call(tmp.childNodes, function(n){
+    if(n.nodeType===1 && (n.tagName==='P' || n.tagName==='DIV')){
+      flush();
+      var inner=n.innerHTML;
+      if(clean(inner)){
+        var st=n.getAttribute('style')||'';
+        var al=n.getAttribute('align'); if(al && !/text-align/i.test(st)){ st=(st?st+';':'')+'text-align:'+al; }
+        paras.push('<p'+(st?' style="'+st.replace(/"/g,'&quot;')+'"':'')+'>'+inner.trim()+'</p>');
+      }
+    } else if(n.nodeType===1 && (n.tagName==='BR')){
+      flush();
+    } else if(n.nodeType===1 && (n.tagName==='FIGURE' || n.tagName==='IMG' || n.tagName==='HR')){
+      flush();
+      paras.push(n.outerHTML);                 // keep media blocks as-is (not commentable)
+    } else if(n.nodeType===3){
+      buf += n.textContent;                    // bare text -> accumulate
+    } else {
+      buf += (n.outerHTML||'');                // inline element -> accumulate
+    }
+  });
+  flush();
+  if(!paras.length){ var tx=(tmp.textContent||'').trim(); paras.push('<p>'+(tx||'(ไม่มีเนื้อหา)')+'</p>'); }
+  return paras.join('');
+}
+
+/* ป้ายชื่อบทสำหรับแสดงผล → "บทที่ {เลขบท} {ชื่อบท}"
+   ข้อมูลดิบเป็น "ข้อความนำหน้า ชื่อบท" → ตัดส่วนหน้าทิ้ง เอาเฉพาะชื่อหลังเครื่องหมาย แรก
+   ยกเว้นบทนำ: แสดง "บทนำ {ชื่อบท}" ไม่ใส่เลข */
+function _dispT(c){
+  var raw = String((c&&c.title)||'').trim();
+  var parts = raw.split(/\s*—\s*/).filter(function(p){ return p; });
+  var name = parts.length>1 ? parts.slice(1).join(' ') : (parts[0]||'');
+  if(/^บทนำ/.test(raw)){
+    return parts.length>1 ? ('บทนำ '+name).trim() : raw;
+  }
+  if(!name) return 'บทที่ '+((c&&c.num)!=null?c.num:'');
+  return 'บทที่ '+c.num+' '+name;
+}
+
+function _rlCrumb(nv, chTitle){
+  var el=document.getElementById('rlCrumb'); if(!el) return;
+  if(!nv){ el.innerHTML=''; return; }   // โล่ง = ไม่มี breadcrumb
+  var parts=['<a href="home_auth_1.html">หน้าหลัก</a>'];
+  if(nv.title) parts.push('<a href="nd_ticket_1.html?id='+encodeURIComponent(nv.id||'')+'">'+_esc(nv.title)+'</a>');
+  if(chTitle)  parts.push('<span class="cur">'+_esc(chTitle)+'</span>');
+  el.innerHTML=parts.join('<span class="sep">›</span>');
+}
+function connectChapter(){
+  var titleEl=document.querySelector('.ch-title');
+  var authEl=document.querySelector('.ch-author');
+  var bodyEl=document.getElementById('bodyText');
+  var topEl=document.querySelector('.topbar-title');
+  // reader only shows real chapters. No id (opened directly) OR novel not found -> empty state.
+  var nv = _cq.get('id') ? _novelData() : null;
+  if(!nv){
+    if(titleEl)titleEl.textContent='';
+    if(authEl)authEl.textContent='';
+    if(topEl)topEl.textContent='ReadLead';
+    if(bodyEl)bodyEl.innerHTML='<div style="text-align:center;padding:90px 20px;">'
+      +'<div style="font-size:17px;font-weight:700;color:#888;">ไม่มีเนื้อหา</div></div>';
+    var nc0=document.querySelector('.next-ch'); if(nc0)nc0.style.display='none';
+    var rn0=document.querySelector('.read-next'); if(rn0)rn0.style.display='none';
+    _rlCrumb(null);
+    document.title='ReadLead';
+    return;
+  }
+  window.__NV=nv;
+  var pub=_readableChapters(nv); window.__PUB=pub;
+  var chNum=parseInt(_cq.get('ch'),10);
+  var idx=pub.findIndex(function(c){return c.num===chNum;}); if(idx<0) idx=0;
+  var c=pub[idx];
+  if(authEl){
+    var _an = nv.penName || nv.author || nv.origAuthor || nv.authorName || '';
+    authEl.innerHTML = _an
+      ? '<a class="ch-author-link" href="profile_1.html?w='+encodeURIComponent(_an)+'">'+_esc(_an)+'</a>'
+      : '';
+  }
+  if(!c){
+    if(titleEl)titleEl.textContent='ยังไม่มีบทที่เผยแพร่';
+    if(topEl)topEl.textContent=nv.title||'';
+    _rlCrumb(nv, null);
+    if(bodyEl)bodyEl.innerHTML='<p style="text-align:center;color:#999;">นิยายเรื่องนี้ยังไม่มีบทที่เผยแพร่</p>';
+    return;
+  }
+  if(titleEl)titleEl.textContent=_dispT(c);
+  if(topEl)topEl.textContent=_dispT(c);
+  _rlCrumb(nv, _dispT(c));
+  if(c.status==='hidden'){
+    if(bodyEl)bodyEl.innerHTML='<div style="text-align:center;padding:72px 20px 64px;">'
+      +'<div style="font-size:46px;line-height:1;margin-bottom:16px;">🔒</div>'
+      +'<div style="font-size:17px;font-weight:700;color:var(--ink);margin-bottom:8px;">ตอนนี้ถูกปิดเนื้อหา</div>'
+      +'<div style="font-size:14px;color:var(--ink3);">ผู้เขียนปิดการอ่านบทนี้ไว้ชั่วคราว</div></div>';
+  } else {
+    if(bodyEl)bodyEl.innerHTML=normalizeChapter(c.content);
+  }
+  document.title=_dispT(c)+' · '+(nv.title||'')+' · ReadLead';
+  var prev=pub[idx-1], next=pub[idx+1];
+  window.prevCh=function(){ if(prev) location.href='reader_100.html?id='+encodeURIComponent(nv.id)+'&ch='+prev.num; };
+  window.nextCh=function(){ if(next) location.href='reader_100.html?id='+encodeURIComponent(nv.id)+'&ch='+next.num; };
+  var rb=document.querySelectorAll('.tb-right .tb-btn');   // [0]=Aa [1]=prev [2]=next
+  if(rb[1]) rb[1].classList.toggle('disabled', !prev);
+  if(rb[2]) rb[2].classList.toggle('disabled', !next);
+  var ncWrap=document.querySelector('.next-ch'); var ncTitle=document.querySelector('.next-ch-title'); var rn=document.querySelector('.read-next');
+  if(next){ if(ncTitle)ncTitle.textContent=_dispT(next); if(ncWrap)ncWrap.style.display=''; if(rn){rn.style.display='';rn.onclick=window.nextCh;} }
+  else { if(ncWrap)ncWrap.style.display='none'; if(rn)rn.style.display='none'; }
+}
+
+function buildTOC(){
+  var topbar=document.querySelector('.topbar');
+  var btn=topbar?topbar.querySelector(':scope > .tb-btn'):null;   // left list icon
+  if(!btn||!topbar) return;
+  var nv=window.__NV, pub=window.__PUB||[];
+  var panel=document.createElement('div'); panel.className='toc-panel';
+
+  var curNum=parseInt(_cq.get('ch'),10);
+  var listHtml;
+  if(pub.length){
+    listHtml='<div class="toc-list">'+pub.map(function(c){
+      var cur=(c.num===curNum)?' current':'';
+      return '<button type="button" class="toc-item'+cur+'" data-num="'+c.num+'">'+_esc(_dispT(c))+'</button>';
+    }).join('')+'</div>';
+  } else {
+    var ct=(document.querySelector('.ch-title')||{}).textContent||'บทนี้';
+    listHtml='<div class="toc-list"><button type="button" class="toc-item current">'+_esc(ct)+'</button></div>';
+  }
+  panel.innerHTML=listHtml;
+  topbar.appendChild(panel);
+
+  panel.querySelectorAll('.toc-item[data-num]').forEach(function(it){
+    it.addEventListener('click', function(){
+      if(!nv) return;
+      location.href='reader_100.html?id='+encodeURIComponent(nv.id)+'&ch='+it.getAttribute('data-num');
+    });
+  });
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    panel.classList.toggle('show');
+    if(panel.classList.contains('show')){
+      var cur=panel.querySelector('.toc-item.current');
+      if(cur){
+        var lst=panel.querySelector('.toc-list');
+        /* โชว์ทีละ 10 แถว — น้อยกว่านั้นแผงจบตามจำนวนจริง */
+        var maxH=cur.offsetHeight*10;
+        panel.style.maxHeight=maxH+'px';
+        if(lst) lst.style.paddingBottom='0px';
+        var contentH=panel.scrollHeight;
+        /* รายการยาวเกิน 10 แถวเท่านั้นถึงเผื่อท้าย (ให้บทปัจจุบันขึ้นขอบบนได้) — รายการสั้นจบตามจริง */
+        if(contentH > maxH + 2){
+          if(lst) lst.style.paddingBottom=Math.max(0, panel.clientHeight - (contentH - cur.offsetTop))+'px';
+          var firstRow=panel.querySelector('.toc-item');
+          panel.scrollTop=cur.offsetTop - (firstRow ? firstRow.offsetTop : 5);   /* เว้นช่องหายใจเหนือแถวปัจจุบันเท่าหัวรายการ */
+        } else {
+          panel.scrollTop=0;
+        }
+        sbUpdate(); sbShow();
+      }
+    }   /* บทปัจจุบันอยู่ขอบบน — เลื่อนขึ้น=บทก่อนหน้า เลื่อนลง=บทถัดไป */
+  });
+  document.addEventListener('click', function(e){
+    if(!panel.contains(e.target) && !btn.contains(e.target)) panel.classList.remove('show');
+  });
+  /* ---- แท่งบอกตำแหน่งลอย (fictionlog) ---- */
+  var sbThumb=document.createElement('div'); sbThumb.className='sb-thumb'; panel.appendChild(sbThumb);
+  function sbUpdate(){
+    var sh=panel.scrollHeight, ch=panel.clientHeight, st=panel.scrollTop;
+    if(sh<=ch+2){ sbThumb.style.display='none'; return; }
+    sbThumb.style.display='block';
+    var h=Math.max(30, ch*ch/sh);
+    /* บีบระยะวิ่ง: กึ่งกลางแท่งวิ่งระหว่างกึ่งกลางแถวแรก ↔ กึ่งกลางแถวสุดท้ายของช่องมองเห็น */
+    var row=panel.querySelector('.toc-item');
+    var rowH=row?row.offsetHeight:46;
+    var padTop=row?row.offsetTop:5;   /* ช่องว่างหัวรายการ */
+    var minC=padTop+rowH/2, maxC=ch-rowH/2;
+    var center=minC + (st/(sh-ch))*(maxC-minC);
+    var top=Math.min(ch-h, Math.max(0, center-h/2));
+    sbThumb.style.height=h+'px';
+    sbThumb.style.top=(st + top)+'px';
+  }
+  var sbHideT=null;
+  function sbShow(){
+    sbThumb.classList.add('on');
+    clearTimeout(sbHideT);
+    sbHideT=setTimeout(function(){ if(!panel.matches(':hover')) sbThumb.classList.remove('on'); },700);
+  }
+  panel.addEventListener('scroll', function(){ sbUpdate(); sbShow(); });
+  panel.addEventListener('mouseenter', function(){ sbUpdate(); sbThumb.classList.add('on'); clearTimeout(sbHideT); });
+  panel.addEventListener('mouseleave', function(){ sbThumb.classList.remove('on'); });
+  var sbDragY=null, sbDragStart=0;
+  sbThumb.addEventListener('mousedown', function(e){
+    e.preventDefault(); e.stopPropagation();
+    sbDragY=e.clientY; sbDragStart=panel.scrollTop;
+    document.body.style.userSelect='none';
+  });
+  window.addEventListener('mousemove', function(e){
+    if(sbDragY===null) return;
+    var sh=panel.scrollHeight, ch=panel.clientHeight;
+    var row=panel.querySelector('.toc-item');
+    var rowH=row?row.offsetHeight:46;
+    var travel=Math.max(1, (ch-rowH/2)-rowH/2);
+    panel.scrollTop=sbDragStart + (e.clientY-sbDragY)*(sh-ch)/travel;
+  });
+  window.addEventListener('mouseup', function(){ if(sbDragY!==null){ sbDragY=null; document.body.style.userSelect=''; } });
+}
+
+// ===== topbar ซ่อนตอนเลื่อนลง / โผล่ตอนเลื่อนขึ้น (ระบบเดียวกับเว็บตูน) =====
+(function(){
+  var tb=document.querySelector('.topbar'); if(!tb) return;
+  var lastY=0;
+  window.addEventListener('scroll', function(){
+    var y=window.scrollY;
+    if(y>lastY && y>240){
+      tb.classList.add('hide');
+      var pp=document.querySelector('.toc-panel'); if(pp) pp.classList.remove('show');   /* แผงสารบัญเกาะ topbar — ปิดตามไปด้วย */
+    } else {
+      tb.classList.remove('hide');
+    }
+    lastY=y;
+  });
+})();
+
+// ===== report popup =====
+var _rptTarget=null, _rptReason=null;
+function openReport(cm){
+  _rptTarget=cm; _rptReason=null;
+  document.querySelectorAll('.rpt-reason').forEach(function(b){ b.classList.remove('sel'); });
+  var _ow=document.getElementById('rptOtherWrap'); if(_ow) _ow.classList.remove('show');
+  var _ot=document.getElementById('rptOtherText'); if(_ot) _ot.value='';
+  var sb=document.getElementById('rptSend'); if(sb) sb.disabled=true;
+  document.getElementById('rptOverlay').classList.add('show');
+}
+function closeReport(){ document.getElementById('rptOverlay').classList.remove('show'); _rptTarget=null; _rptReason=null; }
+(function(){
+  var reasons=document.getElementById('rptReasons');
+  if(reasons) reasons.addEventListener('click', function(e){
+    var b=e.target.closest('.rpt-reason'); if(!b) return;
+    document.querySelectorAll('.rpt-reason').forEach(function(x){ x.classList.remove('sel'); });
+    b.classList.add('sel'); _rptReason=b.getAttribute('data-r');
+    var ow=document.getElementById('rptOtherWrap'), ot=document.getElementById('rptOtherText');
+    var isOther=(_rptReason==='อื่น ๆ');
+    if(ow) ow.classList.toggle('show', isOther);
+    if(isOther){ document.getElementById('rptSend').disabled=!(ot&&ot.value.trim()); if(ot) ot.focus(); }
+    else{ document.getElementById('rptSend').disabled=false; }
+  });
+  var otEl=document.getElementById('rptOtherText');
+  if(otEl) otEl.addEventListener('input', function(){
+    if(_rptReason==='อื่น ๆ') document.getElementById('rptSend').disabled=!otEl.value.trim();
+  });
+  var c=document.getElementById('rptCancel'); if(c) c.addEventListener('click', closeReport);
+  var ov=document.getElementById('rptOverlay'); if(ov) ov.addEventListener('click', function(e){ if(e.target.id==='rptOverlay') closeReport(); });
+  var sn=document.getElementById('rptSend'); if(sn) sn.addEventListener('click', function(){
+    if(_rptTarget && _rptReason){
+      var _oT=document.getElementById('rptOtherText');
+      if(_rptReason==='อื่น ๆ'){
+        var _tx=_oT?_oT.value.trim():'';
+        if(!_tx) return;
+        _rptReason='อื่น ๆ: '+_tx;
+      }
+      _rptTarget.reported=true; _rptTarget.reportReason=_rptReason; persist(curKey);
+      /* ส่งเข้าโต๊ะรายงานแอดมิน (ตู้ rl_reports เดียวกับหน้าแจ้งปัญหา) */
+      try{
+        var __u=window.RLAuth&&RLAuth.me&&RLAuth.me();
+        var __nv=window.__NV||{};
+        var L=JSON.parse(localStorage.getItem('rl_reports'))||[];
+        L.push({id:'RP-'+Date.now().toString(36).toUpperCase(),
+          uid:__u?__u.id:null, name:__u?(__u.displayName||__u.user):'ผู้ไม่ระบุตัวตน',
+          title:'รายงานความคิดเห็น: '+_rptReason,
+          cat:'รายงานเนื้อหา',
+          detail:'เรื่อง: '+(__nv.title||NOVEL_ID)+' · ตอนที่ '+CHAPTER
+            +'\nผู้คอมเมนต์: '+(_rptTarget.name||'-')
+            +'\nข้อความ: "'+String(_rptTarget.text||'').slice(0,300)+'"'
+            +'\nเหตุผลที่รายงาน: '+_rptReason,
+          ts:Date.now(), status:'pend', replies:[]});
+        localStorage.setItem('rl_reports', JSON.stringify(L));
+      }catch(e){}
+    }
+    closeReport();
+    var t=document.getElementById('rptToast'); if(t){ t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); }, 600); }
+  });
+})();
+
+// ===== INIT (ลองโหลดซ้ำจนกว่าข้อมูลตอนจะพร้อม กันปัญหา seed มาช้า) =====
+(function reader_init(){
+  var tries=0, MAX=30;
+  function tick(){
+    try{ connectChapter(); }catch(e){}
+    tries++;
+    if(window.__PUB && window.__PUB.length){
+      try{ buildTOC(); }catch(e){}
+      try{ initBadges(); }catch(e){}
+      try{ if(window.RLPW&&RLPW.render) RLPW.render(); }catch(e){}
+      return;
+    }
+    if(tries>=MAX){ try{ buildTOC(); initBadges(); }catch(e){} return; }
+    setTimeout(tick, 120);
+  }
+  tick();
+})();
+</script>
+<footer class="foot">
+  <div class="footin" style="display:block;max-width:1200px;margin:0 auto;padding:48px 24px 30px">
+    <div class="fframe" style="border:1.5px solid #eabecb;border-radius:14px;min-height:130px"></div>
+  </div>
+  <div class="fbot">© 2026 Audiodee. สงวนลิขสิทธิ์ทุกประการ</div>
+</footer>
+
+<!-- ═══════════ RL AUTH ═══════════
+     ระบบสมาชิก (mock ผ่าน localStorage) ยกทั้งก้อนนี้ไปวางท้ายไฟล์ของหน้าอื่นได้เลย
+     คีย์กลาง: rl_users (ทะเบียนสมาชิก), rl_session (คนที่ล็อกอินอยู่)
+     หมายเหตุเว็บจริง: รหัสผ่านต้อง hash ฝั่ง server ตอนนี้เก็บ plain เพื่อ mock เท่านั้น -->
+<style id="rlAuthCSS">
+/* ── modal ── */
+#rlAuthModal{position:fixed;inset:0;z-index:99990;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(30,25,50,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+#rlAuthModal.show{display:flex}
+#rlAuthModal,#rlAuthModal *{box-sizing:border-box;font-family:'Noto Sans Thai',system-ui,sans-serif}
+#rlAuthModal{--line:#ece8f4;--ink:#2e2a3d;--ink2:#6b6580;--ink3:#a8a2bd;--red:#cc4452;--red-deep:#9c3340}
+.rlau{width:100%;max-width:430px;zoom:.9}
+.rlau-card{background:#fff;border-radius:22px;padding:34px 30px 30px;position:relative;animation:rlauPop .24s cubic-bezier(.34,1.2,.64,1)}
+@keyframes rlauPop{from{transform:translateY(12px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+.rlau-back{display:none;position:absolute;top:16px;left:16px;align-items:center;gap:2px;border:none;background:none;color:var(--ink2);font-size:14px;font-weight:600;cursor:pointer;padding:6px 6px 6px 2px;line-height:1}
+.rlau-back svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#rlAuthModal[data-mode="register"] .rlau-back,#rlAuthModal[data-mode="forgot"] .rlau-back{display:inline-flex}
+.rlau-brand{display:flex;align-items:center;justify-content:center;gap:10px;font-size:26px;font-weight:800;color:var(--red);margin-bottom:6px}
+.rlau-brand svg{width:29px;height:29px;fill:none;stroke:currentColor;stroke-width:2.5}
+.rlau-title{text-align:center;font-size:22px;font-weight:800;color:var(--ink);margin:14px 0 22px}
+.rlau .soc{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.rlau .soc-btn{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;height:46px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:filter .15s}
+.rlau .soc-btn:hover{filter:brightness(.96)}
+.rlau .soc-btn .ic{width:19px;height:19px;flex:0 0 19px;display:grid;place-items:center}
+.rlau .soc-google{background:#fff;border:1px solid var(--line);color:#3c4043}
+.rlau .soc-facebook{background:#1877F2;color:#fff}
+.rlau .soc-apple{background:#000;color:#fff}
+.rlau .soc-btn svg{width:19px;height:19px;display:block}
+.rlau .divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--ink3);font-size:12.5px}
+.rlau .divider::before,.rlau .divider::after{content:"";flex:1;height:1px;background:var(--line)}
+.rlau .field{margin-bottom:15px}
+.rlau .field label{display:block;font-size:13px;font-weight:600;color:var(--ink2);margin-bottom:7px}
+.rlau .inp-wrap{position:relative}
+.rlau .field input{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font-family:inherit;font-size:14px;color:var(--ink);background:#fff;outline:none;transition:border-color .15s}
+.rlau .field input::placeholder{color:var(--ink3)}
+.rlau .eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ink3);display:grid;place-items:center;padding:4px}
+.rlau .eye svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8}
+.rlau .hint{font-size:12px;color:var(--ink3);margin-top:6px}
+.rlau .field.pw input{padding-right:44px}
+.rlau .pw-check{margin-top:9px;display:none;flex-direction:column;gap:5px}
+.rlau .pw-check.show{display:flex}
+.rlau .pw-item{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--ink3);line-height:1.45}
+.rlau .pw-item .ci{flex:0 0 16px;width:16px;height:16px;border-radius:50%;border:1.6px solid var(--line);display:grid;place-items:center;margin-top:1px;transition:.15s}
+.rlau .pw-item .ci svg{width:10px;height:10px;stroke:#fff;fill:none;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:.15s}
+.rlau .pw-item.ok{color:#17a673}
+.rlau .pw-item.ok .ci{background:#17a673;border-color:#17a673}
+.rlau .pw-item.ok .ci svg{opacity:1}
+.rlau .forgot{text-align:right;margin:-6px 0 16px}
+.rlau .forgot a{font-size:13px;font-weight:600;color:var(--red);text-decoration:none;cursor:pointer}
+.rlau .terms{display:flex;align-items:flex-start;gap:10px;margin:4px 0 20px;cursor:pointer}
+.rlau .terms input{display:none}
+.rlau .terms .box{flex:0 0 20px;width:20px;height:20px;border:1.8px solid var(--line);border-radius:6px;display:grid;place-items:center;margin-top:1px;transition:.15s}
+.rlau .terms .box svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:.15s}
+.rlau .terms input:checked+.box{background:var(--red);border-color:var(--red)}
+.rlau .terms input:checked+.box svg{opacity:1}
+.rlau .terms .txt{font-size:13px;color:var(--ink2);line-height:1.55}
+.rlau .terms .txt a{color:var(--red);font-weight:600;text-decoration:none}
+.rlau .submit{width:100%;height:46px;border-radius:12px;background:var(--red);color:#fff;border:none;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s}
+.rlau .submit:hover{background:var(--red-deep)}
+.rlau .submit:disabled{background:#e2ddec;color:#fff;cursor:not-allowed}
+.rlau .switch{text-align:center;font-size:13.5px;color:var(--ink2);margin-top:20px}
+.rlau .switch a{color:var(--red);font-weight:700;text-decoration:none;cursor:pointer}
+.rlau .auth-err{display:none;font-size:12.5px;font-weight:600;color:#d8353f;background:#fdecee;border-radius:9px;padding:8px 12px;margin-bottom:14px}
+.rlau .auth-err.show{display:block}
+.rlau .auth-ok{display:none;font-size:12.5px;font-weight:600;color:#17a673;background:#e7f7f0;border-radius:9px;padding:8px 12px;margin-top:12px}
+.rlau .auth-ok.show{display:block}
+.rlau .only-login,.rlau .only-register,.rlau .only-forgot{display:none}
+#rlAuthModal[data-mode="login"] .only-login{display:block}
+#rlAuthModal[data-mode="register"] .only-register{display:block}
+#rlAuthModal[data-mode="forgot"] .only-forgot{display:block}
+#rlAuthModal[data-mode="login"] .switch .to-login,#rlAuthModal[data-mode="register"] .switch .to-register{display:none}
+#rlAuthModal[data-mode="forgot"] .divider,#rlAuthModal[data-mode="forgot"] .soc,#rlAuthModal[data-mode="forgot"] .switch{display:none}
+.rlau .forgot-sub{font-size:13px;color:var(--ink3);margin:-4px 0 18px;line-height:1.55}
+.rlau .forgot-back{text-align:center;font-size:13.5px;color:var(--ink2);margin-top:18px}
+.rlau .forgot-back a{color:var(--red);font-weight:600;cursor:pointer;text-decoration:none}
+
+/* ── ปุ่มเข้าสู่ระบบ (พกมากับก้อน เผื่อหน้าที่ไม่เคยมี) ── */
+.rl-header .rl-login{height:36px;display:inline-flex;align-items:center;box-sizing:border-box;font-family:'Noto Sans Thai',sans-serif;font-size:14px;font-weight:600;color:#fff;background:#cc4452;border:none;border-radius:9px;padding:0 18px;cursor:pointer;white-space:nowrap;line-height:1}
+.rl-header .rl-login:hover{background:#9c3340}
+/* ── avatar + เมนูผู้ใช้บน header ── */
+#rlhdrwrap{position:relative;z-index:900;overflow:visible}
+.rl-header .rl-user{position:relative;display:none}
+.rl-header .rl-user.on{display:block!important}
+.rl-header .rl-login.off{display:none}
+.rl-header .rl-ava{width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;font-size:16px;font-weight:800;display:grid;place-items:center;line-height:1;padding:0;transition:box-shadow .15s}
+.rl-header .rl-ava:hover{box-shadow:0 0 0 3px rgba(204,68,82,.18)}
+.rl-menu{position:absolute;top:46px;right:0;width:284px;background:#fff;border:1px solid #e3e5ea;border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.035),0 14px 34px -12px rgba(20,20,40,.18);padding:8px 0;display:none;z-index:9000;font-family:'Noto Sans Thai',sans-serif}
+.rl-menu.show{display:block!important}
+.rl-menu-head{display:flex;align-items:center;gap:12px;padding:12px 16px 12px}
+.rl-menu-head .ava2{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:20px;font-weight:800;flex-shrink:0}
+.rl-menu-head .nm{font-size:15.5px;font-weight:800;color:#2b2d3a;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rl-menu-head .hd{font-size:12.5px;color:#8b91a0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rl-menu-sep{height:1px;background:#eef0f5;margin:6px 0}
+.rl-menu-coin{display:flex;align-items:center;gap:9px;padding:10px 16px}
+.rl-menu-coin .cico{width:26px;height:26px;border-radius:50%;background:#f6b01e;color:#fff;display:grid;place-items:center;font-size:10px;font-weight:800;flex-shrink:0;box-shadow:inset 0 -2px 0 rgba(0,0,0,.12)}
+.rl-menu-coin .cval{flex:1;font-size:16px;font-weight:800;color:#2b2d3a;font-variant-numeric:tabular-nums}
+.rl-menu-coin .topup{height:32px;padding:0 16px;border:none;border-radius:9px;background:#e0981f;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
+.rl-menu-coin .topup:hover{background:#c9881b}
+.rl-menu-item{display:flex;align-items:center;gap:13px;width:100%;padding:11px 16px;border:none;background:none;font-family:inherit;font-size:14px;font-weight:600;color:#3d4152;cursor:pointer;text-align:left;transition:.12s}
+.rl-menu-item:hover{background:#f7f8fa}
+.rl-menu-item svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;color:#6b7080;flex-shrink:0}
+.rl-menu-item.out{color:#d8353f}
+.rl-menu-item.out svg{color:#d8353f}
+</style>
+
+<div id="rlAuthModal" data-mode="login">
+  <div class="rlau">
+    <div class="rlau-card">
+      <button class="rlau-back" onclick="RLAuth.mode('login')" aria-label="กลับ"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>กลับ</button>
+      <div class="rlau-brand"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>ReadLead</div>
+      <h1 class="rlau-title"><span class="only-login">เข้าสู่ระบบ</span><span class="only-register">สมัครสมาชิก</span><span class="only-forgot">ลืมรหัสผ่าน</span></h1>
+
+      <!-- LOGIN -->
+      <div class="only-login">
+        <div class="auth-err" id="rlLoginErr"></div>
+        <div class="field"><label>ชื่อผู้ใช้ หรืออีเมล</label><input type="text" id="rlLoginUser" placeholder="ชื่อผู้ใช้ หรืออีเมล"></div>
+        <div class="field pw"><label>รหัสผ่าน</label>
+          <div class="inp-wrap">
+            <input type="password" id="rlLoginPass" placeholder="รหัสผ่าน">
+            <button class="eye" type="button" onclick="RLAuth.eye('rlLoginPass',this)"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          </div>
+        </div>
+        <div class="forgot"><a onclick="RLAuth.mode('forgot')">ลืมรหัสผ่าน?</a></div>
+        <button class="submit" type="button" onclick="RLAuth.login()">เข้าสู่ระบบ</button>
+      </div>
+
+      <!-- REGISTER -->
+      <div class="only-register">
+        <div class="auth-err" id="rlRegErr"></div>
+        <div class="field"><label>ชื่อผู้ใช้</label><input type="text" id="rlRegUser" placeholder="ชื่อผู้ใช้" oninput="RLAuth.pwcheck()"><div class="hint">ใช้ได้เฉพาะ a–z, 0–9 และ _ โดยไม่เว้นวรรค</div></div>
+        <div class="field"><label>อีเมล</label><input type="email" id="rlRegEmail" placeholder="อีเมล"></div>
+        <div class="field pw"><label>รหัสผ่าน</label>
+          <div class="inp-wrap">
+            <input type="password" id="rlRegPass" placeholder="รหัสผ่าน" oninput="RLAuth.pwcheck()">
+            <button class="eye" type="button" onclick="RLAuth.eye('rlRegPass',this)"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          </div>
+          <div class="pw-check">
+            <div class="pw-item" data-rule="len"><span class="ci"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>มีอักขระอย่างน้อย 8 ตัวขึ้นไป</div>
+            <div class="pw-item" data-rule="case"><span class="ci"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>มีทั้งตัวพิมพ์เล็ก (a-z) และตัวพิมพ์ใหญ่ (A-Z)</div>
+            <div class="pw-item" data-rule="num"><span class="ci"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>มีตัวเลขอย่างน้อยหนึ่ง (0-9) หรือสัญลักษณ์หนึ่งตัว</div>
+            <div class="pw-item" data-rule="sp"><span class="ci"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>มีอักขระพิเศษ ! @ # $ % ^ &amp; * _ + - = ? อย่างน้อยหนึ่งตัว</div>
+          </div>
+        </div>
+        <label class="terms">
+          <input type="checkbox" id="rlAgree" onchange="RLAuth.pwcheck()">
+          <span class="box"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <span class="txt">ฉันได้อ่านและยอมรับ <a href="#">ข้อตกลงและเงื่อนไขการใช้บริการ</a> และ <a href="#">นโยบายความเป็นส่วนตัว</a> ของบริษัท รีดลีด จำกัด</span>
+        </label>
+        <button class="submit" type="button" id="rlRegSubmit" disabled onclick="RLAuth.register()">สมัครสมาชิก</button>
+      </div>
+
+      <!-- FORGOT -->
+      <div class="only-forgot">
+        <p class="forgot-sub">กรอกอีเมลที่ใช้สมัคร ระบบจะส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ไปให้คุณ</p>
+        <div class="auth-err" id="rlForgotErr"></div>
+        <div class="field"><label>อีเมล</label><input type="email" id="rlForgotEmail" placeholder="อีเมลของคุณ"></div>
+        <button class="submit" type="button" onclick="RLAuth.forgot()">ยืนยัน</button>
+        <div class="auth-ok" id="rlForgotOk">ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมลแล้ว (จำลอง)</div>
+        <div class="forgot-back">จำรหัสผ่านได้แล้ว? <a onclick="RLAuth.mode('login')">กลับไปเข้าสู่ระบบ</a></div>
+      </div>
+
+      <div class="divider">หรือ</div>
+      <div class="soc">
+        <button class="soc-btn soc-google" type="button"><span class="ic"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1a11 11 0 0 0-9.82 6.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/></svg></span>ดำเนินการต่อด้วย Google</button>
+        <button class="soc-btn soc-facebook" type="button"><span class="ic"><svg viewBox="0 0 24 24" fill="#fff"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07c0 6.02 4.39 11.01 10.13 11.93v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.08 24 18.09 24 12.07z"/></svg></span>ดำเนินการต่อด้วย Facebook</button>
+        <button class="soc-btn soc-apple" type="button"><span class="ic"><svg viewBox="0 0 24 24" fill="#fff"><path d="M17.05 12.54c-.02-2.06 1.68-3.05 1.76-3.1-.96-1.4-2.45-1.6-2.98-1.62-1.27-.13-2.48.75-3.12.75-.64 0-1.64-.73-2.7-.71-1.39.02-2.67.81-3.38 2.05-1.44 2.5-.37 6.2 1.03 8.23.69.99 1.5 2.1 2.57 2.06 1.03-.04 1.42-.67 2.67-.67 1.24 0 1.6.67 2.69.65 1.11-.02 1.81-1.01 2.49-2.01.78-1.15 1.11-2.26 1.12-2.32-.02-.01-2.15-.83-2.17-3.28zM15 6.24c.57-.69.95-1.65.85-2.6-.82.03-1.81.54-2.4 1.23-.52.6-.98 1.58-.86 2.51.91.07 1.84-.46 2.41-1.14z"/></svg></span>ดำเนินการต่อด้วย Apple</button>
+      </div>
+
+      <div class="switch">
+        <span class="to-register">ยังไม่มีบัญชีผู้ใช้? <a onclick="RLAuth.mode('register')">สมัครสมาชิก</a></span>
+        <span class="to-login">มีบัญชีผู้ใช้อยู่แล้ว? <a onclick="RLAuth.mode('login')">เข้าสู่ระบบ</a></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="rlReadCore">
+/* ═══ RLREAD — เศษเวลาสะสมข้ามบท แยกสองถัง (บทฟรี / บทที่ซื้อ) ═══
+   ถังฟรี  : บทที่อ่านได้โดยไม่ต้องจ่าย        -> action 'readFree'
+   ถังซื้อ : บทที่จ่ายเหรียญปลดล็อกแล้ว        -> action 'read5min'
+   เศษเวลาแต่ละถังสะสมข้ามบท/ข้ามหน้า/ข้ามวัน รีเซ็ตทุกวันจันทร์พร้อมเพดานรายสัปดาห์
+*/
+window.RLREAD = (function(){
+  var K='rl_read_state';
+  var mem=null, dirty=false;
+
+  function weekKey(){
+    var d=new Date(); var off=(d.getDay()+6)%7;
+    d.setDate(d.getDate()-off); d.setHours(0,0,0,0);
+    return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  }
+  function load(){
+    if(mem) return mem;
+    try{ mem=JSON.parse(localStorage.getItem(K))||{}; }catch(e){ mem={}; }
+    return mem;
+  }
+  function slot(uid){
+    var M=load(), o=M[uid];
+    if(!o || o.week!==weekKey()){ o={week:weekKey(), free:0, paid:0}; M[uid]=o; dirty=true; }
+    if(typeof o.free!=='number') o.free=0;
+    if(typeof o.paid!=='number') o.paid=0;
+    return o;
+  }
+  function flush(){
+    if(!dirty || !mem) return;
+    try{ localStorage.setItem(K, JSON.stringify(mem)); dirty=false; }catch(e){}
+  }
+  setInterval(flush, 5000);
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState!=='visible') flush(); });
+
+  function key(isPaid){ return isPaid?'paid':'free'; }
+
+  /* เดินเข็ม 1 วินาทีในถังที่ระบุ คืนเศษเวลาปัจจุบันของถังนั้น */
+  function tick(uid, isPaid){
+    var o=slot(uid), k=key(isPaid);
+    o[k]=(o[k]||0)+1; dirty=true;
+    return o[k];
+  }
+  /* ครบเป้าแล้วหักเศษออก คืน true ถ้าหักสำเร็จ */
+  function consume(uid, isPaid, goal){
+    var o=slot(uid), k=key(isPaid);
+    if((o[k]||0) >= goal){ o[k]-=goal; dirty=true; flush(); return true; }
+    return false;
+  }
+  function carry(uid, isPaid){ return slot(uid)[key(isPaid)]||0; }
+  /* ชื่อ action ที่ต้องส่งให้ RLXP.grant ตามถัง */
+  function action(isPaid){ return isPaid?'read5min':'readFree'; }
+
+  return {tick:tick, consume:consume, carry:carry, action:action, flush:flush};
+})();
+</script>
+
+<script id="rlAuthJS">
+window.RLAuth = (function(){
+  var K_USERS='rl_users', K_SES='rl_session';
+  /* คู่สีพาสเทล [พื้น, ตัวอักษร] — สุ่มครั้งเดียวตอนสมัคร แล้วติดตัวผู้ใช้ตลอด */
+  var PALETTE=[['#fde2e4','#b2455a'],['#e2ecfd','#3a62b2'],['#e4f7e9','#2d7a4f'],['#fdf3d8','#a3771b'],['#f0e4fd','#6b3ab2'],['#e0f5f5','#1f7a7a'],['#fde9d8','#b25e2a'],['#e8ecf4','#4a5568']];
+
+  function users(){ try{return JSON.parse(localStorage.getItem(K_USERS))||[];}catch(e){return [];} }
+  function saveUsers(a){ localStorage.setItem(K_USERS, JSON.stringify(a)); }
+  function session(){ try{return JSON.parse(localStorage.getItem(K_SES))||null;}catch(e){return null;} }
+  function me(){ var s=session(); if(!s)return null;
+    var u=users().find(function(x){return x&&x.id===s.uid&&typeof x.user==='string';})||null;
+    if(u&&u.status==='banned'){ try{localStorage.removeItem(K_SES);}catch(e){} return null; }  /* บัญชีถูกระงับ — เด้งออกทันที */
+    return u; }
+
+  function el(id){return document.getElementById(id);}
+  function err(id,msg){ var e=el(id); if(!e)return; if(msg){e.textContent=msg;e.classList.add('show');} else e.classList.remove('show'); }
+
+  /* ── modal ── */
+  function storageOK(){ try{localStorage.setItem('__rl_probe','1');localStorage.removeItem('__rl_probe');return true;}catch(e){return false;} }
+  var STORAGE_MSG='เบราว์เซอร์ไม่อนุญาตให้เว็บนี้บันทึกข้อมูลในเครื่อง ระบบสมาชิก (จำลอง) จึงทำงานไม่ได้ มักเกิดจากโหมดไม่ระบุตัวตน/InPrivate, การตั้งค่าบล็อกคุกกี้และข้อมูลไซต์ หรือส่วนขยายด้านความเป็นส่วนตัว ลองเปิดในหน้าต่างปกติหรือเบราว์เซอร์อื่นดูครับ';
+  function open(m){ mode(m||'login'); el('rlAuthModal').classList.add('show');
+    if(!storageOK()){ err('rlLoginErr',STORAGE_MSG); err('rlRegErr',STORAGE_MSG); err('rlForgotErr',STORAGE_MSG); } }
+  function close(){ el('rlAuthModal').classList.remove('show'); }
+  function mode(m){
+    el('rlAuthModal').setAttribute('data-mode',m);
+    if(storageOK()){ err('rlLoginErr');err('rlRegErr');err('rlForgotErr'); }
+    else{ err('rlLoginErr',STORAGE_MSG); err('rlRegErr',STORAGE_MSG); err('rlForgotErr',STORAGE_MSG); }
+    var ok=el('rlForgotOk'); if(ok)ok.classList.remove('show');
+  }
+  function eye(id,btn){var i=el(id);var on=i.type==='password';i.type=on?'text':'password';
+    btn.innerHTML=on?'<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18" stroke-width="1.8"/></svg>':'<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';}
+
+  /* ── validate รหัสผ่าน (เกณฑ์เดียวกับหน้า login เดิม) ── */
+  function pwcheck(){
+    var v=(el('rlRegPass')||{}).value||'';
+    var len=v.length>=8, cse=/[a-z]/.test(v)&&/[A-Z]/.test(v);
+    var sp=/[!@#$%^&*_+\-=?]/.test(v), num=/[0-9]/.test(v)||sp;
+    [['len',len],['case',cse],['num',num],['sp',sp]].forEach(function(r){
+      var e=document.querySelector('#rlAuthModal .pw-item[data-rule="'+r[0]+'"]'); if(e)e.classList.toggle('ok',r[1]);
+    });
+    var pc=document.querySelector('#rlAuthModal .pw-check'); if(pc)pc.classList.toggle('show',v.length>0);
+    var agree=(el('rlAgree')||{}).checked;
+    var btn=el('rlRegSubmit'); if(btn)btn.disabled=!(len&&cse&&num&&sp&&agree);
+  }
+
+  /* ── สมัครสมาชิก ── */
+  function register(){ try{ registerInner(); }catch(e){ err('rlRegErr', storageOK()? 'สมัครไม่สำเร็จ ระบบขัดข้อง กรุณาแคปหน้าจอนี้ส่งให้ผู้พัฒนา (รายละเอียด: '+e.message+')' : 'สมัครไม่สำเร็จ '+STORAGE_MSG); } }
+  function registerInner(){
+    var u=(el('rlRegUser').value||'').trim();
+    var em=(el('rlRegEmail').value||'').trim().toLowerCase();
+    var pw=el('rlRegPass').value||'';
+    if(!/^[A-Za-z0-9_]{3,20}$/.test(u)){ err('rlRegErr','ชื่อผู้ใช้ต้องยาว 3–20 ตัว ใช้ได้เฉพาะ a–z, 0–9 และ _'); return; }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ err('rlRegErr','รูปแบบอีเมลไม่ถูกต้อง'); return; }
+    var all=users();
+    if(all.some(function(x){return x&&typeof x.user==='string'&&x.user.toLowerCase()===u.toLowerCase();})){ err('rlRegErr','ชื่อผู้ใช้นี้ถูกใช้แล้ว'); return; }
+    if(all.some(function(x){return x&&typeof x.email==='string'&&x.email.toLowerCase()===em;})){ err('rlRegErr','อีเมลนี้ถูกใช้สมัครแล้ว'); return; }
+    var color=PALETTE[Math.floor(Math.random()*PALETTE.length)];
+    var rec={ id:'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+      user:u, email:em, pass:pw, /* เว็บจริง: hash ฝั่ง server เท่านั้น */
+      color:color, coins:0, exp:0, level:0, createdAt:new Date().toISOString() };
+    all.push(rec); saveUsers(all);
+    localStorage.setItem(K_SES, JSON.stringify({uid:rec.id, at:Date.now()}));
+    close(); render();
+  }
+
+  /* ── เข้าสู่ระบบ ── */
+  function login(){ try{ loginInner(); }catch(e){ err('rlLoginErr', storageOK()? 'เข้าสู่ระบบไม่สำเร็จ ระบบขัดข้อง กรุณาแคปหน้าจอนี้ส่งให้ผู้พัฒนา (รายละเอียด: '+e.message+')' : 'เข้าสู่ระบบไม่สำเร็จ '+STORAGE_MSG); } }
+  function loginInner(){
+    var q=(el('rlLoginUser').value||'').trim().toLowerCase();
+    var pw=el('rlLoginPass').value||'';
+    var u=users().find(function(x){return x&&(String(x.user||'').toLowerCase()===q||String(x.email||'').toLowerCase()===q);});
+    if(!u||u.pass!==pw){ err('rlLoginErr','ชื่อผู้ใช้/อีเมล หรือรหัสผ่านไม่ถูกต้อง'); return; }
+    if(u.status==='banned'){ err('rlLoginErr','บัญชีนี้ถูกระงับการใช้งาน ติดต่อทีมงานผ่านหน้าแจ้งปัญหา'); return; }
+    localStorage.setItem(K_SES, JSON.stringify({uid:u.id, at:Date.now()}));
+    close(); render();
+  }
+
+  /* ── ลืมรหัสผ่าน (จำลอง) ── */
+  function forgot(){
+    var em=(el('rlForgotEmail').value||'').trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ err('rlForgotErr','รูปแบบอีเมลไม่ถูกต้อง'); return; }
+    err('rlForgotErr'); el('rlForgotOk').classList.add('show');
+  }
+
+  function logout(){ localStorage.removeItem(K_SES); toggleMenu(false); render(); }
+
+  /* ── header: สลับ ปุ่มเข้าสู่ระบบ ↔ avatar ── */
+  function render(){
+    try{document.dispatchEvent(new CustomEvent('rlauth:render'));}catch(e){}
+    var u=me();
+    var btn=document.querySelector('.rl-header .rl-login');
+    var box=el('rlUserBox');
+    if(!btn||!box)return;
+    if(u){
+      btn.classList.add('off'); box.classList.add('on');
+      var ch=((u.user||'?')[0]||'?').toUpperCase();
+      var uc=(u.color&&u.color.length>=2)?u.color:['#e2ecfd','#3a62b2'];   /* บัญชีเก่าไม่มีสี → สีสำรอง */
+      var a=el('rlAvaBtn'); if(a){ a.textContent=ch; a.style.background=uc[0]; a.style.color=uc[1]; }
+      var a2=el('rlMenuAva'); if(a2){ a2.textContent=ch; a2.style.background=uc[0]; a2.style.color=uc[1]; }
+      el('rlMenuName').textContent=u.user;
+      el('rlMenuHandle').textContent='@'+u.user.toLowerCase();
+      el('rlMenuCoins').textContent=(u.coins||0).toFixed(2);
+    }else{
+      btn.classList.remove('off'); box.classList.remove('on'); toggleMenu(false);
+    }
+  }
+  function toggleMenu(force){
+    var m=el('rlUserMenu'); if(!m)return;
+    var show=(typeof force==='boolean')?force:!m.classList.contains('show');
+    m.classList.toggle('show',show);
+  }
+
+  document.addEventListener('click',function(ev){
+    var box=el('rlUserBox');
+    if(box&&!box.contains(ev.target)) toggleMenu(false);
+    if(ev.target===el('rlAuthModal')) close();
+  });
+
+  document.addEventListener('DOMContentLoaded',render);
+
+  return {open:open, close:close, mode:mode, eye:eye, pwcheck:pwcheck,
+          register:register, login:login, forgot:forgot, logout:logout,
+          render:render, toggleMenu:toggleMenu, me:me};
+})();
+</script>
+<!-- ═══════════ /RL AUTH ═══════════ -->
+
+<script id="rlXpCore">
+/* ═══════════ RLXP — แกนระบบ EXP ของ ReadLead ═══════════
+   ทุกหน้าห้ามบวกแต้มเอง ต้องเรียก RLXP.grant() เท่านั้น
+   ตู้ข้อมูล: rl_users (แต้มรวม/เลเวล อยู่ใน record ผู้ใช้), rl_exp_log (สมุดบันทึกทุกรายการ)
+   หมายเหตุเว็บจริง: ทั้งก้อนนี้ต้องย้ายไปรันฝั่ง server — โครงถูกออกแบบให้ยกย้ายได้ทั้งก้อน */
+window.RLXP = (function(){
+  var K_USERS='rl_users', K_LOG='rl_exp_log';
+
+  /* ═══ ป้ายประกาศกติกา — แก้ตัวเลขที่นี่ที่เดียว ═══ */
+  var LEVELS = [
+    {lv:0, name:'นักอ่านขาจร',    need:0},
+    {lv:1, name:'นักอ่านฝึกหัด',  need:200},
+    {lv:2, name:'นักอ่านทั่วไป',  need:1000},
+    {lv:3, name:'นักอ่านตัวจริง', need:6000},
+    {lv:4, name:'ขาประจำ',       need:30000},
+    {lv:5, name:'ติ่งนิยาย',     need:54000},
+    {lv:6, name:'นกฮูก',         need:78000},
+    {lv:7, name:'หนอนหนังสือ',   need:118000},
+    {lv:8, name:'ผู้หยั่งรู้',    need:158000}
+  ];   /* บันไดใหม่ (มติ 28 ก.ค. 2026): ล่างตื้น-กลางลึก-บนก้าวเท่ากัน */
+  var ACTIONS = {
+    read5min:  {label:'อ่าน/ฟังบทที่ซื้อ 5 นาที', exp:2, cap:1500, capMinutes:3750},   /* ถังบทที่ซื้อ: 3,750 นาที/สัปดาห์ = 62.5 ชม. = 8.9 ชม./วัน */
+    readFree:  {label:'อ่าน/ฟังบทฟรี 5 นาที',   exp:2,  cap:240,  capMinutes:600},    /* ถังบทฟรี: 600 นาที/สัปดาห์ = 10 ชม. แยกถังกับบทที่ซื้อ */
+    comment:   {label:'คอมเมนต์',              exp:1,  cap:70,  oncePerChapter:true},  /* บทละครั้งเดียว */
+    review:    {label:'รีวิวคุณภาพ',           exp:0,  cap:0,   pending:true, customExp:true},      /* EXP มาจากขั้นบันไดความลึก (RLRVD) ส่งมากับ opts.exp — cap:0 = ไม่จำกัดรายสัปดาห์ คุมด้วยโควตา 3 เรื่อง/สัปดาห์ */
+    dailyLogin:{label:'เข้าสู่ระบบรายวัน',      exp:2,  cap:21,  oncePerDay:true},
+    streak7:   {label:'โบนัสล็อกอินติดกัน 7 วัน', exp:10, cap:10},
+    freeTicket:{label:'ใช้ตั๋วโหวตฟรี',         exp:1,  cap:42},
+    subscribe: {label:'สมัครอ่านตอน',          rate:{exp:1, per:2},  cap:3000},        /* 1 EXP ต่อทุก 2 เหรียญ = 1.5 EXP ต่อบท (บทละ 3 เหรียญ) */
+    tip:       {label:'สนับสนุนผลงาน',           rate:{exp:1, per:2}, cap:15000}        /* 1 EXP ต่อทุก 2 เหรียญ = จ่าย 2 บาท = 1 EXP */
+  };
+
+  /* ═══ เครื่องมือพื้นฐาน ═══ */
+  function users(){ try{return JSON.parse(localStorage.getItem(K_USERS))||[];}catch(e){return [];} }
+  function saveUsers(a){ localStorage.setItem(K_USERS, JSON.stringify(a)); }
+  function log(){ try{return JSON.parse(localStorage.getItem(K_LOG))||[];}catch(e){return [];} }
+  function saveLog(a){ localStorage.setItem(K_LOG, JSON.stringify(a)); }
+  function uid(){ return 'x'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+  /* สัปดาห์เริ่มวันจันทร์ (ตามกติการีเซ็ตทุกวันจันทร์) — คืนค่าเป็นวันที่ของวันจันทร์นั้น */
+  function weekKey(ts){
+    var d = ts? new Date(ts) : new Date();
+    var day = (d.getDay()+6)%7;                 /* จันทร์=0 ... อาทิตย์=6 */
+    var mon = new Date(d.getFullYear(), d.getMonth(), d.getDate()-day);
+    return mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');
+  }
+  function dayKey(ts){
+    var d = ts? new Date(ts) : new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  /* ═══ เลเวล ═══ */
+  function levelOf(exp){
+    var cur = LEVELS[0];
+    for(var i=0;i<LEVELS.length;i++){ if(exp>=LEVELS[i].need) cur=LEVELS[i]; }
+    return cur;
+  }
+  function progress(exp){
+    var cur = levelOf(exp);
+    var next = LEVELS[cur.lv+1]||null;
+    var pct = next? Math.min(100, Math.round((exp-cur.need)/(next.need-cur.need)*100)) : 100;
+    /* กรณี Lv0→Lv1 (need 0→1) หลอดโชว์ 0% จนกว่าจะได้แต้มแรก */
+    if(cur.lv===0 && next) pct = exp>0?100:0;
+    return {lv:cur.lv, name:cur.name, exp:exp, next:next, pct:pct};
+  }
+
+  /* นับแต้มที่ใช้โควตาไปแล้วในสัปดาห์นี้ของ action หนึ่ง (นับทั้งที่ได้แล้วและที่รอตรวจ) */
+  function usedThisWeek(userId, action, ts){
+    var wk = weekKey(ts);
+    return log().reduce(function(s,e){
+      if(e.uid===userId && e.action===action && e.week===wk && (e.status==='granted'||e.status==='pending')) s+=e.exp;
+      return s;
+    },0);
+  }
+
+  function recompute(u){ u.level = levelOf(u.exp||0).lv; }
+
+  /* ═══ เครื่องคิดเลขกลาง: ให้แต้ม ═══
+     grant(userId, actionKey, opts)
+     opts: {amount:แต้มเงินที่จ่าย(เฉพาะ subscribe/tip), novelId, note, ts(ทดสอบย้อนเวลา)}
+     คืนค่า {ok, exp, status, reason, leveledUp} และจดสมุดทุกกรณีรวมถึงถูกปฏิเสธ */
+  function grant(userId, actionKey, opts){
+    opts = opts||{};
+    var A = ACTIONS[actionKey];
+    var all = users();
+    var u = all.find(function(x){return x&&x.id===userId&&typeof x.user==='string';});
+    var entry = {id:uid(), uid:userId, action:actionKey, exp:0, status:'denied',
+                 ts:opts.ts||Date.now(), week:weekKey(opts.ts), note:opts.note||'', novelId:opts.novelId||null,
+                 chapter:(opts.chapter!=null?String(opts.chapter):null)};
+    function deny(reason){ entry.reason=reason; var L=log(); L.push(entry); saveLog(L); return {ok:false, exp:0, status:'denied', reason:reason}; }
+
+    if(!A) return deny('ไม่รู้จักกิจกรรม: '+actionKey);
+    if(!u) return deny('ไม่พบผู้ใช้');
+
+    /* กิจกรรมที่ยังไม่นิยาม */
+
+    /* คำนวณแต้มดิบ */
+    var raw;
+    if(A.rate){
+      var amt = Number(opts.amount)||0;
+      if(amt<=0) return deny('ไม่ระบุยอดใช้จ่าย');
+      entry.amount = amt;
+      /* คิดจากยอดสะสมทั้งหมดของช่องนี้ — เศษเงินไม่หายข้ามธุรกรรม:
+         จ่าย 9 เหรียญ 10 ครั้ง ได้เท่าจ่าย 90 เหรียญครั้งเดียวเสมอ */
+      var histAmt=0, histDue=0;
+      log().forEach(function(e){
+        if(e.uid===userId && e.action===actionKey && (e.status==='granted'||e.status==='info') && e.amount){
+          histAmt += Number(e.amount)||0;
+          histDue += Number(e.expDue!=null?e.expDue:e.exp)||0;
+        }
+      });
+      raw = Math.floor((histAmt+amt)/A.rate.per)*A.rate.exp - histDue;
+      if(raw<=0){
+        /* ยอดยังไม่ครบก้อนถัดไป — จดสะสมไว้ ไม่ใช่ความผิด */
+        entry.status='info'; entry.expDue=0;
+        entry.note=(entry.note?entry.note+' · ':'')+'จดยอดสะสมไว้ (ครบทุก '+A.rate.per+' เหรียญได้ '+A.rate.exp+' EXP)';
+        var L0=log(); L0.push(entry); saveLog(L0);
+        return {ok:true, exp:0, status:'info'};
+      }
+      entry.expDue = raw;   /* แต้มที่ "ถึงกำหนด" ก่อนโดนเพดานตัด — กันการจ่ายย้อนข้ามสัปดาห์ */
+    }else if(A.customExp){
+      raw = Math.max(0, Number(opts.exp)||0);          /* จำนวน EXP ส่งมาจากผู้เรียก (ขั้นบันไดรีวิว) */
+      if(raw<=0) return deny('ไม่ระบุจำนวน EXP');
+    }else{
+      raw = A.exp;
+    }
+
+    /* กติกาพิเศษ */
+    if(A.oncePerDay){
+      var dk = dayKey(entry.ts);
+      var dup = log().some(function(e){return e.uid===userId&&e.action===actionKey&&dayKey(e.ts)===dk&&e.status!=='denied';});
+      if(dup) return deny('วันนี้รับไปแล้ว');
+    }
+    if(A.oncePerNovel){
+      if(!opts.novelId) return deny('ไม่ระบุเรื่องที่รีวิว');
+      var dup2 = log().some(function(e){return e.uid===userId&&e.action===actionKey&&e.novelId===opts.novelId&&(e.status==='granted'||e.status==='pending');});
+      if(dup2) return deny('เรื่องนี้เคยรีวิวไปแล้ว (เรื่องละครั้งเดียว)');
+    }
+    if(A.oncePerChapter){
+      if(!opts.novelId || entry.chapter==null) return deny('ไม่ระบุเรื่อง/บทของคอมเมนต์');
+      var dup3 = log().some(function(e){return e.uid===userId&&e.action===actionKey&&e.novelId===opts.novelId&&e.chapter===entry.chapter&&(e.status==='granted'||e.status==='pending');});
+      if(dup3) return deny('บทนี้เคยได้ EXP จากคอมเมนต์แล้ว (บทละครั้งเดียว)');
+    }
+
+    /* เพดานรายสัปดาห์ — เหลือเท่าไหร่ให้เท่านั้น (cap:0 = ไม่จำกัด) */
+    var used = usedThisWeek(userId, actionKey, entry.ts);
+    var give = raw;
+    if(A.cap > 0){
+      var room = Math.max(0, A.cap - used);
+      if(room<=0) return deny('ถึงเพดานสัปดาห์นี้แล้ว ('+A.cap+' EXP)');
+      give = Math.min(raw, room);
+    }
+
+    entry.exp = give;
+    entry.capped = give<raw;
+
+    var leveledUp = false;
+    if(A.pending){
+      entry.status='pending';                    /* รีวิว: รอเจ้าหน้าที่อนุมัติก่อน ค่อยได้แต้มจริง */
+    }else{
+      entry.status='granted';
+      var before = levelOf(u.exp||0).lv;
+      u.exp = (u.exp||0)+give;
+      recompute(u);
+      leveledUp = u.level>before;
+      if(leveledUp){
+        var L2=log(); L2.push({id:uid(),uid:userId,action:'_levelup',exp:0,status:'info',ts:entry.ts,week:entry.week,
+          note:'เลื่อนระดับเป็น Lv'+u.level+' '+levelOf(u.exp).name});
+        saveLog(L2);
+      }
+      saveUsers(all);
+    }
+    var L=log(); L.push(entry); saveLog(L);
+
+    /* ═══ โบนัสล็อกอินติดกัน 7 วัน ═══
+       นับตอนเช็คอินรายวันสำเร็จ: เมื่อวานเช็ค = นับต่อ, ขาดวัน = เริ่มนับ 1 ใหม่
+       ครบ 7 วัน → แจก streak7 อัตโนมัติแล้วรีเซ็ตรอบ */
+    var streakInfo = null;
+    if(actionKey==='dailyLogin' && entry.status==='granted'){
+      var dkNow = dayKey(entry.ts);
+      var dkYst = dayKey((opts.ts||Date.now()) - 864e5);
+      var stN = (u.streak && u.streak.last===dkYst) ? (Number(u.streak.n)||0)+1 : 1;
+      var bonusR = null;
+      if(stN>=7){
+        u.streak = {n:0, last:dkNow};       /* ครบรอบ — เริ่มนับใหม่พรุ่งนี้ */
+        saveUsers(all);
+        bonusR = grant(userId, 'streak7', {ts:entry.ts, note:'ล็อกอินติดกันครบ 7 วัน'});
+        if(bonusR && bonusR.ok && typeof window!=='undefined' && window.__tkToast){
+          try{ __tkToast('ล็อกอินติดกันครบ 7 วัน โบนัส +'+bonusR.exp+' EXP'); }catch(e2){}
+        }
+      }else{
+        u.streak = {n:stN, last:dkNow};
+        saveUsers(all);
+      }
+      streakInfo = {n:u.streak.n, justCompleted:stN>=7, bonusExp:(bonusR&&bonusR.exp)||0};
+    }
+    return {ok:true, id:entry.id, exp:give, status:entry.status, capped:entry.capped, leveledUp:leveledUp, streak:streakInfo};
+  }
+
+  /* ═══ งานเจ้าหน้าที่: อนุมัติ / ไม่อนุมัติรีวิว, ริบแต้มย้อนหลัง ═══ */
+  function approve(logId){
+    var L=log(); var e=L.find(function(x){return x.id===logId&&x.status==='pending';});
+    if(!e) return {ok:false, reason:'ไม่พบรายการรอตรวจ'};
+    if(e.action==='review' && window.RLREV && RLREV.syncByLog) RLREV.syncByLog(logId, true);
+    var all=users(); var u=all.find(function(x){return x&&x.id===e.uid;});
+    if(!u) return {ok:false, reason:'ไม่พบผู้ใช้'};
+    e.status='granted'; e.approvedAt=Date.now();
+    var before=levelOf(u.exp||0).lv;
+    u.exp=(u.exp||0)+e.exp; recompute(u);
+    if(u.level>before) L.push({id:uid(),uid:u.id,action:'_levelup',exp:0,status:'info',ts:Date.now(),week:weekKey(),
+      note:'เลื่อนระดับเป็น Lv'+u.level+' '+levelOf(u.exp).name});
+    saveUsers(all); saveLog(L);
+    return {ok:true};
+  }
+  function reject(logId, reason){
+    var L=log(); var e=L.find(function(x){return x.id===logId&&x.status==='pending';});
+    if(!e) return {ok:false, reason:'ไม่พบรายการรอตรวจ'};
+    if(e.action==='review' && window.RLREV && RLREV.syncByLog) RLREV.syncByLog(logId, false);
+    e.status='denied'; e.reason=reason||'ไม่ผ่านเกณฑ์'; e.reviewedAt=Date.now();
+    saveLog(L);
+    return {ok:true};
+  }
+  function revoke(logId, reason){
+    var L=log(); var e=L.find(function(x){return x.id===logId&&x.status==='granted';});
+    if(!e) return {ok:false, reason:'ไม่พบรายการที่ริบได้'};
+    if(e.action==='review' && window.RLREV && RLREV.revokeByLog) RLREV.revokeByLog(logId, e.exp);
+    var all=users(); var u=all.find(function(x){return x&&x.id===e.uid;});
+    if(!u) return {ok:false, reason:'ไม่พบผู้ใช้'};
+    e.status='revoked'; e.reason=reason||'ตรวจพบภายหลังว่าผิดกติกา'; e.revokedAt=Date.now();
+    u.exp=Math.max(0,(u.exp||0)-e.exp); recompute(u);
+    saveUsers(all); saveLog(L);
+    return {ok:true};
+  }
+
+  /* ═══ รายงานสำหรับหน้าส่องระบบ ═══ */
+  function userLog(userId){ return log().filter(function(e){return e.uid===userId;}).sort(function(a,b){return b.ts-a.ts;}); }
+  function capMeters(userId){
+    return Object.keys(ACTIONS).map(function(k){
+      return {action:k, label:ACTIONS[k].label, used:usedThisWeek(userId,k), cap:ACTIONS[k].cap};
+    });
+  }
+  function summary(){
+    var dk=dayKey(), L=log(), U=users();
+    var today=L.filter(function(e){return dayKey(e.ts)===dk;});
+    return {
+      totalUsers: U.length,
+      expToday: today.reduce(function(s,e){return s+(e.status==='granted'?e.exp:0);},0),
+      levelupsToday: today.filter(function(e){return e.action==='_levelup';}).length,
+      pendingReviews: L.filter(function(e){return e.status==='pending';}).length
+    };
+  }
+  /* ชั้นสัญญาณเตือน — กฎจับความผิดปกติ + ตรวจทานบัญชี (ชุดเดียวกันนี้คือสเปกให้ backend จริง)
+     sev: 'crit' = แดง ควรจัดการ | 'warn' = เหลือง น่าเหลือบมอง */
+  var FREE_KEYS=['read5min','readFree','comment','review','dailyLogin','streak7','freeTicket'];
+  var FREE_WEEK_MAX = FREE_KEYS.reduce(function(s,k){return s+ACTIONS[k].cap;},0);   /* เพดานสายฟรีรวม/สัปดาห์ = 531 */
+  function breakdownOf(entries){
+    var by={};
+    entries.forEach(function(e){ by[e.action]=(by[e.action]||0)+e.exp; });
+    return Object.keys(by).sort(function(a,b){return by[b]-by[a];})
+      .map(function(k){return (ACTIONS[k]?ACTIONS[k].label:k)+' '+by[k].toLocaleString();}).join(' · ');
+  }
+  function alerts(){
+    var out=[], L=log(), U=users(), now=Date.now();
+    U.forEach(function(u){
+      if(!u||!u.id||typeof u.user!=='string')return;   /* ข้ามข้อมูลเก่ารูปแปลก */
+      var mine=L.filter(function(e){return e.uid===u.id&&e.status==='granted';});
+
+      /* กฎ 0 (ระบบผิดพลาด/ถูกแก้ตรง): ยอดบนบัญชีต้องเท่ากับผลบวกในสมุดเสมอ */
+      var ledger=mine.reduce(function(s,e){return s+e.exp;},0);
+      if((u.exp||0)!==ledger)
+        out.push({uid:u.id,user:u.user,sev:'crit',rule:'บัญชีไม่ลงตัว ระบบผิดพลาด หรือถูกแก้ตัวเลขตรงๆ',
+          detail:'ยอดบนบัญชี '+(u.exp||0).toLocaleString()+' EXP แต่ผลบวกจากสมุดได้ '+ledger.toLocaleString()+' EXP (ต่างกัน '+Math.abs((u.exp||0)-ledger).toLocaleString()+')',
+          breakdown:'ทุกแต้มที่ถูกกติกาต้องมีบันทึกในสมุดเสมอ ยอดที่ไม่มีที่มาคือธงแดงที่สุดของระบบ'});
+
+      /* กฎ 1: แต้มพุ่งใน 24 ชม. — แดงถ้าสายฟรีเกินเพดานที่เป็นไปได้ */
+      var last24=mine.filter(function(e){return now-e.ts<864e5;});
+      var sum24=last24.reduce(function(s,e){return s+e.exp;},0);
+      if(sum24>1000){
+        var freeSum=last24.filter(function(e){return FREE_KEYS.indexOf(e.action)>=0;}).reduce(function(s,e){return s+e.exp;},0);
+        var impossible = freeSum>FREE_WEEK_MAX;
+        out.push({uid:u.id,user:u.user,sev:impossible?'crit':'warn',
+          rule: impossible?'แต้มสายฟรีทะลุเพดานที่เป็นไปได้':'แต้มพุ่งเร็วผิดปกติ',
+          detail:'ได้ '+sum24.toLocaleString()+' EXP ใน 24 ชม. เทียบเกณฑ์: สายฟรีทั้งสัปดาห์ทำได้สูงสุด '+FREE_WEEK_MAX+' EXP'+(impossible?' แต่คนนี้ได้จากสายฟรี '+freeSum.toLocaleString()+' = มีรูรั่วหรือโกงแน่นอน':' ก้อนนี้มาจากการใช้จ่ายเป็นหลัก อาจเป็นลูกค้ารายใหญ่ ไม่ใช่คนโกงเสมอไป'),
+          breakdown:'ที่มาของแต้ม: '+breakdownOf(last24)});
+      }
+
+      /* กฎ 2: ชนเพดานหลายหมวดพร้อมกัน — พฤติกรรมกดครบทุกช่องแบบบอท */
+      var maxed=capMeters(u.id).filter(function(m){return m.cap>0&&m.used>=m.cap;});
+      if(maxed.length>=3)
+        out.push({uid:u.id,user:u.user,sev:'warn',rule:'พฤติกรรมคล้ายบอท',
+          detail:'ชนเพดานพร้อมกัน '+maxed.length+' หมวดในสัปดาห์นี้ คนทั่วไปแทบไม่กดครบทุกช่องแบบนี้',
+          breakdown:'หมวดที่ชน: '+maxed.map(function(m){return m.label;}).join(' · ')});
+
+      /* กฎ 3: บัญชีเกิดใหม่แต้มไต่เร็วผิดรุ่น */
+      var age=now-new Date(u.createdAt||now).getTime();
+      if(age<7*864e5 && (u.exp||0)>500){
+        var freeAll=mine.filter(function(e){return FREE_KEYS.indexOf(e.action)>=0;}).reduce(function(s,e){return s+e.exp;},0);
+        out.push({uid:u.id,user:u.user,sev:freeAll>FREE_WEEK_MAX?'crit':'warn',rule:'บัญชีใหม่แต้มพุ่ง',
+          detail:'อายุบัญชี '+Math.max(1,Math.ceil(age/864e5))+' วัน มี '+(u.exp||0).toLocaleString()+' EXP เทียบเกณฑ์: สัปดาห์แรกสายฟรีล้วนไม่ควรเกิน '+FREE_WEEK_MAX,
+          breakdown:'ที่มาของแต้ม: '+breakdownOf(mine)});
+      }
+    });
+    out.sort(function(a,b){return (a.sev==='crit'?0:1)-(b.sev==='crit'?0:1);});
+    return out;
+  }
+
+  return {LEVELS:LEVELS, ACTIONS:ACTIONS,
+          grant:grant, approve:approve, reject:reject, revoke:revoke,
+          levelOf:levelOf, progress:progress, usedThisWeek:usedThisWeek,
+          userLog:userLog, capMeters:capMeters, summary:summary, alerts:alerts,
+          weekKey:weekKey, dayKey:dayKey};
+})();
+
+</script>
+<!-- ═══════════ RL READER HOOK กิจกรรมจริงในหน้าอ่าน ═══════════
+     1) จับเวลาอ่าน: ครบ 5 นาที (เฉพาะตอนแท็บเปิดอยู่จริง) = +2 EXP ผ่าน RLXP.grant
+     2) คอมเมนต์: ดักที่ประตู buildComposer จุดเดียว ครอบทุกกล่อง (หลัก/ตอบกลับ) ติ๊ก "รายงาน" ไม่นับ
+     3) ชื่อผู้คอมเมนต์ = ชื่อบัญชีจริงเมื่อล็อกอิน
+     โหมดทดสอบ: เปิดไฟล์ด้วย ?xpfast ต่อท้าย ให้ 1 รอบเวลาอ่าน = 15 วินาที -->
+<style id="rlReaderCSS">
+#rlToast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(16px);z-index:99999;background:#2b2d3a;color:#fff;font-family:'Noto Sans Thai',sans-serif;font-size:13px;font-weight:600;border-radius:11px;padding:10px 18px;opacity:0;pointer-events:none;transition:.22s;max-width:82vw;text-align:center}
+#rlToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#rlToast.bad{background:#b3261e}
+#rlToast.up{background:#1f9d62}
+#rlReadMeter{position:fixed;left:16px;bottom:16px;z-index:99970;display:none;align-items:center;gap:9px;background:#fff;border:1px solid #e3e5ea;border-radius:999px;box-shadow:0 1px 2px rgba(0,0,0,.035),0 12px 30px -12px rgba(20,20,40,.2);padding:7px 14px 7px 10px;font-family:'Noto Sans Thai',sans-serif;font-size:11.5px;font-weight:600;color:#6b7080}
+#rlReadMeter.on{display:flex}
+#rlReadMeter svg{width:15px;height:15px;stroke:#cc4452;fill:none;stroke-width:2;stroke-linecap:round}
+#rlReadMeter b{color:#2b2d3a;font-variant-numeric:tabular-nums}
+/* ช่องพิมพ์คอมเมนต์ (กล่องหลัก + กล่องตอบกลับ) ใช้ Sarabun ตามฟอนต์เนื้อหา */
+.rb-input{font-family:'Sarabun',sans-serif !important}
+</style>
+<div id="rlToast"></div>
+<div id="rlReadMeter"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="rlReadLive">เวลาอ่านรอบนี้ <b id="rlReadSec">0:00</b> / <span id="rlReadGoal">5:00</span></span><span id="rlReadIdle" style="display:none;color:#a8adba">พักอยู่ ขยับหน้าจอเพื่อนับต่อ (<b id="rlReadSec2" style="color:#a8adba">0:00</b>)</span></div>
+
+<script id="rlReaderJS">
+(function(){
+  /* ── ตัวนำทางอัตโนมัติ: เปิดไฟล์ตรงๆ (ไม่มี ?id=) → พาไปนิยายจริงในตู้ ถ้าตู้ว่างปล่อยหน้าโล่ง (ไม่มีเนื้อหา) ── */
+  try{
+    var _q=new URLSearchParams(location.search);
+    if(!_q.get('id')){
+      function hasPub(nv){ return !!nv && ((nv.chapters||[]).some(function(c){return c&&c.status==='published';})); }
+      var target=null;
+      try{ var _cur=JSON.parse(localStorage.getItem('rl_novel_current')||'null'); if(hasPub(_cur)&&_cur.id)target=_cur.id; }catch(e){}
+      if(!target){ try{ var _m=JSON.parse(localStorage.getItem('rl_novels')||'[]');
+        var _list=Array.isArray(_m)?_m:Object.keys(_m).map(function(k){return _m[k];});
+        if(!Array.isArray(_m)&&_list.length) localStorage.setItem('rl_novels', JSON.stringify(_list));   /* พบโครงเก่า → แปลงเป็น array ถาวร */
+        for(var _i=0;_i<_list.length;_i++){ if(hasPub(_list[_i])&&_list[_i].id){ target=_list[_i].id; break; } } }catch(e){} }
+      if(target){ _q.set('id',target); if(!_q.get('ch'))_q.set('ch','1'); location.replace(location.pathname+'?'+_q.toString()); }
+    }
+  }catch(e){}
+
+  var toastTimer=null;
+  function toast(msg,kind){
+    var t=document.getElementById('rlToast');
+    t.textContent=msg; t.className=kind||'';
+    void t.offsetWidth; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer=setTimeout(function(){t.classList.remove('show');},600);
+  }
+  function grantToast(key,opts){
+    var u=RLAuth.me(); if(!u)return null;
+    var r=RLXP.grant(u.id,key,opts||{});
+    var label=RLXP.ACTIONS[key]?RLXP.ACTIONS[key].label:key;
+    if(!r.ok){ if(r.reason.indexOf('เพดาน')>=0) toast('✗ '+label+' '+r.reason,'bad'); }
+    else if(r.leveledUp){ var p=RLXP.progress(RLAuth.me().exp); toast('🎉 เลื่อนระดับ! Lv'+p.lv+' '+p.name,'up'); }
+    else toast('+'+r.exp+' EXP '+label+(r.capped?' (โดนตัดตามเพดาน)':''));
+    return r;
+  }
+
+  /* ── ชื่อผู้คอมเมนต์ = บัญชีจริง ── */
+  function syncMe(){
+    var u=RLAuth.me();
+    if(u && typeof window.ME!=='undefined') window.ME=u.user;
+  }
+
+  /* ── คอมเมนต์: ดักที่ประตูเดียว ── */
+  var warnedLogin=false;
+  function creditComment(text){
+    var u=RLAuth.me();
+    if(!u){ if(!warnedLogin){ toast('เข้าสู่ระบบเพื่อสะสม EXP จากการคอมเมนต์'); warnedLogin=true; } return; }
+    if((text||'').length<10){ toast('คอมเมนต์สั้นกว่า 10 ตัวอักษร ไม่ได้รับ EXP'); return; }
+    grantToast('comment',{note:'คอมเมนต์ในหน้าอ่าน', novelId:NOVEL_ID, chapter:CHAPTER});
+  }
+  if(typeof window.buildComposer==='function'){
+    var _bc=window.buildComposer;
+    window.buildComposer=function(ph,onSend,opts){
+      return _bc(ph,function(t,report){ onSend(t,report); if(!report)creditComment(t); },opts);
+    };
+  }
+  if(typeof window.postComment==='function'){
+    var _pcm=window.postComment;
+    window.postComment=function(){
+      var el=document.getElementById('cpInput');
+      var v=el?(el.value||'').trim():'';
+      var before=el?el.value:'';
+      _pcm.apply(this,arguments);
+      if(v && el && el.value!==before) creditComment(v);   /* ส่งสำเร็จจริง (ช่องถูกล้าง) ค่อยให้แต้ม */
+    };
+  }
+
+  /* ── จับเวลาอ่าน: เข็มเดินเฉพาะเมื่อ (1) แท็บเปิดอยู่จริง และ (2) มีชีพจรคนอ่านใน 60 วิล่าสุด ── */
+  var GOAL = /[?&]xpfast/.test(location.search) ? 15 : 300;   /* โหมดทดสอบ 15 วิ / จริง 5 นาที */
+  var IDLE_LIMIT = 15*1000;                                    /* ไม่เลื่อนเกิน 15 วิ = ถือว่าพัก (คนอ่านจริงเลื่อนตามระดับสายตาทุกไม่กี่วินาที) */
+  var sec=0;
+  window.__rlAct = Date.now();                                 /* เวลาที่ 'เลื่อนหน้า' ล่าสุด (ไม่นับการขยับเมาส์เฉยๆ) */
+  /* บทนี้อยู่ถังไหน: บทฟรี = ยังไม่ติดเหรียญ | บทที่ซื้อ = ติดเหรียญและปลดล็อกแล้ว */
+  function isPaidCh(){ try{ return !!(window.RLPW && RLPW.isPaidChapter && RLPW.isPaidChapter()); }catch(e){ return false; } }
+  /* นับเฉพาะสัญญาณที่แปลว่ากำลังไล่อ่านจริง — ตัด mousemove/pointerdown ออก เพราะกระดิกเมาส์เฉยๆ ไม่ใช่การอ่าน
+     การเลื่อนกลับขึ้นไปอ่านซ้ำก็นับ (ไม่แยกทิศทาง) และปุ่มลูกศร/PageDown ก็คือการเลื่อนเหมือนกัน */
+  ['scroll','wheel','touchmove','keydown'].forEach(function(ev){
+    window.addEventListener(ev, function(){ window.__rlAct = Date.now(); }, {passive:true});
+  });
+  function fmt(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+  document.getElementById('rlReadGoal').textContent=fmt(GOAL);
+  try{ var _u0=RLAuth.me(); if(_u0){ sec=RLREAD.carry(_u0.id, isPaidCh()); document.getElementById('rlReadSec').textContent=fmt(sec); } }catch(e){}
+  setInterval(function(){
+    var u=RLAuth.me();
+    var m=document.getElementById('rlReadMeter');
+    m.classList.toggle('on', !!u);
+    if(!u) return;
+    var idle = (Date.now()-window.__rlAct) > IDLE_LIMIT;
+    document.getElementById('rlReadLive').style.display = idle?'none':'';
+    document.getElementById('rlReadIdle').style.display = idle?'':'none';
+    if(idle){ document.getElementById('rlReadSec2').textContent=fmt(sec); return; }   /* นั่งเฉย = เข็มหยุด เศษเวลาไม่หาย */
+    if(document.visibilityState!=='visible') return;           /* สลับแท็บหนี = เวลาหยุดเดิน */
+    var paid=isPaidCh();
+    sec=RLREAD.tick(u.id, paid);                               /* เศษเวลาสะสมข้ามบท แยกถังฟรี/ซื้อ */
+    /* จดเวลาอ่านต่อเรื่อง (สำหรับสิทธิ์โหวต) — สะสมครบ 15 วิค่อยบันทึกทีเดียว */
+    window.__tkBuf=(window.__tkBuf||0)+1;
+    if(window.__tkBuf>=15 && window.RLTK){ try{RLTK.trackReading(u.id, NOVEL_ID, window.__tkBuf, CHAPTER);}catch(e){} window.__tkBuf=0; }
+    document.getElementById('rlReadSec').textContent=fmt(sec);
+    if(sec>=GOAL && RLREAD.consume(u.id, paid, GOAL)){
+      sec=0; document.getElementById('rlReadSec').textContent=fmt(0);
+      grantToast(RLREAD.action(paid),{note:(paid?'อ่านบทที่ซื้อครบ 5 นาที':'อ่านบทฟรีครบ 5 นาที')+(GOAL===15?' (โหมดทดสอบเร่งเวลา)':'')});
+    }
+  },1000);
+
+  /* ── เข้าเว็บวันใหม่ = ล็อกอินรายวันอัตโนมัติ ── */
+  document.addEventListener('DOMContentLoaded',function(){
+    setTimeout(function(){
+      syncMe();
+      var u=RLAuth.me();
+      if(u){ var r=RLXP.grant(u.id,'dailyLogin',{note:'เข้าเว็บอัตโนมัติ (หน้าอ่าน)'}); if(r.ok)toast('+'+r.exp+' EXP เข้าสู่ระบบรายวัน'); }
+      if(u && window.RLTK){ try{RLTK.trackReading(u.id, NOVEL_ID, 0, CHAPTER);}catch(e){} }   /* จดว่าเปิดอ่านบทนี้ */
+    },400);
+  });
+  document.addEventListener('rlauth:render',syncMe);
+})();
+</script>
+<!-- ═══════════ /RL READER HOOK ═══════════ -->
+
+<script id="rlTicketCore">
+/* ═══════════════════════════════════════════════════════════════
+   RLTK แกนตั๋วโหวต ReadLead (ตั๋วโหวตฟรี + ตั๋วโหวตเดือน + แต้มแฟน)
+   กติกาฉบับเคาะ 2 ก.ค. 2026 ทุกตัวเลขคือ "ปุ่มหมุน" ใน CONFIG
+   ตู้ที่ใช้: rl_ticket_log (สมุดตั๋ว) · rl_fan_pts (แต้มแฟน)
+             rl_votes (คะแนนต่อเรื่อง) · rl_read_stats (สถิติอ่านต่อเรื่อง)
+   ต้องโหลดหลัง rl_auth_block และ rl_xp_core เสมอ
+   ═══════════════════════════════════════════════════════════════ */
+window.RLTK = (function(){
+  'use strict';
+
+  /* ───────── ปุ่มหมุนทั้งหมด ───────── */
+  var CONFIG = {
+    FREE_PER_DAY:   [3,3,4,5,6,6,6,6,6],   /* ตั๋วโหวตฟรี/วัน ตามเลเวล Lv0..Lv8 */
+    SUB_PER_TICKET: 15,                     /* สมัครอ่านสะสมครบทุกกี่เหรียญ = ตั๋วเดือน 1 ใบ (บทละ 3 เหรียญ = อ่าน 5 บท/ใบ) */
+    TIP_PER_TICKET: 300,                    /* ทิปสะสมครบทุกกี่เหรียญ = ตั๋วเดือน 1 ใบ (ไม่จำกัด ไม่ติดเพดานเลเวล) */
+    MONTH_FREE:     [0,0,1,1,2,3,4,5,5],    /* ตั๋วเดือนฟรีต้นเดือนตามเลเวล Lv0..Lv8 (แทนขวัญถุงเดิม เริ่มแจก Lv2) */
+    MONTH_CAP:      [0,1,5,20,50,100,150,200,200], /* เพดานตั๋วเดือนจากสมัครอ่าน ตามเลเวล Lv0..Lv8 */
+    NEW_ACC_DAYS:   7,                      /* บัญชีอายุต่ำกว่ากี่วัน = บัญชีใหม่ */
+    NEW_ACC_FREE_PER_NOVEL_PER_DAY: 1       /* บัญชีใหม่ใช้ตั๋วฟรีกับเรื่องเดิมได้วันละกี่ใบ */
+  };
+
+  var K_LOG='rl_ticket_log', K_FAN='rl_fan_pts', K_VOTES='rl_votes', K_READ='rl_read_stats';
+
+  /* ───────── เครื่องมือพื้นฐาน ───────── */
+  function _get(k,d){ try{ var v=JSON.parse(localStorage.getItem(k)); return v==null?d:v; }catch(e){ return d; } }
+  function _set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  function log(){ return _get(K_LOG,[]).filter(function(e){return e&&e.uid&&e.type;}); }
+  function _push(entry){ var L=_get(K_LOG,[]); L.push(entry); _set(K_LOG,L); }
+  function _id(){ return 'tk'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+  function dayKey(ts){ var d=new Date(ts==null?Date.now():ts);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function monthKey(ts){ var d=new Date(ts==null?Date.now():ts);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+  function prevMonthKey(ts){ var d=new Date(ts==null?Date.now():ts);
+    return monthKey(new Date(d.getFullYear(), d.getMonth()-1, 15).getTime()); }
+  function users(){ try{ return (JSON.parse(localStorage.getItem('rl_users'))||[]).filter(function(u){return u&&u.id;}); }catch(e){ return []; } }
+  function _saveUsers(U){ _set('rl_users', U); }
+  function userOf(uid){ return users().find(function(u){return u.id===uid;})||null; }
+  function levelOf(u){ try{ return RLXP.progress(u.exp||0).lv; }catch(e){ return u.level||0; } }
+  function accountAgeDays(u){ var t=u.joinedTs || Date.parse(u.createdAt||u.joined||0) || Date.now();
+    return Math.floor((Date.now()-t)/864e5); }
+
+  /* ───────── ตั๋วโหวตฟรี (รายวัน) ───────── */
+  /* แจกอัตโนมัติครั้งแรกของวัน — เรียกจากทุกหน้าเมื่อรู้ว่าใครล็อกอิน */
+  function grantDailyFree(uid, ts){
+    var u=userOf(uid); if(!u) return {ok:false, error:'ไม่พบบัญชี'};
+    var day=dayKey(ts);
+    var given=log().some(function(e){ return e.uid===uid && e.type==='free' && e.reason==='daily' && e.day===day; });
+    if(given) return {ok:true, granted:0, already:true};
+    var n=CONFIG.FREE_PER_DAY[Math.min(levelOf(u), CONFIG.FREE_PER_DAY.length-1)]||0;
+    _push({id:_id(), uid:uid, type:'free', delta:+n, reason:'daily', ts:(ts==null?Date.now():ts), day:day, month:monthKey(ts),
+           note:'ตั๋วโหวตฟรีรายวัน (Lv'+levelOf(u)+' ได้ '+n+' ใบ)'});
+    return {ok:true, granted:n};
+  }
+  /* ตั๋วฟรีคงเหลือของ "วันนี้" (ของเมื่อวานตัดทิ้งโดยธรรมชาติ เพราะนับเฉพาะวันนี้) */
+  function freeBalance(uid, ts){
+    var day=dayKey(ts), bal=0;
+    log().forEach(function(e){ if(e.uid===uid && e.type==='free' && e.day===day) bal+=e.delta; });
+    return Math.max(0, bal);
+  }
+
+  /* ───────── ยอดใช้จ่าย + ตั๋วโหวตเดือน ───────── */
+  function spentThisMonth(uid, kind, ts){ /* kind: 'sub' | 'tip' | null=รวม */
+    var mo=monthKey(ts), sum=0;
+    log().forEach(function(e){
+      if(e.uid===uid && e.type==='spend' && e.month===mo && (!kind || e.kind===kind)) sum+=e.amount||0;
+    });
+    return sum;
+  }
+  function monthTicketsEarned(uid, reason, ts){ /* reason: 'earn-sub'|'earn-tip'|'earn-guarantee'|null=รวม */
+    var mo=monthKey(ts), sum=0;
+    log().forEach(function(e){
+      if(e.uid===uid && e.type==='month' && e.month===mo && e.delta>0 && (!reason || e.reason===reason)) sum+=e.delta;
+    });
+    return sum;
+  }
+  function monthBalance(uid, ts){
+    var mo=monthKey(ts), bal=0;
+    log().forEach(function(e){ if(e.uid===uid && e.type==='month' && e.month===mo) bal+=e.delta; });
+    return Math.max(0, bal);
+  }
+
+  /* ประตูการใช้จ่ายประตูเดียว — "เงินก้อนเดียวได้สามต่อ" ทำงานที่นี่
+     kind: 'sub' (สมัครอ่านตอน) | 'tip' (สนับสนุนผลงาน)
+     คืน {ok, exp, tickets, fanPts, coinsLeft} */
+  function spend(uid, novelId, amount, kind, opts){
+    opts=opts||{};
+    var u=userOf(uid); if(!u) return {ok:false, error:'ไม่พบบัญชี'};
+    amount=Math.floor(+amount||0);
+    if(amount<=0) return {ok:false, error:'จำนวนเหรียญไม่ถูกต้อง'};
+    if(kind!=='sub' && kind!=='tip') return {ok:false, error:'ชนิดการใช้จ่ายไม่ถูกต้อง'};
+    var coins=+u.coins||0;
+    if(coins < amount) return {ok:false, error:'เหรียญไม่พอ (มี '+coins+' ต้องใช้ '+amount+')'};
+    var ts=(opts.ts==null?Date.now():opts.ts);
+
+    /* 1) หักเหรียญ */
+    var U=users(); var me=U.find(function(x){return x.id===uid;});
+    me.coins = coins - amount; _saveUsers(U);
+
+    /* 2) ยอดก่อน-หลัง เพื่อคำนวณตั๋วที่ "ข้ามเกณฑ์" รอบนี้ (เศษสะสมไม่หาย) */
+    var before = spentThisMonth(uid, kind, ts);
+    _push({id:_id(), uid:uid, type:'spend', kind:kind, amount:amount, novelId:novelId||null,
+           ts:ts, day:dayKey(ts), month:monthKey(ts),
+           note:(kind==='sub'?'สมัครอ่านตอน ':'สนับสนุนผลงาน ')+amount+' เหรียญ'+(novelId?' · เรื่อง '+novelId:'')+(opts.msg?' · ข้อความเชียร์: "'+String(opts.msg).slice(0,350)+'"':'')});
+    var after = before + amount;
+
+    /* 3) EXP ผ่านเครื่องคิดเลขกลาง (สูตรเดียว 10 เหรียญ = 1 EXP อยู่ใน RLXP แล้ว) */
+    var expRes=null;
+    try{ expRes = RLXP.grant(uid, kind==='sub'?'subscribe':'tip', {amount:amount, novelId:novelId, ts:ts}); }catch(e){}
+
+    /* 4) ตั๋วโหวตเดือน */
+    var perT = (kind==='sub') ? CONFIG.SUB_PER_TICKET : CONFIG.TIP_PER_TICKET;
+    var newTickets = Math.floor(after/perT) - Math.floor(before/perT);
+    if(newTickets>0 && kind==='sub'){
+      var cap = CONFIG.MONTH_CAP[Math.min(levelOf(me), CONFIG.MONTH_CAP.length-1)]||0;
+      var already = monthTicketsEarned(uid, 'earn-sub', ts);
+      newTickets = Math.max(0, Math.min(newTickets, cap - already));   /* ติดเพดานเลเวล — เงินยังได้ EXP ตามปกติ */
+    }
+    if(newTickets>0){
+      _push({id:_id(), uid:uid, type:'month', delta:+newTickets, reason:(kind==='sub'?'earn-sub':'earn-tip'),
+             ts:ts, day:dayKey(ts), month:monthKey(ts),
+             note:'ได้ตั๋วโหวตเดือน '+newTickets+' ใบ จาก'+(kind==='sub'?'ยอดสมัครอ่าน':'ยอดทิป')+'สะสม '+after+' เหรียญ'});
+    }
+
+    /* 5) แต้มแฟน 1 เหรียญ = 1 แต้ม (ต้องรู้ว่าจ่ายให้เรื่องไหน) */
+    var fanPts=0;
+    if(novelId){
+      var F=_get(K_FAN,{}); F[uid]=F[uid]||{};
+      F[uid][novelId]=(F[uid][novelId]||0)+amount; _set(K_FAN,F);
+      fanPts=amount;
+    }
+    return {ok:true, exp:(expRes&&expRes.exp)||0, tickets:newTickets||0, fanPts:fanPts, coinsLeft:me.coins,
+            monthSpent:after};
+  }
+
+  /* ───────── ตั๋วเดือนฟรีตามเลเวล (ต้นเดือน) ───────── */
+  /* เรียกตอนเข้าเว็บ — เดือนนี้ยังไม่เคยรับ → แจกตาม MONTH_FREE ของเลเวล (แทนขวัญถุงเดิม) */
+  function grantGuarantee(uid, ts){
+    var u=userOf(uid); if(!u) return {ok:false};
+    var mo=monthKey(ts);
+    var got=log().some(function(e){ return e.uid===uid && e.type==='month' && e.reason==='earn-guarantee' && e.month===mo; });
+    if(got) return {ok:true, granted:0, already:true};
+    var lv=levelOf(u);
+    var n=CONFIG.MONTH_FREE[Math.min(lv, CONFIG.MONTH_FREE.length-1)]||0;
+    if(n<=0) return {ok:true, granted:0, level:lv};
+    _push({id:_id(), uid:uid, type:'month', delta:+n, reason:'earn-guarantee',
+           ts:(ts==null?Date.now():ts), day:dayKey(ts), month:mo,
+           note:'ตั๋วเดือนฟรีตามเลเวล Lv'+lv+' จำนวน '+n+' ใบ'});
+    return {ok:true, granted:n};
+  }
+
+  /* ───────── สถิติอ่านต่อเรื่อง (สำหรับประตูสิทธิ์โหวต) ───────── */
+  function readStats(uid, novelId){
+    var R=_get(K_READ,{});
+    return (R[uid]&&R[uid][novelId]) || {secs:0, chapters:{}};
+  }
+  function trackReading(uid, novelId, secs, chapterNum){
+    if(!uid || !novelId) return;
+    var R=_get(K_READ,{}); R[uid]=R[uid]||{};
+    var s=R[uid][novelId]=R[uid][novelId]||{secs:0, chapters:{}};
+    if(secs>0) s.secs=(s.secs||0)+Math.floor(secs);
+    if(chapterNum!=null) s.chapters[String(chapterNum)]=true;
+    s.updated=Date.now();               /* เวลาอ่านล่าสุด — ใช้เรียงประวัติ/ชั้นหนังสือ */
+    _set(K_READ,R);
+  }
+  function fanPts(uid, novelId){
+    var F=_get(K_FAN,{});
+    return (F[uid]&&F[uid][novelId])||0;
+  }
+  /* สิทธิ์โหวต: เปิดอิสระ — โหวตเรื่องไหนก็ได้ ไม่ต้องอ่านก่อน (มติ 28 ก.ค. 2026 ตามแนว Qidian)
+     กันปั่นด้วยกติกาอื่นแทน: ตั๋วฟรีจำกัด/วันตามเลเวล+หมดอายุรายวัน · ตั๋วเดือนต้องจ่ายเงินจึงได้+เพดานเลเวล */
+  function canVote(uid, novelId){ return {ok:true, via:'โหวตอิสระ'}; }
+
+  /* ───────── โหวต ───────── */
+  function votesOf(novelId){
+    var V=_get(K_VOTES,{});
+    return V[novelId] || {free:0, month:0};
+  }
+  function vote(uid, novelId, type, n, opts){
+    opts=opts||{}; n=Math.max(1, Math.floor(+n||1));
+    var u=userOf(uid); if(!u) return {ok:false, error:'กรุณาเข้าสู่ระบบก่อนโหวต'};
+    if(!novelId) return {ok:false, error:'ไม่ระบุเรื่อง'};
+    if(type!=='free' && type!=='month') return {ok:false, error:'ชนิดตั๋วไม่ถูกต้อง'};
+    var ts=(opts.ts==null?Date.now():opts.ts);
+
+    var gate=canVote(uid, novelId);
+    if(!gate.ok) return {ok:false, error:gate.error};
+
+    if(type==='free'){
+      var bal=freeBalance(uid, ts);
+      if(bal < n) return {ok:false, error:'ตั๋วโหวตฟรีวันนี้เหลือ '+bal+' ใบ'};
+      /* กติกาบัญชีใหม่ (จำกัดเรื่องเดิมวันละ 1 ใบ) ถูกถอดออก — มีตั๋วเท่าไหร่โหวตได้เท่านั้น (มติ 28 ก.ค. 2026) */
+    } else {
+      var mbal=monthBalance(uid, ts);
+      if(mbal < n) return {ok:false, error:'ตั๋วโหวตเดือนเหลือ '+mbal+' ใบ'};
+    }
+
+    /* หักตั๋ว + บวกคะแนนเรื่อง */
+    _push({id:_id(), uid:uid, type:type, delta:-n, reason:'vote', novelId:novelId,
+           ts:ts, day:dayKey(ts), month:monthKey(ts),
+           note:'โหวต '+n+' ใบ ('+(type==='free'?'ตั๋วโหวตฟรี':'ตั๋วโหวตเดือน')+') · เรื่อง '+novelId+' · ผ่านเงื่อนไข: '+gate.via});
+    var V=_get(K_VOTES,{}); V[novelId]=V[novelId]||{free:0, month:0};
+    V[novelId][type]+=n; V[novelId].updated=ts; _set(K_VOTES,V);
+
+    /* แต้มแฟนจากโหวต: ตั๋วแนะนำ 1 แต้ม/ใบ · ตั๋วเดือน 15 แต้ม/ใบ = มูลค่าเงินที่สร้างตั๋ว (มติ 28 ก.ค. 2026) */
+    var fanPer=(type==='free')?1:15, fanPts=n*fanPer;
+    try{ var Ff=_get(K_FAN,{}); Ff[uid]=Ff[uid]||{}; Ff[uid][novelId]=(Ff[uid][novelId]||0)+fanPts; _set(K_FAN,Ff); }catch(e){}
+
+    /* ตั๋วฟรี → EXP ผ่านเครื่องคิดเลขกลาง (เพดาน 42/สัปดาห์คุมใน RLXP เอง) */
+    var expGained=0;
+    if(type==='free'){
+      for(var i=0;i<n;i++){
+        try{ var r=RLXP.grant(uid,'freeTicket',{novelId:novelId, ts:ts}); if(r&&r.exp) expGained+=r.exp; }catch(e){}
+      }
+    }
+    return {ok:true, voted:n, type:type, expGained:expGained, fanPts:fanPts, via:gate.via,
+            freeLeft:freeBalance(uid,ts), monthLeft:monthBalance(uid,ts), novelVotes:votesOf(novelId)};
+  }
+
+  /* ───────── ประตูรวมตอนเข้าเว็บ: แจกของรายวัน/รายเดือนในทีเดียว ───────── */
+  /* ───────── การรักษาระดับและการตกชั้น (มติ 28 ก.ค. 2026) ─────────
+     Lv5 ขึ้นไปมีอายุรอบละ 365 วัน หากในรอบสะสม EXP ไม่ถึงเกณฑ์ MAINT ของระดับตัวเอง
+     จะถูกหัก EXP ลงมาที่จุดเริ่มต้นของระดับที่ต่ำกว่า 1 ขั้น (ตกจริง ไต่กลับเองตามปกติ ไม่มีคืนอัตโนมัติ)
+     Lv0-4 ไม่มีการตกชั้น · ตรวจอัตโนมัติตอน checkin (เข้าเว็บ) · หายหลายปีตรวจทีละรอบ */
+  var MAINT={5:6000, 6:10000, 7:12000, 8:13500};
+  var YEAR_MS=365*24*60*60*1000;
+  function maintCheck(uid, ts){
+    ts=(ts==null?Date.now():ts);
+    var U=users(); var u=U.find(function(x){return x.id===uid;}); if(!u) return {events:[]};
+    var events=[], changed=false;
+    if(!u.lvWin){ u.lvWin={start:ts, exp0:(+u.exp||0)}; changed=true; }
+    while(ts - u.lvWin.start >= YEAR_MS){
+      var lv=0; try{ lv=RLXP.progress(u.exp||0).lv; }catch(e){}
+      var earned=(+u.exp||0) - (+u.lvWin.exp0||0);
+      if(lv>=5 && earned < (MAINT[lv]||0)){
+        var newExp=0;
+        try{ newExp=RLXP.LEVELS ? RLXP.LEVELS[lv-1].need : 0; }catch(e){}
+        var oldExp=(+u.exp||0);
+        u.exp=newExp; u.level=lv-1;
+        _push({id:_id(), uid:uid, type:'level', delta:0, reason:'decay',
+               ts:u.lvWin.start+YEAR_MS, day:dayKey(u.lvWin.start+YEAR_MS), month:monthKey(u.lvWin.start+YEAR_MS),
+               note:'ตกชั้นจาก Lv'+lv+' เป็น Lv'+(lv-1)+' (EXP รอบปี '+earned.toLocaleString()+' ไม่ถึงเกณฑ์ '+(MAINT[lv]||0).toLocaleString()+') EXP สะสมปรับจาก '+oldExp.toLocaleString()+' เป็น '+newExp.toLocaleString()});
+        events.push({from:lv, to:lv-1, earned:earned, need:MAINT[lv]||0});
+      }
+      u.lvWin={start:u.lvWin.start+YEAR_MS, exp0:(+u.exp||0)};
+      changed=true;
+    }
+    if(changed) _saveUsers(U);
+    return {events:events};
+  }
+  function checkin(uid, ts){
+    var m=maintCheck(uid, ts);
+    var a=grantDailyFree(uid, ts);
+    var b=grantGuarantee(uid, ts);
+    return {dailyFree:(a&&a.granted)||0, guarantee:(b&&b.granted)||0, decay:(m&&m.events)||[]};
+  }
+
+  /* ───────── สรุปสำหรับ UI ───────── */
+  function summary(uid, ts){
+    var u=userOf(uid); if(!u) return null;
+    var lv=levelOf(u);
+    var cap=CONFIG.MONTH_CAP[Math.min(lv, CONFIG.MONTH_CAP.length-1)]||0;
+    return {
+      level:lv,
+      freeToday: freeBalance(uid, ts),
+      freePerDay: CONFIG.FREE_PER_DAY[Math.min(lv, CONFIG.FREE_PER_DAY.length-1)]||0,
+      monthLeft: monthBalance(uid, ts),
+      subSpent: spentThisMonth(uid,'sub',ts),
+      tipSpent: spentThisMonth(uid,'tip',ts),
+      subTickets: monthTicketsEarned(uid,'earn-sub',ts),
+      subCap: cap,
+      nextSubTicketIn: CONFIG.SUB_PER_TICKET - (spentThisMonth(uid,'sub',ts) % CONFIG.SUB_PER_TICKET),
+      nextTipTicketIn: CONFIG.TIP_PER_TICKET - (spentThisMonth(uid,'tip',ts) % CONFIG.TIP_PER_TICKET),
+      newAccount: accountAgeDays(u) < CONFIG.NEW_ACC_DAYS
+    };
+  }
+  function userLog(uid){
+    return log().filter(function(e){return e.uid===uid;}).sort(function(a,b){return b.ts-a.ts;});
+  }
+
+  return {CONFIG:CONFIG,
+          checkin:checkin, maintCheck:maintCheck, MAINT:MAINT, grantDailyFree:grantDailyFree, grantGuarantee:grantGuarantee,
+          spend:spend, vote:vote, canVote:canVote,
+          freeBalance:freeBalance, monthBalance:monthBalance, votesOf:votesOf,
+          fanPts:fanPts, trackReading:trackReading, readStats:readStats,
+          spentThisMonth:spentThisMonth, summary:summary, userLog:userLog, log:log,
+          dayKey:dayKey, monthKey:monthKey};
+})();
+
+</script>
+<script id="rlTkBoot">
+/* ═══ RLTK BOOT — รับของรายวัน/รายเดือนอัตโนมัติตอนเข้าเว็บ ═══ */
+(function(){
+  function tkToast(msg){
+    var t=document.createElement('div');
+    t.style.cssText='position:fixed;left:50%;bottom:86px;transform:translateX(-50%);z-index:99995;background:#2b2d3a;color:#fff;font-family:\'Noto Sans Thai\',sans-serif;font-size:12.5px;font-weight:700;padding:9px 16px;border-radius:999px;box-shadow:0 8px 24px -8px rgba(20,20,40,.4);opacity:0;transition:.25s';
+    t.textContent=msg; document.body.appendChild(t);
+    setTimeout(function(){t.style.opacity='1';},30);
+    setTimeout(function(){t.style.opacity='0'; setTimeout(function(){t.remove();},300);},750);
+  }
+  window.__tkToast = tkToast;
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){
+      try{
+        var u = window.RLAuth && RLAuth.me && RLAuth.me(); if(!u) return;
+        var r = RLTK.checkin(u.id);
+        var msg=[];
+        if(r.dailyFree>0) msg.push('รับตั๋วโหวตฟรีวันนี้ '+r.dailyFree+' ใบ');
+        if(r.guarantee>0) msg.push('รับตั๋วโหวตเดือนฟรีตามเลเวล '+r.guarantee+' ใบ');
+        if(msg.length) tkToast(''+msg.join(' · '));
+      }catch(e){}
+    }, 150);
+  });
+})();
+</script>
+<script id="rlNovelCore">
+/* ═══════════════════════════════════════════════════════════════
+   RLNV ตู้ทะเบียนเรื่องกลาง ReadLead + ตัวนับยอดวิว
+   ตู้ที่ใช้: rl_novels (ทะเบียนเรื่อง) · rl_views (ยอดวิว)
+   หน้าที่: เป็นแหล่งข้อมูลเรื่องแหล่งเดียวให้ กระดานอันดับ / ค้นหา / browse
+   โหลดหลัง rl_ticket_core (ใช้ rl_votes ตอนจัดอันดับ)
+   ═══════════════════════════════════════════════════════════════ */
+window.RLNV = (function(){
+  'use strict';
+  var K_NV='rl_novels', K_VW='rl_views';
+
+  function _get(k,d){ try{ var v=JSON.parse(localStorage.getItem(k)); return v==null?d:v; }catch(e){ return d; } }
+  function _set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  function dayKey(ts){ var d=new Date(ts==null?Date.now():ts);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+  /* ───────── ทะเบียนเรื่อง ───────── */
+  function _autoPublish(list){
+    /* ตอนตั้งเวลา: ถึงกำหนดแล้วเผยแพร่อัตโนมัติ (เช็คทุกครั้งที่อ่านทะเบียน) */
+    var changed=false, now=Date.now();
+    list.forEach(function(n){
+      (n.chapters||[]).forEach(function(c){
+        if(c.status==='scheduled' && c.publishAt && c.publishAt<=now){ c.status='published'; changed=true; }
+      });
+    });
+    if(changed) _set(K_NV, list);
+    return list;
+  }
+  function all(){ return _autoPublish(_get(K_NV,[]).filter(function(n){return n&&n.id;})); }
+  function byId(id){ return all().find(function(n){return n.id===id;})||null; }
+  function save(list){ _set(K_NV, list); }
+  function upsert(novel){
+    if(!novel||!novel.id) return false;
+    var L=all(); var i=L.findIndex(function(n){return n.id===novel.id;});
+    if(i>-1) L[i]=Object.assign(L[i],novel); else L.push(novel);
+    save(L); return true;
+  }
+
+  /* ───────── ยอดวิว — นับจริง กันนับซ้ำภายในเซสชันเดียว ───────── */
+  function addView(novelId){
+    if(!novelId) return;
+    try{ if(sessionStorage.getItem('rl_viewed_'+novelId)) return;
+         sessionStorage.setItem('rl_viewed_'+novelId,'1'); }catch(e){}
+    var V=_get(K_VW,{}); var v=V[novelId]=V[novelId]||{total:0, byDay:{}};
+    v.total=(v.total||0)+1;
+    var d=dayKey(); v.byDay[d]=(v.byDay[d]||0)+1;
+    _set(K_VW,V);
+  }
+  function viewsOf(novelId){ var V=_get(K_VW,{}); return (V[novelId]&&V[novelId].total)||0; }
+
+  /* ───────── ค้นหา (ชื่อเรื่อง / ผู้เขียน) ───────── */
+  function search(q, opts){
+    opts=opts||{}; q=(q||'').trim().toLowerCase();
+    return all().filter(function(n){
+      if(opts.type && n.type!==opts.type) return false;
+      if(opts.cat && n.cat!==opts.cat) return false;
+      if(!q) return true;
+      return (n.title||'').toLowerCase().indexOf(q)>-1 || (n.author||'').toLowerCase().indexOf(q)>-1;
+    });
+  }
+
+  /* ───────── จัดอันดับ — รวมคะแนนจริงจาก rl_votes + rl_views ─────────
+     sort: 'free' (โหวตแนะนำ/ตั๋วฟรี) | 'month' (โหวตรายเดือน) | 'views' | 'new' */
+  function ranked(opts){
+    opts=opts||{};
+    var votes={}; try{ votes=JSON.parse(localStorage.getItem('rl_votes'))||{}; }catch(e){}
+    var rows=all().filter(function(n){
+      if(opts.type && n.type!==opts.type) return false;
+      if(opts.cat && opts.cat!=='ทุกหมวด' && n.cat!==opts.cat) return false;
+      if(opts.status && n.status!==opts.status) return false;
+      if(!opts.status && (n.status==='pending'||n.status==='rejected')) return false;   /* รอตรวจ/ไม่ผ่าน ไม่ขึ้นหน้าเว็บ */
+      return true;
+    }).map(function(n){
+      var v=votes[n.id]||{};
+      return {novel:n, free:v.free||0, month:v.month||0, views:viewsOf(n.id), launched:n.launched||0};
+    });
+    var key=opts.sort||'free';
+    rows.sort(function(a,b){
+      if(key==='new') return (b.launched||0)-(a.launched||0);
+      if(key==='views') return b.views-a.views || b.free-a.free;
+      if(key==='month') return b.month-a.month || b.free-a.free;
+      return b.free-a.free || b.month-a.month;   /* ค่าเริ่มต้น: โหวตแนะนำ */
+    });
+    return rows;
+  }
+
+  var CATS=['แฟนตาซี','โรแมนซ์','กำลังภายใน','ตะวันออก','สืบสวน','ไซไฟ','ดราม่า','สยองขวัญ'];
+  return {all:all, byId:byId, upsert:upsert, addView:addView, viewsOf:viewsOf,
+          search:search, ranked:ranked, CATS:CATS, dayKey:dayKey};
+})();
+
+</script>
+<script id="rlViewHook">
+document.addEventListener("DOMContentLoaded",function(){setTimeout(function(){
+  try{ var nid=(typeof NOVEL_ID!=="undefined"?NOVEL_ID:null); if(nid&&window.RLNV) RLNV.addView(nid); }catch(e){}
+},250);});
+</script>
+
+<!-- ═══════════ RLPW กำแพงจ่ายหน้าอ่าน (สมัครอ่านตอน) ═══════════ -->
+<style id="rlPwCSS">
+#rlPwCard{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;margin:0;padding:24px 20px;background:none;border:none;box-shadow:none;font-family:'Noto Sans Thai',sans-serif;text-align:center}
+#bodyText.pw-cut + #rlPwCard{margin-top:24px}
+#bodyText.pw-empty{display:none}
+#bodyText.pw-empty + #rlPwCard{flex:1 1 auto;min-height:62vh;justify-content:flex-start;padding-top:15vh;gap:16px}
+#rlPwCard .pw-lock{font-size:34px;margin-bottom:6px}
+#rlPwCard .pw-t{font-size:16px;font-weight:600;color:#8a8fa0}
+#rlPwCard .pw-sub{font-size:12.5px;color:#8a8fa0;margin-top:4px}
+#rlPwCard .pw-price{display:flex;align-items:baseline;justify-content:center;gap:7px;margin:16px 0 4px}
+#rlPwCard .pw-price b{font-size:30px;font-weight:900;color:#cc4452}
+#rlPwCard .pw-price span{font-size:13px;color:#8a8fa0;font-weight:600}
+#rlPwCard .pw-perks{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;font-size:11px;color:#6b7080;background:#f8f9fb;border-radius:11px;padding:9px 12px;margin:12px 0 16px}
+#rlPwCard .pw-perks b{color:#2b2d3a}
+#rlPwCard .pw-bal{font-size:12px;color:#5b5f6e;margin-bottom:12px}
+#rlPwCard .pw-bal b{color:#2b2d3a}
+#rlPwCard .pw-go{width:100%;max-width:240px;height:46px;border:none;border-radius:12px;background:#cc4452;color:#fff;font-family:inherit;font-size:16px;font-weight:700;letter-spacing:.01em;cursor:pointer;transition:background .15s,transform .08s}
+#rlPwCard .pw-go:hover{background:#b8323f}
+#rlPwCard .pw-go:active{transform:scale(.98)}
+#rlPwCard .pw-go:hover{background:#b23a47}
+#rlPwCard .pw-go:disabled{background:#e6b8bd;cursor:default}
+#rlPwCard .pw-topup{border:none;background:none;color:#cc4452;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;margin-top:9px}
+#bodyText.pw-cut > *:nth-child(n+4){display:none}
+#bodyText.pw-empty > *{display:none}
+#bodyText.pw-cut > *:nth-child(3){-webkit-mask-image:linear-gradient(#000 15%,transparent 95%);mask-image:linear-gradient(#000 15%,transparent 95%)}
+.pw-hide{display:none!important}
+</style>
+<script id="rlPwJS">
+window.RLPW = (function(){
+  'use strict';
+  var Q=new URLSearchParams(location.search);
+  var PRICE = Math.max(1, parseInt(Q.get('price'),10)||15);
+  var FREE_CH = (function(){ var f=parseInt(Q.get('free'),10); return (f>=0)?f:3; })();  /* ตอน 1–free อ่านฟรี (ตามระบบหน้าเรื่อง ส่ง ?free=) */
+  function nid(){ return (typeof NOVEL_ID!=='undefined'&&NOVEL_ID)||Q.get('id')||'demo'; }
+  function ch(){ return parseInt((typeof CHAPTER!=='undefined'&&CHAPTER)||Q.get('ch')||'1',10)||1; }
+  function me(){ return window.RLAuth&&RLAuth.me&&RLAuth.me(); }
+  function myCoins(){ var u=me(); if(!u) return 0;
+    try{ var m=(JSON.parse(localStorage.getItem('rl_users'))||[]).find(function(x){return x.id===u.id;}); return (m&&+m.coins)||0; }catch(e){ return 0; } }
+  function unlocked(){
+    var u=me(); if(!u) return false;
+    try{ var U=JSON.parse(localStorage.getItem('rl_unlocks'))||{};
+      return !!(U[u.id]&&U[u.id][nid()]&&U[u.id][nid()][ch()]); }catch(e){ return false; }
+  }
+  function markUnlocked(){
+    var u=me(); if(!u) return;
+    try{ var U=JSON.parse(localStorage.getItem('rl_unlocks'))||{};
+      (U[u.id]=U[u.id]||{}); (U[u.id][nid()]=U[u.id][nid()]||{}); U[u.id][nid()][ch()]=Date.now();
+      localStorage.setItem('rl_unlocks', JSON.stringify(U)); }catch(e){}
+  }
+  function isLockedCh(){ return ch()>FREE_CH; }
+
+  function cardHTML(){
+    if(!me()){
+      return '<div class="pw-t">กรุณาล็อกอิน</div>'
+        +'<button class="pw-go" onclick="RLPW.buy()">เข้าสู่ระบบ</button>';
+    }
+    return '<div class="pw-t">ซื้อบทนี้</div>'
+      +'<button class="pw-go" onclick="RLPW.buy()">'+PRICE.toLocaleString()+' เหรียญ</button>';
+  }
+  function render(){
+    var body=document.getElementById('bodyText'); if(!body) return;
+    var end=document.querySelector('.ch-end');
+    var card=document.getElementById('rlPwCard');
+    if(!isLockedCh() || unlocked()){
+      body.classList.remove('pw-cut','pw-empty');
+      if(end) end.classList.remove('pw-hide');
+      if(card) card.remove();
+      return;
+    }
+    /* ตอนติดเหรียญ + ยังไม่ปลดล็อก → โชว์หน้าคิดเงินเสมอ (ใช้ราคา/เลขตอนจาก URL)
+       ถ้าเนื้อหายังโหลดไม่ได้ (หรือขึ้น "ไม่มีเนื้อหา") ให้ซ่อน body แล้วโชว์การ์ดอย่างเดียว */
+    var paras = body.querySelectorAll('p');
+    if(paras.length >= 2){ body.classList.remove('pw-empty'); body.classList.add('pw-cut'); }
+    else { body.classList.remove('pw-cut'); body.classList.add('pw-empty'); }
+    if(end) end.classList.add('pw-hide');
+    if(!card){
+      card=document.createElement('div'); card.id='rlPwCard';
+      body.parentNode.insertBefore(card, body.nextSibling);
+    }
+    card.innerHTML=cardHTML();
+  }
+  function buy(){
+    var u=me(); if(!u){ RLAuth.open('login'); return; }
+    var r=RLTK.spend(u.id, nid(), PRICE, 'sub');
+    if(!r.ok){ if(window.__tkToast) __tkToast(''+r.error); render(); return; }
+    markUnlocked(); render();
+    var parts=['สมัครอ่านตอนที่ '+ch()+' สำเร็จ','+'+r.exp+' EXP','แต้มแฟน +'+(r.fanPts||PRICE).toLocaleString()];
+    if(r.tickets>0) parts.push('ตั๋วโหวตเดือน +'+r.tickets+' ใบ');
+    if(window.__tkToast) __tkToast(parts.join(' · '));
+  }
+  function topup(){
+    var u=me(); if(!u) return;
+    try{ var U=JSON.parse(localStorage.getItem('rl_users'))||[];
+      var m=U.find(function(x){return x.id===u.id;}); m.coins=(+m.coins||0)+500;
+      localStorage.setItem('rl_users', JSON.stringify(U)); }catch(e){}
+    render();
+    if(window.__tkToast) __tkToast('เติมเหรียญ +500 (จำลอง)');
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){ render(); setInterval(render, 1500); }, 250);
+  });
+  /* บทนี้เป็นบทที่จ่ายเงินแล้วหรือไม่ (ใช้แยกถังเวลาอ่าน ฟรี/ซื้อ) */
+  function isPaidChapter(){ return isLockedCh() && unlocked(); }
+  return {buy:buy, topup:topup, render:render, PRICE:PRICE, isPaidChapter:isPaidChapter, isLockedCh:isLockedCh, unlocked:unlocked};
+})();
+</script>
+<!-- ═══════════ /RLPW ═══════════ -->
+
+<!-- ═══════════ RLNOTI ระบบแจ้งเตือน (กระดิ่งจริงทั้งเว็บ) ═══════════ -->
+<style id="rlNotiCSS">
+.rl-bell{position:relative;cursor:pointer}
+.rl-bell .rl-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;background:#F23E55;border-radius:50%;border:1.5px solid #fff;display:none}
+.rl-bell .rl-dot.show{display:block}
+#rlNotiPanel{position:absolute;top:calc(100% + 10px);right:-8px;width:330px;background:#fff;border:1px solid #e3e5ea;border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.035),0 12px 28px rgba(0,0,0,.06);z-index:990;display:none;font-family:'Noto Sans Thai',sans-serif;overflow:hidden}
+#rlNotiPanel.open{display:block}
+#rlNotiPanel .nt-h{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid #eef0f4}
+#rlNotiPanel .nt-h b{font-size:14px;color:#2b2d3a}
+#rlNotiPanel .nt-h button{border:none;background:none;color:#cc4452;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;padding:0}
+#rlNotiPanel .nt-list{max-height:360px;overflow-y:auto}
+#rlNotiPanel .nt-item{display:flex;gap:11px;padding:11px 16px;border-bottom:1px solid #f3f4f8;cursor:pointer;transition:.12s;text-align:left}
+#rlNotiPanel .nt-item:hover{background:#fafbfd}
+#rlNotiPanel .nt-item.unread{background:#fff5f6}
+#rlNotiPanel .nt-item .ic{width:34px;height:34px;border-radius:50%;background:#f6f7fa;display:grid;place-items:center;font-size:16px;flex:none}
+#rlNotiPanel .nt-item p{margin:0;font-size:12.5px;color:#3c4050;line-height:1.55}
+#rlNotiPanel .nt-item small{display:block;color:#a0a5b4;font-size:10.5px;margin-top:3px}
+#rlNotiPanel .nt-empty{padding:34px 16px;text-align:center;color:#9aa0af;font-size:12.5px;line-height:1.9}
+#rlNotiPanel .nt-f{padding:10px 16px;text-align:center;border-top:1px solid #eef0f4}
+#rlNotiPanel .nt-f button{border:none;background:none;color:#9aa0af;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;text-decoration:underline}
+#rlNotiPanel .nt-f button:hover{color:#b23a47}
+</style>
+<script id="rlNotiJS">
+window.RLNOTI = (function(){
+  'use strict';
+  var K='rl_notis', CAP=30;
+  var THMON=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  function me(){ return window.RLAuth&&RLAuth.me&&RLAuth.me(); }
+  function _all(){ try{ return JSON.parse(localStorage.getItem(K))||{}; }catch(e){ return {}; } }
+  function _save(v){ try{ localStorage.setItem(K, JSON.stringify(v)); }catch(e){} }
+  function _g(key,d){ try{ return JSON.parse(localStorage.getItem(key))||d; }catch(e){ return d; } }
+  function ago(ts){
+    var m=Math.floor((Date.now()-ts)/60000);
+    if(m<1) return 'เมื่อครู่'; if(m<60) return m+' นาทีที่แล้ว';
+    var h=Math.floor(m/60); if(h<24) return h+' ชม.ที่แล้ว';
+    var d=new Date(ts); return d.getDate()+' '+THMON[d.getMonth()]+' '+String(d.getHours()).padStart(2,'0')+'.'+String(d.getMinutes()).padStart(2,'0')+' น.';
+  }
+  /* แปลงเหตุการณ์จากสมุดจริงสามเล่ม → แจ้งเตือน (กันซ้ำด้วยรหัสต้นทาง) */
+  function sync(uid){
+    if(!uid) return;
+    var S=_all(); var list=S[uid]||[];
+    var seen={}; list.forEach(function(n){ seen[n.id]=true; });
+    var add=[];
+    _g('rl_exp_log',[]).forEach(function(e){
+      if(e.uid!==uid) return;
+      if(e.action==='_levelup'){ var id='xp:'+(e.id||e.ts);
+        if(!seen[id]) add.push({id:id, ts:e.ts, icon:'🎉', text:e.note||'เลื่อนระดับแล้ว!'}); }
+      if(e.action==='streak7'&&e.status==='granted'){ var id2='st:'+(e.id||e.ts);
+        if(!seen[id2]) add.push({id:id2, ts:e.ts, icon:'🔥', text:'ล็อกอินติดกันครบ 7 วัน รับโบนัส +'+e.exp+' EXP'}); }
+    });
+    _g('rl_ticket_log',[]).forEach(function(e){
+      if(e.uid!==uid) return;
+      if(e.type==='free'&&e.reason==='daily'&&e.delta>0){ var id='tf:'+(e.id||e.ts);
+        if(!seen[id]) add.push({id:id, ts:e.ts, icon:'🎟️', text:'รับตั๋วโหวตฟรีวันนี้ +'+e.delta+' ใบแล้ว'}); }
+      if(e.type==='month'&&e.delta>0){ var id2='tm:'+(e.id||e.ts);
+        if(!seen[id2]) add.push({id:id2, ts:e.ts, icon:'👑', text:e.note||('ได้ตั๋วโหวตเดือน +'+e.delta+' ใบ')}); }
+    });
+    _g('rl_coin_log',[]).forEach(function(e){
+      if(e.uid!==uid||e.status!=='ok') return;
+      var id='cl:'+(e.id||e.ts);
+      if(!seen[id]) add.push({id:id, ts:e.ts, icon:'💰', text:'เติม '+(+e.coins).toLocaleString()+' เหรียญสำเร็จ (฿'+(+e.baht).toLocaleString()+')'});
+    });
+    if(add.length){
+      add.forEach(function(n){ n.read=false; });
+      list=list.concat(add).sort(function(a,b){return b.ts-a.ts;}).slice(0,CAP);
+      S[uid]=list; _save(S);
+    }
+    return list;
+  }
+  function list(uid){ return (_all()[uid]||[]).slice().sort(function(a,b){return b.ts-a.ts;}); }
+  function unread(uid){ return list(uid).filter(function(n){return !n.read;}).length; }
+  function markAll(uid){ var S=_all(); (S[uid]||[]).forEach(function(n){n.read=true;}); _save(S); }
+  function clearAll(uid){ var S=_all(); S[uid]=[]; _save(S); }
+
+  /* ── กระดิ่ง + แผง ── */
+  var bell=null, panel=null;
+  function paintDot(){
+    if(!bell) return;
+    var u=me(); var dot=bell.querySelector('.rl-dot');
+    if(dot) dot.classList.toggle('show', !!(u && unread(u.id)>0));
+  }
+  function renderPanel(){
+    if(!panel) return;
+    var u=me();
+    var body=panel.querySelector('.nt-list');
+    if(!u){ body.innerHTML='<div class="nt-empty">เข้าสู่ระบบเพื่อดูการแจ้งเตือน</div>'; return; }
+    var L=list(u.id);
+    body.innerHTML = L.length ? L.slice(0,15).map(function(n){
+      return '<div class="nt-item'+(n.read?'':' unread')+'" data-nid="'+n.id+'">'
+        +'<span class="ic">'+n.icon+'</span><div><p>'+n.text+'</p><small>'+ago(n.ts)+'</small></div></div>';
+    }).join('') : '<div class="nt-empty">ยังไม่มีการแจ้งเตือน<br>รับตั๋ว เลื่อนเลเวล หรือเติมเหรียญแล้วจะมาแจ้งที่นี่</div>';
+  }
+  function toggle(){
+    var u=me();
+    if(u) sync(u.id);
+    renderPanel();
+    panel.classList.toggle('open');
+    if(!panel.classList.contains('open') && u){ markAll(u.id); paintDot(); }
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){
+      bell=document.querySelector('.rl-bell');
+      if(!bell) return;
+      if(!bell.querySelector('.rl-dot')){ var d0=document.createElement('span'); d0.className='rl-dot'; bell.appendChild(d0); }
+      panel=document.createElement('div');
+      panel.id='rlNotiPanel';
+      panel.innerHTML='<div class="nt-h"><b>การแจ้งเตือน</b><button id="ntMark">ทำเป็นอ่านแล้ว</button></div>'
+        +'<div class="nt-list"></div>'
+        +'<div class="nt-f"><button id="ntClear">ล้างการแจ้งเตือนทั้งหมด</button></div>';
+      bell.appendChild(panel);
+      bell.style.cursor='pointer';
+      bell.addEventListener('click', function(e){
+        if(e.target.closest('#rlNotiPanel')) return;
+        e.stopPropagation(); toggle();
+      });
+      panel.querySelector('#ntMark').addEventListener('click', function(e){
+        e.stopPropagation(); var u=me(); if(!u) return; markAll(u.id); renderPanel(); paintDot();
+      });
+      panel.querySelector('#ntClear').addEventListener('click', function(e){
+        e.stopPropagation(); var u=me(); if(!u) return; clearAll(u.id); renderPanel(); paintDot();
+      });
+      document.addEventListener('click', function(e){
+        if(panel.classList.contains('open') && !e.target.closest('.rl-bell')){
+          panel.classList.remove('open');
+          var u=me(); if(u){ markAll(u.id); paintDot(); }
+        }
+      });
+      var u=me(); if(u) sync(u.id);
+      paintDot();
+      setInterval(function(){ var u2=me(); if(u2) sync(u2.id); paintDot(); }, 5000);
+    }, 250);
+  });
+  return {sync:sync, list:list, unread:unread, markAll:markAll, clearAll:clearAll};
+})();
+</script>
+<!-- ═══════════ /RLNOTI ═══════════ -->
+<script id="rlMenuNav">
+(function(){
+  'use strict';
+  var MAP={
+    'กระเป๋าเงิน':'readify_auth_1.html?page=wallet',
+    'หน้านักเขียน':'readify_auth_1.html?page=writerdash',
+    'ประวัติการซื้อ':'readify_auth_1.html?page=wallet',
+    'การตั้งค่า':'readify_auth_1.html?page=account'
+  };
+  function wire(){
+    var menu=document.querySelector('.rl-menu'); if(!menu) return;
+    /* เดินสายรายการเมนู */
+    menu.querySelectorAll('.rl-menu-item').forEach(function(b){
+      var tx=b.textContent.trim();
+      if(MAP[tx] && !b.dataset.rlnav){ b.dataset.rlnav='1'; b.addEventListener('click', function(){ location.href=MAP[tx]; }); }
+    });
+    /* หัวเมนู (รูป+ชื่อ) คลิกเข้าหน้าโปรไฟล์ (readify) ได้เลย */
+    var head=menu.querySelector('.rl-menu-head');
+    if(head && !head.dataset.rlnav){
+      head.dataset.rlnav='1'; head.style.cursor='pointer';
+      head.addEventListener('click', function(){ location.href='readify_auth_1.html'; });
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(wire, 400); setTimeout(wire, 350); });
+})();
+</script>
+<script id="rlLegalLinks">
+(function(){
+  'use strict';
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){
+      /* แถวลิงก์เอกสารใน footer */
+      var fb=document.querySelector('footer .fbot, .foot .fbot');
+      if(fb && !fb.querySelector('.legal-links')){
+        var d=document.createElement('div');
+        d.className='legal-links';
+        d.style.cssText='margin-bottom:7px;font-size:12px';
+        d.innerHTML='<a href="legal_1.html?doc=tos" style="color:inherit;opacity:.85;text-decoration:none;margin:0 9px">ข้อตกลงการใช้งาน</a>·'
+          +'<a href="legal_1.html?doc=privacy" style="color:inherit;opacity:.85;text-decoration:none;margin:0 9px">นโยบายความเป็นส่วนตัว</a>·'
+          +'<a href="legal_1.html?doc=writer" style="color:inherit;opacity:.85;text-decoration:none;margin:0 9px">ข้อตกลงนักเขียน</a>·'
+          +'<a href="readify_auth_1.html?page=report" style="color:inherit;opacity:.85;text-decoration:none;margin:0 9px">แจ้งปัญหา</a>·'
+          +'<a href="about_1.html" style="color:inherit;opacity:.85;text-decoration:none;margin:0 9px">เกี่ยวกับเรา</a>';
+        fb.insertBefore(d, fb.firstChild);
+      }
+      /* ประโยคยอมรับใน popup สมัครสมาชิก */
+      document.querySelectorAll('a').forEach(function(a){
+        var tx=a.textContent.trim();
+        var h=a.getAttribute('href');
+        if((h==='#'||h===''||h==null)){
+          if(tx==='ข้อตกลงและเงื่อนไขการใช้บริการ'){ a.href='legal_1.html?doc=tos'; a.target='_blank'; }
+          if(tx==='นโยบายความเป็นส่วนตัว'){ a.href='legal_1.html?doc=privacy'; a.target='_blank'; }
+        }
+      });
+    }, 350);
+  });
+})();
+</script>
+<script id="rlTopNav">
+/* ═══ เดินสายเมนูหลักบนหัวเว็บ + ไฮไลต์หน้าปัจจุบันให้ถูก (ใช้ร่วมทุกไฟล์) ═══ */
+(function(){
+  'use strict';
+  var MAP={'หน้าหลัก':'home_auth_1.html','กระดานอันดับ':'rank_1.html','นิยาย':'novel_auth_2.html','เว็บตูน':'webtoon_auth_1.html','หนังสือเสียง':'audiobook_auth_1.html'};
+  function wire(){
+      var f=(location.pathname.split('/').pop()||'').toLowerCase();
+      document.querySelectorAll('.rl-nav a').forEach(function(a){
+        var tx=a.textContent.trim(), to=MAP[tx];
+        if(!to) return;
+        var href=a.getAttribute('href');
+        if(!href||href==='#') a.setAttribute('href', to);      /* เดินสายเฉพาะลิงก์ที่ยังว่าง */
+        var here=(tx==='หน้าหลัก'&&f.indexOf('home')===0)
+          ||(tx==='กระดานอันดับ'&&f.indexOf('rank')===0)
+          ||(tx==='นิยาย'&&(f.indexOf('novel')===0||f.indexOf('nd_')===0))
+          ||(tx==='เว็บตูน'&&(f.indexOf('webtoon')===0||f.indexOf('manga')===0))
+          ||(tx==='หนังสือเสียง'&&f.indexOf('audio')===0);
+        a.classList.toggle('on', here);
+      });
+      /* ปุ่มค้นหา (แว่นขยาย) → หน้าค้นหา */
+      document.querySelectorAll('.rl-search').forEach(function(el){
+        if(el.dataset.rlnav) return; el.dataset.rlnav='1';
+        el.style.cursor='pointer';
+        el.addEventListener('click', function(){ location.href='search_1.html'; });
+      });
+  }
+  if(document.readyState!=='loading') wire();
+  else document.addEventListener('DOMContentLoaded', wire);
+  setTimeout(wire, 150);                                       /* เดินซ้ำเผื่อสคริปต์อื่นวาด nav ทับ */
+})();
+</script>
+</body>
+</html>

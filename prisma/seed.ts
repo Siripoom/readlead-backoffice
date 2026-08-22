@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../lib/generated/prisma/client'
 import { hashPassword } from '../lib/password'
+import { CMS_PAGE_LABELS, CMS_PAGE_SECTIONS, CMS_PAGE_SLUGS } from '../lib/cms-config'
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
@@ -197,11 +198,15 @@ async function main() {
 
   // Exp titles
   const expTitles = [
-    { id: 'e1', minExp: 0,     title: 'นักอ่านมือใหม่',         badge: 'Newbie', color: 'gray'   },
-    { id: 'e2', minExp: 500,   title: 'นักอ่านผู้กระตือรือร้น', badge: 'Reader', color: 'green'  },
-    { id: 'e3', minExp: 2000,  title: 'นักอ่านชำนาญ',           badge: 'Expert', color: 'blue'   },
-    { id: 'e4', minExp: 5000,  title: 'ราชานักอ่าน',            badge: 'Master', color: 'purple' },
-    { id: 'e5', minExp: 15000, title: 'ตำนานแห่งการอ่าน',       badge: 'Legend', color: 'orange' },
+    { id: 'exp-lv0', minExp: 0,      title: 'นักอ่านขาจร',    badge: 'Lv0', color: 'teal' },
+    { id: 'exp-lv1', minExp: 200,    title: 'นักอ่านฝึกหัด',  badge: 'Lv1', color: 'teal' },
+    { id: 'exp-lv2', minExp: 1000,   title: 'นักอ่านทั่วไป',  badge: 'Lv2', color: 'teal' },
+    { id: 'exp-lv3', minExp: 6000,   title: 'นักอ่านตัวจริง', badge: 'Lv3', color: 'teal' },
+    { id: 'exp-lv4', minExp: 30000,  title: 'ขาประจำ',       badge: 'Lv4', color: 'teal' },
+    { id: 'exp-lv5', minExp: 54000,  title: 'ติ่งนิยาย',     badge: 'Lv5', color: 'teal' },
+    { id: 'exp-lv6', minExp: 78000,  title: 'นกฮูก',         badge: 'Lv6', color: 'teal' },
+    { id: 'exp-lv7', minExp: 118000, title: 'หนอนหนังสือ',   badge: 'Lv7', color: 'teal' },
+    { id: 'exp-lv8', minExp: 158000, title: 'ผู้หยั่งรู้',    badge: 'Lv8', color: 'teal' },
   ]
   for (const e of expTitles) {
     await prisma.expTitle.upsert({ where: { id: e.id }, update: e, create: e })
@@ -231,23 +236,11 @@ async function main() {
   }
 
   // CMS pages and sections from admin.html
-  const cmsPages = [
-    { slug: 'home', label: 'หน้าหลัก' }, { slug: 'novel', label: 'นิยาย' },
-    { slug: 'manga', label: 'เว็บตูน' }, { slug: 'audio', label: 'หนังสือเสียง' },
-  ]
-  const sectionTemplates = [
-    ['hero', 'แบนเนอร์ใหญ่ (Hero)'], ['activity', 'แบนเนอร์กิจกรรม'], ['sale', 'ลดราคาพิเศษ'],
-    ['act3', 'แบนเนอร์แถว 3 (กิจกรรม) — เหนือจัดอันดับรวม'], ['act4', 'แบนเนอร์แถว 4 (กิจกรรม) — ใต้จัดอันดับรวม'],
-    ['writer-banner', 'แบนเนอร์ “มาเป็นนักเขียนกับเรา”'], ['row-3', 'แบนเนอร์ใต้อันดับรวม'],
-    ['narrator', 'แบนเนอร์เชิญชวนนักพากย์'], ['web-coverflow', 'แนะนำโดยเว็บ — ปกคอเวอร์โฟลว์'],
-    ['web-sides', 'แบนเนอร์แนะนำโดยเว็บ — ซ้าย/ขวา'], ['web-books', 'แนะนำโดยเว็บ — แถวการ์ดหนังสือ'],
-    ['category', 'เติมเต็มทุกอารมณ์'], ['bottom-cta', 'แบนเนอร์ CTA 4 ช่อง'],
-    ['recommend', 'แนะนำสำหรับคุณ'], ['web-recommend', 'แนะนำโดยเว็บ'], ['launch', 'เปิดตัวใหม่ยอดฮิต'],
-  ]
-  for (const pageData of cmsPages) {
-    const page = await prisma.cmsPage.upsert({ where: { slug: pageData.slug }, update: pageData, create: pageData })
-    for (let i = 0; i < sectionTemplates.length; i++) {
-      const [key, title] = sectionTemplates[i]
+  for (const slug of CMS_PAGE_SLUGS) {
+    const pageData = { slug, label: CMS_PAGE_LABELS[slug], slideSeconds: slug === 'rank' ? 10 : 5 }
+    const page = await prisma.cmsPage.upsert({ where: { slug: pageData.slug }, update: { label: pageData.label }, create: pageData })
+    for (let i = 0; i < CMS_PAGE_SECTIONS[slug].length; i++) {
+      const { key, title } = CMS_PAGE_SECTIONS[slug][i]
       await prisma.cmsSection.upsert({
         where: { pageId_key: { pageId: page.id, key } },
         update: { title, sortOrder: i }, create: { pageId: page.id, key, title, sortOrder: i },

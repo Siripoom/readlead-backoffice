@@ -26,7 +26,8 @@ export function memberTopUpDto(request: {
   bonusCoins: number
   totalCoins: number
   amountSatang: number
-  status: 'pending' | 'approved' | 'rejected'
+  paymentMethod: string
+  status: 'pending' | 'approved' | 'rejected' | 'authorizing' | 'failed' | 'expired'
   rejectionReason: string | null
   reviewedAt: Date | null
   submittedAt: Date
@@ -40,7 +41,7 @@ export function memberTopUpDto(request: {
     baseCoins: request.baseCoins,
     bonusCoins: request.bonusCoins,
     paidAmountBaht: request.amountSatang / 100,
-    paymentMethod: 'proof-upload' as const,
+    paymentMethod: request.paymentMethod,
     status: request.status,
     rejectionReason: request.rejectionReason,
     reviewedAt: request.reviewedAt?.toISOString() ?? null,
@@ -101,6 +102,7 @@ export async function createMemberTopUp(userId: string, form: FormData) {
         totalCoins: walletPackage.coins + walletPackage.bonus,
         amountSatang: walletPackage.price * 100,
         idempotencyKey,
+        paymentMethod: 'proof-upload',
         slipObjectKey: stored.key,
         slipUrl: stored.url,
         slipContentType: slip.contentType,

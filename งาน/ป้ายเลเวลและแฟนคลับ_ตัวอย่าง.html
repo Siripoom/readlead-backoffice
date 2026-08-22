@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ป้ายเลเวลและฉายาแฟนคลับ · ตัวอย่างให้เลือก · ReadLead</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans Thai',sans-serif;background:#f6f6f9;color:#2e2a3d;font-size:14px;line-height:1.7}
+.page{max-width:880px;margin:0 auto;padding:34px 24px 90px}
+h1{font-size:21px;font-weight:800}
+.sub{color:#8b8798;font-size:12.5px;margin:3px 0 8px}
+h2{font-size:16px;font-weight:800;margin:34px 0 4px}
+h3{font-size:13.5px;font-weight:800;margin:20px 0 8px;color:#6c3fa8}
+.desc{font-size:12.5px;color:#8b8798;margin-bottom:8px}
+.card{background:#fff;border:1px solid #e6e3ee;border-radius:12px;padding:16px 18px;margin:10px 0}
+
+/* ── แถวจำลอง: คอมเมนต์ ── */
+.cm{display:flex;gap:10px;padding:10px 4px;border-bottom:1px solid #f0eef5;align-items:flex-start}
+.cm:last-child{border-bottom:0}
+.cm .av{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:800;color:#fff;font-size:14px}
+.cm .nm{font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cm .tx{font-size:13px;color:#4c4760;margin-top:1px}
+
+/* ── แถวจำลอง: กระดานแฟนคลับ ── */
+.fcr{display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid #f0eef5}
+.fcr:last-child{border-bottom:0}
+.fcr .rk{width:20px;height:16px;border-radius:3px;display:grid;place-items:center;font-size:10.5px;font-weight:800;color:#fff;flex:none}
+.rk.r1{background:#bf2c24}.rk.r2{background:#e67225}.rk.r3{background:#e6bf25}
+.rk.rx{background:transparent;color:#8b8798}
+.fcr .av{width:30px;height:30px;border-radius:50%;flex:none}
+.fcr .nm{font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;min-width:0;flex:1;flex-wrap:wrap}
+.fcr .sc{font-weight:800;font-size:13px;color:#2e2a3d}
+
+/* ═══ ป้ายเลเวล แบบ A: แคปซูลไล่สีตามช่วงระดับ ═══ */
+.lvA{display:inline-flex;align-items:center;height:16px;padding:0 7px;border-radius:999px;font-size:10px;font-weight:800;color:#fff;letter-spacing:.02em}
+.lvA.t0{background:linear-gradient(135deg,#9aa2b1,#7b8494)}      /* Lv0-1 เทา */
+.lvA.t1{background:linear-gradient(135deg,#57b06b,#3d9455)}      /* Lv2-3 เขียว */
+.lvA.t2{background:linear-gradient(135deg,#4e8fe0,#3568c9)}      /* Lv4-5 น้ำเงิน */
+.lvA.t3{background:linear-gradient(135deg,#9a5fe0,#7a3fc9)}      /* Lv6-7 ม่วง */
+.lvA.t4{background:linear-gradient(135deg,#f0a13a,#e2822a)}      /* Lv8 ทอง */
+
+/* ═══ ป้ายเลเวล แบบ B: กรอบเส้นสีเดียว (โทนแบรนด์) ═══ */
+.lvB{display:inline-flex;align-items:center;height:16px;padding:0 6px;border-radius:4px;font-size:10px;font-weight:800;color:#cc4452;border:1px solid #e3b8bd;background:#fdf4f5}
+
+/* ═══ ป้ายเลเวล แบบ C: ตัวอักษรจาง ไม่มีกรอบ ═══ */
+.lvC{font-size:10.5px;font-weight:800;color:#9a94ab}
+
+/* ═══ ฉายาแฟนคลับ แบบ A: ป้ายไล่สีตามขั้น ═══ */
+.fkA{display:inline-flex;align-items:center;height:16px;padding:0 8px;border-radius:999px;font-size:10px;font-weight:800;color:#fff}
+.fkA.k1{background:linear-gradient(135deg,#b9b2c9,#948daa)}   /* มิตรรักนักอ่าน */
+.fkA.k2{background:linear-gradient(135deg,#57b06b,#3d9455)}   /* แฟนประจำ */
+.fkA.k3{background:linear-gradient(135deg,#4e8fe0,#3568c9)}   /* แฟนพันธุ์แท้ */
+.fkA.k4{background:linear-gradient(135deg,#9a5fe0,#7a3fc9)}   /* แฟนตัวยง */
+.fkA.k5{background:linear-gradient(135deg,#e2822a,#c96a1f)}   /* เสาหลักแฟนคลับ */
+.fkA.k6{background:linear-gradient(135deg,#e8452f,#bf2c24)}   /* ตำนานแฟนคลับ */
+
+/* ═══ ฉายาแฟนคลับ แบบ B: กรอบเส้นสีตามขั้น พื้นอ่อน ═══ */
+.fkB{display:inline-flex;align-items:center;height:16px;padding:0 7px;border-radius:4px;font-size:10px;font-weight:800;border:1px solid}
+.fkB.k1{color:#7b7490;border-color:#cfcada;background:#f6f4fa}
+.fkB.k2{color:#3d9455;border-color:#b5dcc0;background:#f1faf3}
+.fkB.k3{color:#3568c9;border-color:#b9cdf0;background:#f0f5fd}
+.fkB.k4{color:#7a3fc9;border-color:#d3bcf0;background:#f7f1fd}
+.fkB.k5{color:#c96a1f;border-color:#efd0b2;background:#fdf6ee}
+.fkB.k6{color:#bf2c24;border-color:#eebab6;background:#fdf1f0}
+
+/* ═══ ฉายาแฟนคลับ แบบ C: ตัวหนังสือสีตามขั้น ไม่มีกล่อง ═══ */
+.fkC{font-size:10.5px;font-weight:800}
+.fkC.k1{color:#948daa}.fkC.k2{color:#3d9455}.fkC.k3{color:#3568c9}
+.fkC.k4{color:#7a3fc9}.fkC.k5{color:#c96a1f}.fkC.k6{color:#bf2c24}
+
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12.5px;background:#fff}
+th,td{border:1px solid #e6e3ee;padding:6px 10px;text-align:left}
+th{background:#faf9fc}
+.note{background:#fff7f0;border:1px solid #f2ddc8;border-radius:8px;padding:9px 13px;margin:10px 0;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="page">
+<h1>ป้ายเลเวล + ฉายาแฟนคลับ · ตัวอย่างให้เลือก</h1>
+<div class="sub">เลือกสไตล์ (A / B / C) ของแต่ละอย่าง แล้วผมลงจริงทั้งระบบให้ · จุดที่จะแสดง: ป้ายเลเวลติดข้างชื่อในคอมเมนต์และรีวิว · ฉายาแฟนคลับติดข้างชื่อบนกระดานแฟนคลับของเรื่อง</div>
+
+<h2>ส่วนที่ 1 · ป้ายเลเวลผู้ใช้ (Lv0-8)</h2>
+
+<h3>แบบ A · แคปซูลไล่สีตามช่วงระดับ (เทา → เขียว → น้ำเงิน → ม่วง → ทอง)</h3>
+<div class="card">
+  <div class="cm"><span class="av" style="background:#9aa2b1">ก</span><div><div class="nm">นักอ่านขาจร <span class="lvA t0">Lv1</span></div><div class="tx">สนุกมากครับ ตามต่อแน่นอน</div></div></div>
+  <div class="cm"><span class="av" style="background:#57b06b">ข</span><div><div class="nm">คุณผู้อ่าน <span class="lvA t1">Lv3</span></div><div class="tx">บทนี้พีคมาก คนเขียนเก่งจริง</div></div></div>
+  <div class="cm"><span class="av" style="background:#4e8fe0">ค</span><div><div class="nm">ขาประจำร้าน <span class="lvA t2">Lv5</span></div><div class="tx">รอทุกวันจันทร์เลยครับ</div></div></div>
+  <div class="cm"><span class="av" style="background:#9a5fe0">ง</span><div><div class="nm">นกฮูกกลางคืน <span class="lvA t3">Lv7</span></div><div class="tx">อ่านรวดเดียวจบ ห้าร้อยบท</div></div></div>
+  <div class="cm"><span class="av" style="background:#f0a13a">จ</span><div><div class="nm">ผู้หยั่งรู้ <span class="lvA t4">Lv8</span></div><div class="tx">ติดตามตั้งแต่บทแรก ภูมิใจมาก</div></div></div>
+</div>
+
+<h3>แบบ B · กรอบเส้นโทนแบรนด์ สีเดียวทุกระดับ</h3>
+<div class="card">
+  <div class="cm"><span class="av" style="background:#9aa2b1">ก</span><div><div class="nm">นักอ่านขาจร <span class="lvB">Lv1</span></div><div class="tx">สนุกมากครับ ตามต่อแน่นอน</div></div></div>
+  <div class="cm"><span class="av" style="background:#4e8fe0">ค</span><div><div class="nm">ขาประจำร้าน <span class="lvB">Lv5</span></div><div class="tx">รอทุกวันจันทร์เลยครับ</div></div></div>
+  <div class="cm"><span class="av" style="background:#f0a13a">จ</span><div><div class="nm">ผู้หยั่งรู้ <span class="lvB">Lv8</span></div><div class="tx">ติดตามตั้งแต่บทแรก ภูมิใจมาก</div></div></div>
+</div>
+
+<h3>แบบ C · ตัวอักษรจาง เรียบสุด</h3>
+<div class="card">
+  <div class="cm"><span class="av" style="background:#9aa2b1">ก</span><div><div class="nm">นักอ่านขาจร <span class="lvC">Lv1</span></div><div class="tx">สนุกมากครับ ตามต่อแน่นอน</div></div></div>
+  <div class="cm"><span class="av" style="background:#4e8fe0">ค</span><div><div class="nm">ขาประจำร้าน <span class="lvC">Lv5</span></div><div class="tx">รอทุกวันจันทร์เลยครับ</div></div></div>
+  <div class="cm"><span class="av" style="background:#f0a13a">จ</span><div><div class="nm">ผู้หยั่งรู้ <span class="lvC">Lv8</span></div><div class="tx">ติดตามตั้งแต่บทแรก ภูมิใจมาก</div></div></div>
+</div>
+
+<h2>ส่วนที่ 2 · ฉายาแฟนคลับ (บนกระดานแฟนคลับของเรื่อง)</h2>
+<div class="desc">เกณฑ์ฉายาเสนอตามสูตรแต้มใหม่ (เงิน 1 เหรียญ = 1 แต้ม · ตั๋วเดือน 15 · ตั๋วแนะนำ 1) ปรับเลขได้</div>
+<table>
+<tr><th>ฉายา</th><th>แต้มแฟนสะสมของเรื่องนั้น</th><th>เทียบเท่า</th></tr>
+<tr><td>มิตรรักนักอ่าน</td><td>100</td><td>ทิป 100 บาท หรือโหวตเดือน 7 ใบ</td></tr>
+<tr><td>แฟนประจำ</td><td>500</td><td>ทิป 500 บาท</td></tr>
+<tr><td>แฟนพันธุ์แท้</td><td>2,000</td><td>สมาชิกอ่านต่อเนื่อง + ทิปประปราย</td></tr>
+<tr><td>แฟนตัวยง</td><td>10,000</td><td>สายเปย์ตัวจริง</td></tr>
+<tr><td>เสาหลักแฟนคลับ</td><td>50,000</td><td>ผู้สนับสนุนหลักของเรื่อง</td></tr>
+<tr><td>ตำนานแฟนคลับ</td><td>200,000</td><td>ระดับตำนาน</td></tr>
+</table>
+
+<h3>แบบ A · ป้ายไล่สีตามขั้น</h3>
+<div class="card">
+  <div class="fcr"><span class="rk r1">1</span><span class="av" style="background:#8a6d3b"></span><span class="nm">เศรษฐีใจบุญ <span class="fkA k6">ตำนานแฟนคลับ</span></span><span class="sc">218,400</span></div>
+  <div class="fcr"><span class="rk r2">2</span><span class="av" style="background:#2e7d54"></span><span class="nm">สายเปย์ใจดี <span class="fkA k5">เสาหลักแฟนคลับ</span></span><span class="sc">61,250</span></div>
+  <div class="fcr"><span class="rk r3">3</span><span class="av" style="background:#3568c9"></span><span class="nm">HunterX_99 <span class="fkA k4">แฟนตัวยง</span></span><span class="sc">12,090</span></div>
+  <div class="fcr"><span class="rk rx">4</span><span class="av" style="background:#7a3fc9"></span><span class="nm">เงาจันทร์ <span class="fkA k3">แฟนพันธุ์แท้</span></span><span class="sc">3,415</span></div>
+  <div class="fcr"><span class="rk rx">5</span><span class="av" style="background:#b98a2e"></span><span class="nm">ลมหนาว <span class="fkA k2">แฟนประจำ</span></span><span class="sc">760</span></div>
+  <div class="fcr"><span class="rk rx">6</span><span class="av" style="background:#948daa"></span><span class="nm">เด็กใหม่หัดอ่าน <span class="fkA k1">มิตรรักนักอ่าน</span></span><span class="sc">145</span></div>
+</div>
+
+<h3>แบบ B · กรอบเส้นสีตามขั้น พื้นอ่อน</h3>
+<div class="card">
+  <div class="fcr"><span class="rk r1">1</span><span class="av" style="background:#8a6d3b"></span><span class="nm">เศรษฐีใจบุญ <span class="fkB k6">ตำนานแฟนคลับ</span></span><span class="sc">218,400</span></div>
+  <div class="fcr"><span class="rk r2">2</span><span class="av" style="background:#2e7d54"></span><span class="nm">สายเปย์ใจดี <span class="fkB k5">เสาหลักแฟนคลับ</span></span><span class="sc">61,250</span></div>
+  <div class="fcr"><span class="rk r3">3</span><span class="av" style="background:#3568c9"></span><span class="nm">HunterX_99 <span class="fkB k4">แฟนตัวยง</span></span><span class="sc">12,090</span></div>
+  <div class="fcr"><span class="rk rx">4</span><span class="av" style="background:#7a3fc9"></span><span class="nm">เงาจันทร์ <span class="fkB k3">แฟนพันธุ์แท้</span></span><span class="sc">3,415</span></div>
+  <div class="fcr"><span class="rk rx">5</span><span class="av" style="background:#948daa"></span><span class="nm">ลมหนาว <span class="fkB k2">แฟนประจำ</span></span><span class="sc">760</span></div>
+</div>
+
+<h3>แบบ C · ตัวหนังสือสีตามขั้น ไม่มีกล่อง</h3>
+<div class="card">
+  <div class="fcr"><span class="rk r1">1</span><span class="av" style="background:#8a6d3b"></span><span class="nm">เศรษฐีใจบุญ <span class="fkC k6">ตำนานแฟนคลับ</span></span><span class="sc">218,400</span></div>
+  <div class="fcr"><span class="rk r2">2</span><span class="av" style="background:#2e7d54"></span><span class="nm">สายเปย์ใจดี <span class="fkC k5">เสาหลักแฟนคลับ</span></span><span class="sc">61,250</span></div>
+  <div class="fcr"><span class="rk rx">4</span><span class="av" style="background:#7a3fc9"></span><span class="nm">เงาจันทร์ <span class="fkC k3">แฟนพันธุ์แท้</span></span><span class="sc">3,415</span></div>
+</div>
+
+<div class="note">เลือกได้อิสระคนละแบบ เช่น ป้ายเลเวลแบบ C + ฉายาแบบ A ก็ได้ · เกณฑ์แต้มในตารางปรับได้ · เลือกแล้วผมลงจริง: ป้ายเลเวลในคอมเมนต์/รีวิวทุกหน้า และเปิดฉายาบนกระดานแฟนคลับ (FC_SHOW_RANK_TITLE) พร้อมอัปเดตคู่มือ</div>
+</div>
+</body>
+</html>
