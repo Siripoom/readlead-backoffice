@@ -51,8 +51,9 @@ COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # Prisma CLI inputs for migrate deploy at startup
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/lib/generated ./lib/generated
-COPY --from=builder --chown=nextjs:nodejs /app/lib/password.ts ./lib/password.ts
+# seed.ts imports from lib/ at runtime; copy the whole directory so new
+# imports don't silently break the container at startup.
+COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 
 # prisma.config.js is required by prisma migrate deploy to find DATABASE_URL
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.js ./
