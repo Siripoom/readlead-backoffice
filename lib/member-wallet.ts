@@ -1,7 +1,7 @@
 import { getPrisma } from '@/lib/prisma'
 import { memberTopUpDto } from '@/lib/member-topups'
 import { getWalletPackage, WALLET_PACKAGES } from '@/lib/wallet-packages'
-import { WALLET_CHANNELS } from '@/lib/wallet-channels'
+import { getEnabledWalletChannels, getPublicPaymentConfig } from '@/lib/payment-channel-settings'
 
 function record(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {}
@@ -13,7 +13,7 @@ function integer(value: unknown) {
 
 export async function getMemberWallet(userId: string) {
   const prisma = getPrisma()
-  const [account, requests, ledger] = await Promise.all([
+  const [account, requests, ledger, channels] = await Promise.all([
     prisma.coinAccount.findUnique({ where: { userId }, select: { balance: true } }),
     prisma.coinTopUpRequest.findMany({
       where: { userId },
@@ -26,6 +26,7 @@ export async function getMemberWallet(userId: string) {
       take: 200,
       select: { id: true, amount: true, balanceAfter: true, referenceId: true, metadata: true, createdAt: true },
     }),
+    getEnabledWalletChannels('web'),
   ])
 
   const balancesByRequest = new Map(ledger.flatMap((entry) => entry.referenceId ? [[entry.referenceId, entry.balanceAfter] as const] : []))
@@ -56,9 +57,10 @@ export async function getMemberWallet(userId: string) {
 
   return {
     balance: account?.balance ?? 0,
-    topUpEnabled: WALLET_CHANNELS.some((channel) => channel.enabled),
+    topUpEnabled: channels.length > 0,
     packages: WALLET_PACKAGES,
-    channels: WALLET_CHANNELS,
+    channels,
+    paymentConfig: getPublicPaymentConfig(),
     transactions,
   }
 }

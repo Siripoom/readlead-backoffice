@@ -32,6 +32,12 @@ enum MemberAuthProvider {
   apple
 }
 
+enum PaymentPlatform {
+  web
+  ios
+  android
+}
+
 enum ContentStatus {
   pending
   approved
@@ -301,6 +307,17 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+model PaymentChannelSetting {
+  channelId String
+  platform  PaymentPlatform
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([channelId, platform])
+  @@index([platform, enabled])
 }
 
 // ─── Content ─────────────────────────────────────────────────────────────────

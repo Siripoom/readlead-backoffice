@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { getPrisma } from '@/lib/prisma'
 import { deleteTopUpProof, uploadTopUpProof } from '@/lib/storage/backblaze'
 import { getWalletPackage } from '@/lib/wallet-packages'
+import { requirePaymentChannelEnabled } from '@/lib/payment-channel-settings'
 
 const MAX_SLIP_SIZE = 5 * 1024 * 1024
 const IDEMPOTENCY_PATTERN = /^[a-zA-Z0-9:_-]{8,160}$/
@@ -87,6 +88,8 @@ export async function createMemberTopUp(userId: string, form: FormData) {
   const prisma = getPrisma()
   const existing = await prisma.coinTopUpRequest.findUnique({ where: { idempotencyKey } })
   if (existing) return { request: memberTopUpDto(existing), idempotent: true }
+
+  await requirePaymentChannelEnabled('proof-upload', 'web', (message) => new MemberTopUpError(409, message))
 
   const slip = await validatedSlip(form.get('slip'))
   const requestId = randomUUID()

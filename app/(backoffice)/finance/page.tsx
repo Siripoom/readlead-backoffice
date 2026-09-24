@@ -3,10 +3,16 @@ export const dynamic = 'force-dynamic'
 import { FinanceOverview } from '@/components/finance/FinanceOverview'
 import { getMonthlyIncome, getWithdrawalRequests } from '@/lib/db/finance'
 import { requireAdmin } from '@/lib/auth'
+import { ensurePaymentChannelSettingsInitialized, listPaymentChannelSettings } from '@/lib/payment-channel-settings'
 
 export default async function FinancePage() {
   await requireAdmin('finance')
-  const [income, withdrawals] = await Promise.all([getMonthlyIncome(), getWithdrawalRequests()])
+  await ensurePaymentChannelSettingsInitialized()
+  const [income, withdrawals, paymentChannels] = await Promise.all([
+    getMonthlyIncome(),
+    getWithdrawalRequests(),
+    listPaymentChannelSettings(),
+  ])
 
   return <FinanceOverview
     income={income.map((row) => ({
@@ -32,5 +38,6 @@ export default async function FinancePage() {
       reviewerName: row.reviewerName,
       reviewedAt: row.reviewedAt?.toISOString() ?? null,
     }))}
+    initialPaymentChannels={paymentChannels}
   />
 }

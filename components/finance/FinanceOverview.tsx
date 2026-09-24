@@ -4,6 +4,7 @@ import { Dialog } from '@chakra-ui/react'
 import { useMemo, useState } from 'react'
 import { toaster } from '@/lib/toaster'
 import { TopUpProofsTab } from './TopUpProofsTab'
+import { PaymentChannelsTab, type PaymentChannelSetting } from './PaymentChannelsTab'
 import styles from './FinanceOverview.module.css'
 
 type Status = 'pending' | 'approved' | 'rejected'
@@ -42,8 +43,8 @@ function thaiDate(value: string) {
   return new Date(value).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok' })
 }
 
-export function FinanceOverview({ income, initialWithdrawals }: { income: Income[]; initialWithdrawals: Withdrawal[] }) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'proofs'>('overview')
+export function FinanceOverview({ income, initialWithdrawals, initialPaymentChannels }: { income: Income[]; initialWithdrawals: Withdrawal[]; initialPaymentChannels: PaymentChannelSetting[] }) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'proofs' | 'channels'>('overview')
   const [withdrawals, setWithdrawals] = useState(initialWithdrawals)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [detail, setDetail] = useState<Withdrawal | null>(null)
@@ -115,6 +116,7 @@ export function FinanceOverview({ income, initialWithdrawals }: { income: Income
     <div className={styles.financeTabs} role="tablist" aria-label="เมนูการเงิน">
       <button type="button" role="tab" aria-selected={activeTab === 'overview'} className={activeTab === 'overview' ? styles.financeTabActive : ''} onClick={() => setActiveTab('overview')}>ภาพรวมการเงิน</button>
       <button type="button" role="tab" aria-selected={activeTab === 'proofs'} className={activeTab === 'proofs' ? styles.financeTabActive : ''} onClick={() => setActiveTab('proofs')}>ตรวจสอบหลักฐาน</button>
+      <button type="button" role="tab" aria-selected={activeTab === 'channels'} className={activeTab === 'channels' ? styles.financeTabActive : ''} onClick={() => setActiveTab('channels')}>ช่องทางชำระเงิน</button>
     </div>
 
     {activeTab === 'overview' ? <>
@@ -164,6 +166,6 @@ export function FinanceOverview({ income, initialWithdrawals }: { income: Income
         <Dialog.Footer><button type="button" className={styles.secondary} onClick={() => setDetail(null)}>ปิด</button></Dialog.Footer>
       </Dialog.Content></Dialog.Positioner>
     </Dialog.Root>
-    </> : <TopUpProofsTab />}
+    </> : activeTab === 'proofs' ? <TopUpProofsTab /> : <PaymentChannelsTab initialChannels={initialPaymentChannels} />}
   </div>
 }

@@ -5,6 +5,7 @@ import Omise from 'omise'
 import { getPrisma } from '@/lib/prisma'
 import { getWalletPackage } from '@/lib/wallet-packages'
 import { getWalletChannel } from '@/lib/wallet-channels'
+import { requirePaymentChannelEnabled } from '@/lib/payment-channel-settings'
 import { creditTopUp } from '@/lib/db/coin-topups'
 import { topUpReference } from '@/lib/member-topups'
 import type { CoinTopUpStatus } from '@/lib/generated/prisma/enums'
@@ -149,7 +150,7 @@ export async function createMemberCharge(
 
   const channelId = requiredText(input.channelId, 'ช่องทางชำระเงิน')
   const channel = getWalletChannel(channelId)
-  if (!channel || channel.kind !== 'gateway' || !channel.enabled) {
+  if (!channel || channel.kind !== 'gateway') {
     throw new MemberChargeError(400, 'ช่องทางชำระเงินนี้ยังไม่เปิดใช้งาน')
   }
 
@@ -160,6 +161,7 @@ export async function createMemberCharge(
   const prisma = getPrisma()
   const existing = await prisma.coinTopUpRequest.findUnique({ where: { idempotencyKey } })
   if (existing) return { charge: await refreshedChargeDto(existing), idempotent: true }
+  await requirePaymentChannelEnabled(channel.id, 'web', (message) => new MemberChargeError(409, message))
 
   // Card, Apple Pay, and Google Pay all require a token minted client-side
   // via omise.js (card details / wallet tokens never touch this server —
