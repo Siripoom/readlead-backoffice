@@ -3,6 +3,7 @@ import { getPrisma } from '@/lib/prisma'
 import { verifyPassword } from '@/lib/password'
 import { createMemberSession, serializeAuthUser } from '@/lib/member-auth'
 import { validateLoginInput } from '@/lib/member-auth-validation'
+import { activePunishmentWhere, hasActivePunishment } from '@/lib/member-punishment'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,10 +15,13 @@ export async function POST(request: NextRequest) {
     const { email, password } = result.data
     const user = await getPrisma().user.findUnique({
       where: { email },
-      include: { authIdentities: { select: { provider: true } } },
+      include: {
+        authIdentities: { select: { provider: true } },
+        punishments: { where: activePunishmentWhere(), select: { id: true } },
+      },
     })
     const isMember = user?.userType === 'user' || user?.userType === 'creator'
-    const isValid = isMember && user.status === 'active' && user.passwordHash
+    const isValid = isMember && user.status === 'active' && !hasActivePunishment(user) && user.passwordHash
       ? verifyPassword(password, user.passwordHash)
       : false
 

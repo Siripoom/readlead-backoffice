@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { getSessionSecret } from '@/lib/session-secret'
 
 const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/member/', '/api/public/', '/api/cron/', '/api/webhooks/']
 
@@ -7,7 +8,7 @@ function hasValidCookie(request: NextRequest) {
   const token = request.cookies.get('rl_admin_session')?.value ?? ''
   const [value, signature] = token.split('.')
   if (!value || !signature) return false
-  const expected = createHmac('sha256', process.env.SESSION_SECRET || 'readlead-local-development-secret').update(value).digest('base64url')
+  const expected = createHmac('sha256', getSessionSecret()).update(value).digest('base64url')
   const a = Buffer.from(signature), b = Buffer.from(expected)
   return a.length === b.length && timingSafeEqual(a, b)
 }

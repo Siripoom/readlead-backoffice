@@ -3,12 +3,14 @@ import { createHash, createHmac, randomBytes } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getPrisma } from '@/lib/prisma'
+import { ALL_PERMISSIONS } from '@/lib/admin-permissions'
+import { getSessionSecret } from '@/lib/session-secret'
 
 export const SESSION_COOKIE = 'rl_admin_session'
-export const ALL_PERMISSIONS = ['dashboard', 'users', 'admins', 'reports', 'finance', 'punishment', 'cms', 'exp']
+export { ALL_PERMISSIONS }
 
 const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex')
-const signToken = (value: string) => createHmac('sha256', process.env.SESSION_SECRET || 'readlead-local-development-secret').update(value).digest('base64url')
+const signToken = (value: string) => createHmac('sha256', getSessionSecret()).update(value).digest('base64url')
 
 export async function createSession(adminId: string) {
   const prisma = getPrisma()

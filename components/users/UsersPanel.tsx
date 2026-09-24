@@ -253,23 +253,16 @@ export function UsersPanel() {
     return punishRecords.filter((record) => record.userId === userId).length
   }
 
-  async function handleConfirmPunish(level: PunishmentLevel) {
+  async function handleConfirmPunish(level: PunishmentLevel, note: string) {
     if (!punishTarget) return
-    const punishmentResponse = await fetch(`/api/users/${punishTarget.id}/punishments`, {
+    const punishmentResponse = await fetch('/api/punishment/records', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ levelName: level.name }),
+      body: JSON.stringify({ userId: punishTarget.id, levelId: level.id, note }),
     })
     if (!punishmentResponse.ok) {
       toaster.error({ title: 'ลงโทษไม่สำเร็จ', description: 'กรุณาลองใหม่อีกครั้ง' })
       return
-    }
-    if (level.level >= 2) {
-      await fetch(`/api/users/${punishTarget.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'banned' }),
-      })
     }
     await fetchAll()
     toaster.error({ title: 'ลงโทษแล้ว', description: `"${punishTarget.name}" ถูกลงโทษ: ${level.name}` })

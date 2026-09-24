@@ -1,6 +1,7 @@
 import 'server-only'
 import { FirebaseAdminConfigurationError, getFirebaseAdminAuth } from '@/lib/firebase-admin'
 import { getPrisma } from '@/lib/prisma'
+import { activePunishmentWhere } from '@/lib/member-punishment'
 import {
   resolveSocialMember,
   socialIdentityFromClaims,
@@ -61,9 +62,10 @@ export async function verifySocialIdToken(
 
 type MemberDatabase = Pick<ReturnType<typeof getPrisma>, 'user' | 'memberAuthIdentity'>
 
-const memberInclude = {
+const memberInclude = () => ({
   authIdentities: { select: { provider: true } },
-} as const
+  punishments: { where: activePunishmentWhere(), select: { id: true } },
+} as const)
 
 class PrismaSocialMemberRepository implements SocialMemberRepository {
   constructor(private readonly database: MemberDatabase) {}
@@ -71,17 +73,17 @@ class PrismaSocialMemberRepository implements SocialMemberRepository {
   async findByProviderUid(provider: SocialAuthProvider, providerUid: string) {
     const identity = await this.database.memberAuthIdentity.findUnique({
       where: { provider_providerUid: { provider, providerUid } },
-      include: { user: { include: memberInclude } },
+      include: { user: { include: memberInclude() } },
     })
     return identity?.user ?? null
   }
 
   findByEmail(email: string) {
-    return this.database.user.findUnique({ where: { email }, include: memberInclude })
+    return this.database.user.findUnique({ where: { email }, include: memberInclude() })
   }
 
   findById(userId: string) {
-    return this.database.user.findUnique({ where: { id: userId }, include: memberInclude })
+    return this.database.user.findUnique({ where: { id: userId }, include: memberInclude() })
   }
 
   findIdentityForUser(userId: string, provider: SocialAuthProvider) {
@@ -95,7 +97,7 @@ class PrismaSocialMemberRepository implements SocialMemberRepository {
     return this.database.user.update({
       where: { id: userId },
       data: { name },
-      include: memberInclude,
+      include: memberInclude(),
     })
   }
 
@@ -133,7 +135,7 @@ class PrismaSocialMemberRepository implements SocialMemberRepository {
           },
         },
       },
-      include: memberInclude,
+      include: memberInclude(),
     })
   }
 }

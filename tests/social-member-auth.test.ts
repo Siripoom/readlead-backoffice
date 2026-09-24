@@ -28,9 +28,17 @@ function member(id: string, overrides: Partial<SocialMemberRecord> = {}): Social
     status: 'active',
     userType: 'user',
     authIdentities: [],
+    punishments: [],
     ...overrides,
   }
 }
+
+test('rejects members with an active punishment', async () => {
+  const repository = new FakeRepository()
+  repository.addUser(member('punished-user', { punishments: [{ id: 'punishment-1' }] }))
+  repository.addIdentity('punished-user', 'google', identity.providerUid)
+  await expectAuthError(resolveSocialMember('google', identity, null, repository), 'member-disabled', 403)
+})
 
 class FakeRepository implements SocialMemberRepository {
   readonly users = new Map<string, SocialMemberRecord>()

@@ -9,7 +9,7 @@ interface Props {
   open: boolean
   targetName: string
   onClose: () => void
-  onConfirm: (level: PunishmentLevel) => void
+  onConfirm: (level: PunishmentLevel, note: string) => void
 }
 
 function durationLabel(days: number) {
@@ -19,6 +19,7 @@ function durationLabel(days: number) {
 export function PunishmentDialog({ open, targetName, onClose, onConfirm }: Props) {
   const [levels, setLevels] = useState<PunishmentLevel[]>([])
   const [selectedId, setSelectedId] = useState('')
+  const [note, setNote] = useState('')
 
   useEffect(() => {
     fetch('/api/punishment/levels')
@@ -32,13 +33,16 @@ export function PunishmentDialog({ open, targetName, onClose, onConfirm }: Props
   const selectedLevel = levels.find((level) => level.id === selectedId) ?? levels[0]
 
   function handleConfirm() {
-    if (!selectedLevel) return
-    onConfirm(selectedLevel)
+    const trimmedNote = note.trim()
+    if (!selectedLevel || !trimmedNote) return
+    onConfirm(selectedLevel, trimmedNote)
     setSelectedId(levels[0]?.id ?? '')
+    setNote('')
   }
 
   function handleClose() {
     setSelectedId(levels[0]?.id ?? '')
+    setNote('')
     onClose()
   }
 
@@ -63,12 +67,16 @@ export function PunishmentDialog({ open, targetName, onClose, onConfirm }: Props
                   <NativeSelect.Indicator />
                 </NativeSelect.Root>
               </label>
+              <label>
+                <span className={styles.fieldLabel}>เหตุผลการลงโทษ</span>
+                <textarea className={styles.fieldInput} value={note} onChange={(event) => setNote(event.target.value)} rows={3} required />
+              </label>
               {selectedLevel && <div className={styles.dialogSummary}><div>ระยะเวลา: <strong>{durationLabel(selectedLevel.duration)}</strong></div><div>เงื่อนไข: ผิดกฎครั้งที่ {selectedLevel.threshold} ขึ้นไป</div></div>}
             </div>
           </Dialog.Body>
           <Dialog.Footer className={styles.modalFooter}>
             <Button className={styles.dialogGhostButton} onClick={handleClose}>ยกเลิก</Button>
-            <Button className={styles.dialogDangerButton} onClick={handleConfirm}>ยืนยันการลงโทษ</Button>
+            <Button className={styles.dialogDangerButton} onClick={handleConfirm} disabled={!selectedLevel || !note.trim()}>ยืนยันการลงโทษ</Button>
           </Dialog.Footer>
         </Dialog.Content>
       </Dialog.Positioner>

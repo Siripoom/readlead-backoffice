@@ -2,6 +2,7 @@ import 'server-only'
 import { createHash, randomBytes } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { getPrisma } from '@/lib/prisma'
+import { activePunishmentWhere, hasActivePunishment } from '@/lib/member-punishment'
 import type { MemberAuthProvider, UserType } from '@/lib/generated/prisma/enums'
 
 export const MEMBER_SESSION_COOKIE = 'rl_user_session'
@@ -23,6 +24,7 @@ type SerializableMember = {
   email: string
   userType: UserType
   authIdentities?: Array<{ provider: MemberAuthProvider }>
+  punishments?: Array<{ id: string }>
 }
 
 function toAuthUser(user: SerializableMember): AuthUser | null {
@@ -73,10 +75,17 @@ export async function getMemberSessionUser(): Promise<AuthUser | null> {
 
   const session = await getPrisma().memberSession.findUnique({
     where: { tokenHash: tokenHash(token) },
-    include: { user: { include: { authIdentities: { select: { provider: true } } } } },
+    include: {
+      user: {
+        include: {
+          authIdentities: { select: { provider: true } },
+          punishments: { where: activePunishmentWhere(), select: { id: true } },
+        },
+      },
+    },
   })
 
-  if (!session || session.expiresAt <= new Date() || session.user.status !== 'active') return null
+  if (!session || session.expiresAt <= new Date() || session.user.status !== 'active' || hasActivePunishment(session.user)) return null
   return toAuthUser(session.user)
 }
 

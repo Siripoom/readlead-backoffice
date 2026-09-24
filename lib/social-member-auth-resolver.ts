@@ -27,6 +27,7 @@ export interface SocialMemberRecord {
   status: UserStatus
   userType: UserType
   authIdentities: Array<{ provider: MemberAuthProvider }>
+  punishments: Array<{ id: string }>
 }
 
 export interface SocialMemberRepository {
@@ -104,7 +105,7 @@ function assertUsableMember(user: SocialMemberRecord) {
   if (user.userType !== 'user' && user.userType !== 'creator') {
     throw new SocialMemberAuthError(409, 'อีเมลนี้ไม่สามารถใช้เข้าสู่ระบบสมาชิกได้', 'not-a-member')
   }
-  if (user.status !== 'active') {
+  if (user.status !== 'active' || user.punishments.length > 0) {
     throw new SocialMemberAuthError(403, 'บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ', 'member-disabled')
   }
 }
