@@ -9,8 +9,6 @@ function resolveSessionSecret() {
   return DEVELOPMENT_SESSION_SECRET
 }
 
-const SESSION_SECRET = resolveSessionSecret()
-
 export function getSessionSecret() {
-  return SESSION_SECRET
+  return resolveSessionSecret()
 }

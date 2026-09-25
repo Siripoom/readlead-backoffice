@@ -30,14 +30,15 @@ test('member auth only selects active punishments that have not expired', () => 
   assert.equal(hasActivePunishment({ punishments: [] }), false)
 })
 
-test('production fails closed at module initialization when SESSION_SECRET is missing', async () => {
+test('production can load auth modules during build but fails closed when SESSION_SECRET is used', async () => {
   const previousNodeEnv = process.env.NODE_ENV
   const previousSecret = process.env.SESSION_SECRET
   Object.assign(process.env, { NODE_ENV: 'production' })
   delete process.env.SESSION_SECRET
 
   try {
-    await assert.rejects(import('../lib/session-secret?missing-production-secret'), /SESSION_SECRET/)
+    const { getSessionSecret } = await import('../lib/session-secret?missing-production-secret')
+    assert.throws(() => getSessionSecret(), /SESSION_SECRET/)
   } finally {
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV
     else Object.assign(process.env, { NODE_ENV: previousNodeEnv })
