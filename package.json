@@ -10,8 +10,10 @@
     "test:cms": "tsx --test tests/cms-config.test.ts",
     "test:exp": "tsx --test tests/exp-rules.test.ts",
     "test:member-auth": "tsx --test tests/social-member-auth.test.ts",
+    "test:media": "node --experimental-test-module-mocks --import tsx --test tests/creator-media-range.test.mts",
     "test:payment-channels": "node --experimental-test-module-mocks --import tsx --test tests/payment-channel-settings.test.mts",
-    "test:security": "node --experimental-test-module-mocks --import tsx --test tests/security-regressions.test.ts tests/social-member-auth.test.ts tests/user-route-security.test.mts tests/punishment-level-route.test.mts",
+    "test:payouts": "node --experimental-test-module-mocks --import tsx --test tests/creator-payouts.test.mts",
+    "test:security": "node --experimental-test-module-mocks --import tsx --test tests/security-regressions.test.ts tests/social-member-auth.test.ts tests/user-route-security.test.mts tests/punishment-level-route.test.mts tests/cms-upload-security.test.mts",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -35,7 +37,8 @@
     "omise": "^1.1.0",
     "pg": "^8.21.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

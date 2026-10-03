@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { getMemberSessionUser } from '@/lib/member-auth'
 import { getPrisma } from '@/lib/prisma'
-import { downloadCreatorMedia } from '@/lib/storage/backblaze'
+import { CreatorMediaRangeError, downloadCreatorMedia } from '@/lib/storage/backblaze'
 type Context = { params: Promise<{ id: string }> }
 
 export async function GET(request: Request, context: Context) {
@@ -19,6 +19,7 @@ export async function GET(request: Request, context: Context) {
     if (media.contentRange) headers.set('Content-Range', media.contentRange)
     return new Response(Uint8Array.from(media.body).buffer, { status: range && media.contentRange ? 206 : 200, headers })
   } catch (error) {
+    if (error instanceof CreatorMediaRangeError) return Response.json({ error: 'ช่วงข้อมูลที่ขอไม่ถูกต้อง' }, { status: 416, headers: { 'Content-Range': `bytes */${error.size}`, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, no-store' } })
     console.error('Episode media read failed', error instanceof Error ? error.name : 'UnknownError')
     return Response.json({ error: 'เปิดไฟล์ไม่สำเร็จ' }, { status: 502 })
   }

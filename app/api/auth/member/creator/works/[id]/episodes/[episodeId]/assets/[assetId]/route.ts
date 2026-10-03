@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { authorizeMember, privateJson } from '@/lib/creator-api'
 import { getPrisma } from '@/lib/prisma'
-import { BackblazeConfigError, CreatorMediaEncryptionConfigError, downloadCreatorMedia } from '@/lib/storage/backblaze'
+import { BackblazeConfigError, CreatorMediaEncryptionConfigError, CreatorMediaRangeError, downloadCreatorMedia } from '@/lib/storage/backblaze'
 
 type Context = { params: Promise<{ id: string; episodeId: string; assetId: string }> }
 
@@ -29,6 +29,7 @@ export async function GET(request: Request, context: Context) {
     if (media.contentRange) headers.set('Content-Range', media.contentRange)
     return new Response(Uint8Array.from(media.body).buffer, { status: range && media.contentRange ? 206 : 200, headers })
   } catch (error) {
+    if (error instanceof CreatorMediaRangeError) return Response.json({ error: 'ช่วงข้อมูลที่ขอไม่ถูกต้อง' }, { status: 416, headers: { 'Content-Range': `bytes */${error.size}`, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, no-store' } })
     if (error instanceof BackblazeConfigError || error instanceof CreatorMediaEncryptionConfigError) return privateJson({ error: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน' }, 503)
     console.error('Creator asset read failed', error instanceof Error ? error.name : 'UnknownError')
     return privateJson({ error: 'เปิดไฟล์ไม่สำเร็จ' }, 502)

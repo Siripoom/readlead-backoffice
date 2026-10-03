@@ -17,27 +17,127 @@ export class CreatorMediaEncryptionConfigError extends Error {
   constructor() { super('WRITER_APPLICATION_ENCRYPTION_KEY is not configured for creator media'); this.name = 'CreatorMediaEncryptionConfigError' }
 }
 
-const CREATOR_MEDIA_MAGIC = Buffer.from('RLCM1')
-function creatorMediaKey(objectKey: string) {
+export class CreatorMediaRangeError extends Error {
+  constructor(public readonly size: number) { super('Requested creator media range is not satisfiable'); this.name = 'CreatorMediaRangeError' }
+}
+
+// RLCM2: fixed header followed by independently authenticated 1 MiB AES-GCM
+// records (IV + tag + ciphertext). Fixed record offsets let S3 serve only the
+// encrypted chunks needed for a plaintext HTTP Range. RLCM1 stays readable so
+// existing objects can be migrated without downtime.
+const CREATOR_MEDIA_LEGACY_MAGIC = Buffer.from('RLCM1')
+const CREATOR_MEDIA_CHUNKED_MAGIC = Buffer.from('RLCM2')
+const CREATOR_MEDIA_CHUNK_SIZE = 1024 * 1024
+const CREATOR_MEDIA_HEADER_SIZE = CREATOR_MEDIA_CHUNKED_MAGIC.length + 4 + 8
+const CREATOR_MEDIA_IV_SIZE = 12
+const CREATOR_MEDIA_TAG_SIZE = 16
+const CREATOR_MEDIA_CHUNK_OVERHEAD = CREATOR_MEDIA_IV_SIZE + CREATOR_MEDIA_TAG_SIZE
+
+function creatorMediaKey(objectKey: string, version: 'v1' | 'v2') {
   const encoded = process.env.WRITER_APPLICATION_ENCRYPTION_KEY?.trim()
   if (!encoded) throw new CreatorMediaEncryptionConfigError()
   const base = Buffer.from(encoded, 'base64')
   if (base.length !== 32) throw new CreatorMediaEncryptionConfigError()
-  return Buffer.from(hkdfSync('sha256', base, Buffer.from('readlead-creator-media-v1'), Buffer.from(objectKey), 32))
+  return Buffer.from(hkdfSync('sha256', base, Buffer.from(`readlead-creator-media-${version}`), Buffer.from(objectKey), 32))
 }
+
+function creatorMediaChunkAad(objectKey: string, index: number, plaintextLength: number, header: CreatorMediaHeader) {
+  return Buffer.from(`RLCM2\0${objectKey}\0${header.chunkSize}\0${header.plaintextSize}\0${index}\0${plaintextLength}`)
+}
+
 function encryptCreatorMedia(body: Uint8Array, objectKey: string) {
-  const iv = randomBytes(12)
-  const cipher = createCipheriv('aes-256-gcm', creatorMediaKey(objectKey), iv)
-  const encrypted = Buffer.concat([cipher.update(body), cipher.final()])
-  return Buffer.concat([CREATOR_MEDIA_MAGIC, iv, cipher.getAuthTag(), encrypted])
+  const header = Buffer.alloc(CREATOR_MEDIA_HEADER_SIZE)
+  CREATOR_MEDIA_CHUNKED_MAGIC.copy(header)
+  header.writeUInt32BE(CREATOR_MEDIA_CHUNK_SIZE, CREATOR_MEDIA_CHUNKED_MAGIC.length)
+  header.writeBigUInt64BE(BigInt(body.byteLength), CREATOR_MEDIA_CHUNKED_MAGIC.length + 4)
+  const chunks: Buffer[] = [header]
+  const key = creatorMediaKey(objectKey, 'v2')
+  const envelopeHeader = { chunkSize: CREATOR_MEDIA_CHUNK_SIZE, plaintextSize: body.byteLength }
+  for (let offset = 0, index = 0; offset < body.byteLength; offset += CREATOR_MEDIA_CHUNK_SIZE, index += 1) {
+    const plaintext = body.subarray(offset, Math.min(offset + CREATOR_MEDIA_CHUNK_SIZE, body.byteLength))
+    const iv = randomBytes(CREATOR_MEDIA_IV_SIZE)
+    const cipher = createCipheriv('aes-256-gcm', key, iv)
+    cipher.setAAD(creatorMediaChunkAad(objectKey, index, plaintext.byteLength, envelopeHeader))
+    const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()])
+    chunks.push(iv, cipher.getAuthTag(), encrypted)
+  }
+  return Buffer.concat(chunks)
 }
-function decryptCreatorMedia(body: Uint8Array, objectKey: string) {
+
+function decryptLegacyCreatorMedia(body: Uint8Array, objectKey: string) {
   const bytes = Buffer.from(body)
-  if (!bytes.subarray(0, CREATOR_MEDIA_MAGIC.length).equals(CREATOR_MEDIA_MAGIC) || bytes.length < 34) throw new Error('Invalid creator media envelope')
-  const ivStart = CREATOR_MEDIA_MAGIC.length
-  const decipher = createDecipheriv('aes-256-gcm', creatorMediaKey(objectKey), bytes.subarray(ivStart, ivStart + 12))
-  decipher.setAuthTag(bytes.subarray(ivStart + 12, ivStart + 28))
-  return Buffer.concat([decipher.update(bytes.subarray(ivStart + 28)), decipher.final()])
+  if (!bytes.subarray(0, CREATOR_MEDIA_LEGACY_MAGIC.length).equals(CREATOR_MEDIA_LEGACY_MAGIC) || bytes.length < 34) throw new Error('Invalid creator media envelope')
+  const ivStart = CREATOR_MEDIA_LEGACY_MAGIC.length
+  const decipher = createDecipheriv('aes-256-gcm', creatorMediaKey(objectKey, 'v1'), bytes.subarray(ivStart, ivStart + CREATOR_MEDIA_IV_SIZE))
+  decipher.setAuthTag(bytes.subarray(ivStart + CREATOR_MEDIA_IV_SIZE, ivStart + CREATOR_MEDIA_CHUNK_OVERHEAD))
+  return Buffer.concat([decipher.update(bytes.subarray(ivStart + CREATOR_MEDIA_CHUNK_OVERHEAD)), decipher.final()])
+}
+
+type CreatorMediaHeader = { chunkSize: number; plaintextSize: number }
+
+function parseCreatorMediaHeader(body: Uint8Array): CreatorMediaHeader | null {
+  const bytes = Buffer.from(body)
+  if (bytes.length < CREATOR_MEDIA_HEADER_SIZE || !bytes.subarray(0, CREATOR_MEDIA_CHUNKED_MAGIC.length).equals(CREATOR_MEDIA_CHUNKED_MAGIC)) return null
+  const chunkSize = bytes.readUInt32BE(CREATOR_MEDIA_CHUNKED_MAGIC.length)
+  const plaintextSize = Number(bytes.readBigUInt64BE(CREATOR_MEDIA_CHUNKED_MAGIC.length + 4))
+  if (!chunkSize || chunkSize > 16 * 1024 * 1024 || !Number.isSafeInteger(plaintextSize) || plaintextSize < 0) throw new Error('Invalid creator media envelope header')
+  return { chunkSize, plaintextSize }
+}
+
+function creatorMediaChunkPlaintextLength(header: CreatorMediaHeader, index: number) {
+  return Math.min(header.chunkSize, header.plaintextSize - index * header.chunkSize)
+}
+
+function creatorMediaChunkOffset(header: CreatorMediaHeader, index: number) {
+  return CREATOR_MEDIA_HEADER_SIZE + index * (header.chunkSize + CREATOR_MEDIA_CHUNK_OVERHEAD)
+}
+
+function decryptCreatorMediaChunks(
+  body: Uint8Array,
+  objectKey: string,
+  header: CreatorMediaHeader,
+  firstChunk = 0,
+  chunkCount = Math.ceil(header.plaintextSize / header.chunkSize) - firstChunk,
+) {
+  const bytes = Buffer.from(body)
+  const key = creatorMediaKey(objectKey, 'v2')
+  const plaintext: Buffer[] = []
+  let offset = 0
+  for (let index = firstChunk; index < firstChunk + chunkCount; index += 1) {
+    const plaintextLength = creatorMediaChunkPlaintextLength(header, index)
+    const recordLength = CREATOR_MEDIA_CHUNK_OVERHEAD + plaintextLength
+    if (bytes.byteLength - offset < recordLength) throw new Error('Truncated creator media chunk')
+    const iv = bytes.subarray(offset, offset + CREATOR_MEDIA_IV_SIZE)
+    const tag = bytes.subarray(offset + CREATOR_MEDIA_IV_SIZE, offset + CREATOR_MEDIA_CHUNK_OVERHEAD)
+    const encrypted = bytes.subarray(offset + CREATOR_MEDIA_CHUNK_OVERHEAD, offset + recordLength)
+    const decipher = createDecipheriv('aes-256-gcm', key, iv)
+    decipher.setAAD(creatorMediaChunkAad(objectKey, index, plaintextLength, header))
+    decipher.setAuthTag(tag)
+    plaintext.push(Buffer.concat([decipher.update(encrypted), decipher.final()]))
+    offset += recordLength
+  }
+  if (offset !== bytes.byteLength) throw new Error('Invalid creator media chunk data')
+  return Buffer.concat(plaintext)
+}
+
+function decryptCreatorMedia(body: Uint8Array, objectKey: string) {
+  const header = parseCreatorMediaHeader(body)
+  if (!header) return decryptLegacyCreatorMedia(body, objectKey)
+  return decryptCreatorMediaChunks(body.subarray(CREATOR_MEDIA_HEADER_SIZE), objectKey, header)
+}
+
+function parseCreatorMediaRange(range: string, size: number) {
+  const match = /^bytes=(\d*)-(\d*)$/.exec(range)
+  if (!match || (!match[1] && !match[2]) || size <= 0) return null
+  if (!match[1]) {
+    const suffixLength = Number(match[2])
+    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) return null
+    return { start: Math.max(0, size - suffixLength), end: size - 1 }
+  }
+  const start = Number(match[1])
+  const requestedEnd = match[2] ? Number(match[2]) : size - 1
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(requestedEnd) || start < 0 || requestedEnd < start || start >= size) return null
+  return { start, end: Math.min(requestedEnd, size - 1) }
 }
 
 function getConfig() {
@@ -168,17 +268,42 @@ export async function downloadCreatorMedia(key: string, range?: string | null) {
   const allowedPrefixes = [config.prefix, encryptedPrefix, (process.env.B2_CREATOR_UPLOAD_PREFIX?.trim() || 'creator-content').replace(/^\/+|\/+$/g, '')]
   if (!allowedPrefixes.some((prefix) => key.startsWith(`${prefix}/`))) throw new Error('Creator media key is outside configured prefixes')
   const encrypted = key.startsWith(`${encryptedPrefix}/`)
-  const object = await getClient(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: key, ...(!encrypted && range ? { Range: range } : {}) }))
+  const storage = getClient(config)
+  if (encrypted && range) {
+    const headerObject = await storage.send(new GetObjectCommand({ Bucket: config.bucket, Key: key, Range: `bytes=0-${CREATOR_MEDIA_HEADER_SIZE - 1}` }))
+    if (!headerObject.Body) throw new Error('Creator media body is missing')
+    const headerBytes = await headerObject.Body.transformToByteArray()
+    const header = parseCreatorMediaHeader(headerBytes)
+    if (header) {
+      const resolved = parseCreatorMediaRange(range, header.plaintextSize)
+      if (!resolved) throw new CreatorMediaRangeError(header.plaintextSize)
+      const firstChunk = Math.floor(resolved.start / header.chunkSize)
+      const lastChunk = Math.floor(resolved.end / header.chunkSize)
+      const encryptedStart = creatorMediaChunkOffset(header, firstChunk)
+      const encryptedEnd = creatorMediaChunkOffset(header, lastChunk) + CREATOR_MEDIA_CHUNK_OVERHEAD + creatorMediaChunkPlaintextLength(header, lastChunk) - 1
+      const chunkObject = await storage.send(new GetObjectCommand({ Bucket: config.bucket, Key: key, Range: `bytes=${encryptedStart}-${encryptedEnd}` }))
+      if (!chunkObject.Body) throw new Error('Creator media body is missing')
+      const chunks = decryptCreatorMediaChunks(await chunkObject.Body.transformToByteArray(), key, header, firstChunk, lastChunk - firstChunk + 1)
+      const sliceStart = resolved.start - firstChunk * header.chunkSize
+      const body = chunks.subarray(sliceStart, sliceStart + resolved.end - resolved.start + 1)
+      return {
+        body,
+        contentType: chunkObject.ContentType || headerObject.ContentType || 'application/octet-stream',
+        contentLength: body.byteLength,
+        contentRange: `bytes ${resolved.start}-${resolved.end}/${header.plaintextSize}`,
+        acceptRanges: 'bytes',
+      }
+    }
+  }
+  const object = await storage.send(new GetObjectCommand({ Bucket: config.bucket, Key: key, ...(!encrypted && range ? { Range: range } : {}) }))
   if (!object.Body) throw new Error('Creator media body is missing')
   let body = encrypted ? decryptCreatorMedia(await object.Body.transformToByteArray(), key) : Buffer.from(await object.Body.transformToByteArray())
   let contentRange = object.ContentRange
   if (encrypted && range) {
-    const match = /^bytes=(\d*)-(\d*)$/.exec(range)
-    if (match) {
-      const start = match[1] ? Number(match[1]) : 0
-      const end = match[2] ? Math.min(Number(match[2]), body.length - 1) : body.length - 1
-      if (start <= end && start < body.length) { contentRange = `bytes ${start}-${end}/${body.length}`; body = body.subarray(start, end + 1) }
-    }
+    const resolved = parseCreatorMediaRange(range, body.byteLength)
+    if (!resolved) throw new CreatorMediaRangeError(body.byteLength)
+    contentRange = `bytes ${resolved.start}-${resolved.end}/${body.byteLength}`
+    body = body.subarray(resolved.start, resolved.end + 1)
   }
   return { body, contentType: object.ContentType || 'application/octet-stream', contentLength: body.byteLength, contentRange, acceptRanges: 'bytes' }
 }

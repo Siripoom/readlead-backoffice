@@ -451,7 +451,14 @@ export async function createAutomaticWithdrawalRequests(now = new Date()) {
       results.push({ userId: row.userId, id: result.id })
     } catch (error) {
       if (error instanceof CreatorStudioError) results.push({ userId: row.userId, skipped: error.code })
-      else throw error
+      else {
+        console.error('Automatic creator payout skipped after unexpected error', {
+          userId: row.userId,
+          payoutPeriod: period,
+          error,
+        })
+        results.push({ userId: row.userId, skipped: 'error' })
+      }
     }
   }
   return { period, results }
