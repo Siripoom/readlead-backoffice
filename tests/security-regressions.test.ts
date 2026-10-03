@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import test from 'node:test'
 import { validatePermissionGrant } from '../lib/admin-permissions'
 import { activePunishmentWhere, hasActivePunishment } from '../lib/member-punishment'
@@ -45,4 +46,14 @@ test('production can load auth modules during build but fails closed when SESSIO
     if (previousSecret === undefined) delete process.env.SESSION_SECRET
     else process.env.SESSION_SECRET = previousSecret
   }
+})
+
+test('retired legacy content API is not routable', () => {
+  const routeFiles = [
+    '../app/api/content/route.ts',
+    '../app/api/content/route.js',
+    '../app/api/content/[id]/route.ts',
+    '../app/api/content/[id]/route.js',
+  ]
+  assert.ok(routeFiles.every((path) => !existsSync(new URL(path, import.meta.url))))
 })
