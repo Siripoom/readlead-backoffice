@@ -66,6 +66,6 @@ test('continues automatic payouts after one creator has an unexpected error', as
   assert.deepEqual(consoleError.mock.calls[0]?.arguments[1], {
     userId: 'creator-2',
     payoutPeriod: '2026-09',
-    error: new Error('simulated transient database failure'),
+    errorName: 'Error',
   })
 })

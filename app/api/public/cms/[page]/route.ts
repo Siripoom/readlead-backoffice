@@ -12,6 +12,7 @@ import {
 } from '@/lib/cms-config'
 import { ensureCmsPage } from '@/lib/cms-bootstrap'
 import { getPrisma } from '@/lib/prisma'
+import { cmsMediaUrl } from '@/lib/storage/backblaze'
 
 type Params = { params: Promise<{ page: string }> }
 
@@ -86,8 +87,8 @@ export async function GET(_request: Request, { params }: Params) {
         id: item.id,
         title: item.title,
         subtitle: item.subtitle ?? '',
-        imageUrl: safeUrl(item.imageUrl),
-        mobileImageUrl: safeUrl(config.mobileImageUrl, safeUrl(item.imageUrl)),
+        imageUrl: cmsMediaUrl(safeUrl(item.imageUrl)),
+        mobileImageUrl: cmsMediaUrl(safeUrl(config.mobileImageUrl, safeUrl(item.imageUrl))),
         linkUrl: safeUrl(item.linkUrl),
         placement: {
           variant: inferredVariant,

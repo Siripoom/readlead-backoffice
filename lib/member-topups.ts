@@ -107,7 +107,7 @@ export async function createMemberTopUp(userId: string, form: FormData) {
         idempotencyKey,
         paymentMethod: 'proof-upload',
         slipObjectKey: stored.key,
-        slipUrl: stored.url,
+        slipUrl: null,
         slipContentType: slip.contentType,
         slipSizeBytes: slip.size,
         slipOriginalName: slip.originalName,

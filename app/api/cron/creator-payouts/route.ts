@@ -4,7 +4,15 @@ import { createAutomaticWithdrawalRequests } from '@/lib/db/creator-studio'
 export async function POST(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  try { return Response.json(await createAutomaticWithdrawalRequests()) }
+  try {
+    const result = await createAutomaticWithdrawalRequests()
+    const failures = result.results.filter((item) => item.skipped === 'error')
+    if (failures.length) {
+      console.error('Automatic creator payout partially failed', { failedCount: failures.length })
+      return Response.json(result, { status: 500 })
+    }
+    return Response.json(result)
+  }
   catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'INVALID_STATE') return Response.json({ error: 'งานนี้ทำงานเฉพาะวันที่ 25 UTC' }, { status: 409 })
     console.error('Automatic creator payout failed', error)

@@ -161,7 +161,7 @@ let client: S3Client | undefined
 let clientSignature = ''
 
 function getClient(config: ReturnType<typeof getConfig>) {
-  const signature = `${config.endpoint}|${config.region}|${config.keyId}`
+  const signature = `${config.endpoint}|${config.region}|${config.bucket}|${config.keyId}|${config.applicationKey}`
   if (!client || clientSignature !== signature) {
     client = new S3Client({
       endpoint: config.endpoint,
@@ -192,7 +192,30 @@ export async function uploadCmsImage(input: { body: Uint8Array; contentType: str
     ContentType: input.contentType,
     CacheControl: 'public, max-age=31536000, immutable',
   }))
-  return { key, url: publicObjectUrl(config.publicUrl, key) }
+  return { key, url: cmsMediaUrlFromKey(key) }
+}
+
+function cmsMediaUrlFromKey(key: string) {
+  return `/api/public/media/${key.split('/').map(encodeURIComponent).join('/')}`
+}
+
+export function cmsMediaUrl(value: string | null | undefined) {
+  if (!value) return value
+  const config = getConfig()
+  const base = `${config.publicUrl}/`
+  if (!value.startsWith(base)) return value
+  try {
+    const key = value.slice(base.length).split('/').map(decodeURIComponent).join('/')
+    return key.startsWith(`${config.prefix}/`) ? cmsMediaUrlFromKey(key) : value
+  } catch { return value }
+}
+
+export async function downloadCmsImage(key: string) {
+  const config = getConfig()
+  if (!key.startsWith(`${config.prefix}/`) || !/^\d{4}\/\d{2}\/[0-9a-f-]{36}\.(jpg|jpeg|png|webp)$/i.test(key.slice(config.prefix.length + 1))) throw new Error('Invalid CMS image key')
+  const object = await getClient(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: key }))
+  if (!object.Body) throw new Error('CMS image body is missing')
+  return { bytes: await object.Body.transformToByteArray(), contentType: object.ContentType }
 }
 
 export async function uploadReportAttachment(input: { body: Uint8Array; contentType: 'image/jpeg' | 'image/png'; extension: 'jpg' | 'png'; size: number; id: string; reportId: string }) {
@@ -205,9 +228,18 @@ export async function uploadReportAttachment(input: { body: Uint8Array; contentT
     Body: input.body,
     ContentLength: input.size,
     ContentType: input.contentType,
-    CacheControl: 'public, max-age=31536000, immutable',
+    CacheControl: 'private, no-store',
   }))
-  return { key, url: publicObjectUrl(config.publicUrl, key) }
+  return { key }
+}
+
+export async function downloadReportAttachment(key: string) {
+  const config = getConfig()
+  const prefix = (process.env.B2_REPORT_UPLOAD_PREFIX?.trim() || 'reports').replace(/^\/+|\/+$/g, '')
+  if (!key.startsWith(`${prefix}/`)) throw new Error('Invalid report attachment key')
+  const object = await getClient(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: key }))
+  if (!object.Body) throw new Error('Report attachment body is missing')
+  return object.Body.transformToByteArray()
 }
 
 export async function deleteReportAttachment(key: string) {
@@ -225,8 +257,8 @@ export async function uploadTopUpProof(input: {
   id: string
   requestId: string
 }) {
-  const config = getConfig()
-  const prefix = (process.env.B2_TOPUP_UPLOAD_PREFIX?.trim() || 'topup-proofs').replace(/^\/+|\/+$/g, '')
+  const config = getTopUpPrivateConfig()
+  const prefix = topUpPrefix()
   const key = `${prefix}/${input.requestId}/${input.id}.${input.extension}`
   await getClient(config).send(new PutObjectCommand({
     Bucket: config.bucket,
@@ -234,16 +266,47 @@ export async function uploadTopUpProof(input: {
     Body: input.body,
     ContentLength: input.size,
     ContentType: input.contentType,
-    CacheControl: 'public, max-age=31536000, immutable',
+    CacheControl: 'private, no-store',
   }))
-  return { key, url: publicObjectUrl(config.publicUrl, key) }
+  return { key }
+}
+
+function topUpPrefix() {
+  return (process.env.B2_TOPUP_UPLOAD_PREFIX?.trim() || 'topup-proofs').replace(/^\/+|\/+$/g, '')
+}
+
+function getTopUpPrivateConfig() {
+  const publicConfig = getConfig()
+  const bucket = process.env.B2_PRIVATE_BUCKET?.trim()
+  // B2_BUCKET itself may be private. A separate bucket is optional.
+  if (!bucket) return publicConfig
+  const region = process.env.B2_PRIVATE_REGION?.trim() || publicConfig.region
+  return {
+    ...publicConfig,
+    bucket,
+    region,
+    endpoint: process.env.B2_ENDPOINT?.trim().replace(/\/+$/, '') || `https://s3.${region}.backblazeb2.com`,
+    keyId: process.env.B2_PRIVATE_KEY_ID?.trim() || publicConfig.keyId,
+    applicationKey: process.env.B2_PRIVATE_APP_KEY?.trim() || publicConfig.applicationKey,
+  }
+}
+
+function assertTopUpKey(key: string) {
+  if (!key.startsWith(`${topUpPrefix()}/`)) throw new Error('Top-up proof key is outside the configured prefix')
 }
 
 export async function deleteTopUpProof(key: string) {
-  const config = getConfig()
-  const prefix = (process.env.B2_TOPUP_UPLOAD_PREFIX?.trim() || 'topup-proofs').replace(/^\/+|\/+$/g, '')
-  if (!key.startsWith(`${prefix}/`)) throw new Error('Top-up proof key is outside the configured prefix')
+  assertTopUpKey(key)
+  const config = getTopUpPrivateConfig()
   await getClient(config).send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
+}
+
+export async function downloadTopUpProof(key: string, legacy: boolean) {
+  assertTopUpKey(key)
+  const config = legacy ? getConfig() : getTopUpPrivateConfig()
+  const object = await getClient(config).send(new GetObjectCommand({ Bucket: config.bucket, Key: key }))
+  if (!object.Body) throw new Error('Top-up proof body is missing')
+  return object.Body.transformToByteArray()
 }
 
 export async function uploadCreatorMedia(input: { body: Uint8Array; contentType: string; extension: string; size: number; id: string; workToken: string }) {

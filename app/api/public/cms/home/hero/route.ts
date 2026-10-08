@@ -1,4 +1,5 @@
 import { getPrisma } from '@/lib/prisma'
+import { cmsMediaUrl } from '@/lib/storage/backblaze'
 import { modernizeItemConfig, normalizeElements, normalizeFocal, safeBackground, safeUrl } from '@/lib/cms-config'
 import { ensureCmsPage } from '@/lib/cms-bootstrap'
 
@@ -71,7 +72,7 @@ export async function GET() {
   const enabled = section?.enabled ?? true
   const items = enabled
     ? (section?.items ?? []).flatMap((item) => {
-        const desktopImageUrl = mediaUrl(item.imageUrl)
+        const desktopImageUrl = mediaUrl(cmsMediaUrl(item.imageUrl))
         const title = item.title.trim()
         if (!title) return []
         const config = modernizeItemConfig(item.config, item)
@@ -88,7 +89,7 @@ export async function GET() {
           ctaLabel: buttonElement?.text || text(config.ctaLabel, 'อ่านเลย'),
           href: href(buttonElement?.link || item.linkUrl),
           desktopImageUrl: desktopImageUrl ?? '',
-          mobileImageUrl: mediaUrl(safeUrl(config.mobileImageUrl)) ?? desktopImageUrl ?? '',
+          mobileImageUrl: mediaUrl(cmsMediaUrl(safeUrl(config.mobileImageUrl))) ?? desktopImageUrl ?? '',
           background: safeBackground(config.background),
           focal: normalizeFocal(config.focal),
           visual: {

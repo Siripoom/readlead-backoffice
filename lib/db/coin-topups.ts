@@ -174,13 +174,17 @@ export async function getCoinTopUpSlip(id: string, adminId: string) {
   const prisma = getPrisma()
   const item = await prisma.coinTopUpRequest.findUnique({
     where: { id },
-    select: { slipUrl: true },
+    select: { slipObjectKey: true, slipUrl: true, slipContentType: true },
   })
-  if (!item) return null
-  await prisma.auditLog.create({
-    data: { adminId, action: 'finance.topup_proof_viewed', entity: 'CoinTopUpRequest', entityId: id },
-  })
-  return item.slipUrl
+  if (!item?.slipObjectKey) return null
+  return {
+    key: item.slipObjectKey,
+    legacy: Boolean(item.slipUrl),
+    contentType: item.slipContentType,
+    audit: async () => prisma.auditLog.create({
+      data: { adminId, action: 'finance.topup_proof_viewed', entity: 'CoinTopUpRequest', entityId: id },
+    }),
+  }
 }
 
 export async function decideCoinTopUp(input: {
@@ -191,8 +195,8 @@ export async function decideCoinTopUp(input: {
 }) {
   const prisma = getPrisma()
   return prisma.$transaction(async (tx) => {
-    const current = await tx.coinTopUpRequest.findUnique({
-      where: { id: input.id },
+    const current = await tx.coinTopUpRequest.findFirst({
+      where: { id: input.id, paymentMethod: 'proof-upload' },
       select: { ...adminSelect, userId: true },
     })
     if (!current) throw new CoinTopUpReviewError('NOT_FOUND')
@@ -204,7 +208,7 @@ export async function decideCoinTopUp(input: {
 
     const now = new Date()
     const claimed = await tx.coinTopUpRequest.updateMany({
-      where: { id: input.id, status: 'pending' },
+      where: { id: input.id, paymentMethod: 'proof-upload', status: 'pending' },
       data: {
         status: input.decision,
         rejectionReason: input.decision === 'rejected' ? input.reason : null,

@@ -13,7 +13,20 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params
   const report = await getReportById(id)
   if (!report) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(report)
+  return NextResponse.json({
+    ...report,
+    attachments: report.attachments.map((attachment) => ({
+      ...attachment,
+      url: `/api/reports/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachment.id)}`,
+    })),
+    messages: report.messages.map((message) => ({
+      ...message,
+      attachments: message.attachments.map((attachment) => ({
+        ...attachment,
+        url: `/api/reports/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachment.id)}`,
+      })),
+    })),
+  })
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {

@@ -37,10 +37,10 @@ function memberStatus(status: string, latestSender?: string | null): MemberRepor
   return status === 'in_progress' && latestSender === 'admin' ? 'reply' : 'pending'
 }
 
-function attachmentDto(attachment: { id: string; url: string; contentType: string; sizeBytes: number; originalName: string }) {
+function attachmentDto(attachment: { id: string; url: string; contentType: string; sizeBytes: number; originalName: string }, reportId: string) {
   return {
     id: attachment.id,
-    url: attachment.url,
+    url: `/api/member/reports/${encodeURIComponent(reportId)}/attachments/${encodeURIComponent(attachment.id)}`,
     contentType: attachment.contentType,
     sizeBytes: attachment.sizeBytes,
     name: attachment.originalName,
@@ -100,7 +100,7 @@ function reportDetail(report: {
         senderName: report.senderName,
         message: report.message,
         createdAt: report.date.toISOString(),
-        attachments: report.attachments.filter((item) => !item.messageId).map(attachmentDto),
+        attachments: report.attachments.filter((item) => !item.messageId).map((attachment) => attachmentDto(attachment, report.id)),
       },
       ...report.messages.map((message) => ({
         id: message.id,
@@ -108,7 +108,7 @@ function reportDetail(report: {
         senderName: message.senderName,
         message: message.message,
         createdAt: message.createdAt.toISOString(),
-        attachments: message.attachments.map(attachmentDto),
+        attachments: message.attachments.map((attachment) => attachmentDto(attachment, report.id)),
       })),
     ],
   }
@@ -158,7 +158,7 @@ async function uploadFiles(reportId: string, files: Awaited<ReturnType<typeof va
       uploaded.push({
         id,
         objectKey: object.key,
-        url: object.url,
+        url: `/api/member/reports/${encodeURIComponent(reportId)}/attachments/${encodeURIComponent(id)}`,
         contentType: file.contentType,
         sizeBytes: file.size,
         originalName: file.originalName,

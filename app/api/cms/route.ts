@@ -19,6 +19,7 @@ import { ensureCmsPage } from '@/lib/cms-bootstrap'
 import { cmsGenerationWorkType } from '@/lib/cms-generation'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { getPrisma } from '@/lib/prisma'
+import { cmsMediaUrl } from '@/lib/storage/backblaze'
 
 const variants = new Set(['default', 'banner', 'book', 'main', 'cover', 'image'])
 
@@ -104,7 +105,19 @@ export async function GET(request: NextRequest) {
     where: { slug },
     include: { sections: { orderBy: { sortOrder: 'asc' }, include: { items: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } } } },
   })
-  return NextResponse.json(page)
+  return NextResponse.json(page && {
+    ...page,
+    sections: page.sections.map((section) => ({
+      ...section,
+      items: section.items.map((item) => ({
+        ...item,
+        imageUrl: cmsMediaUrl(item.imageUrl),
+        config: typeof item.config === 'object' && item.config && !Array.isArray(item.config)
+          ? { ...item.config, mobileImageUrl: cmsMediaUrl((item.config as { mobileImageUrl?: string }).mobileImageUrl) }
+          : item.config,
+      })),
+    })),
+  })
 }
 
 export async function POST(request: NextRequest) {

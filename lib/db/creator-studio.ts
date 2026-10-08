@@ -455,7 +455,7 @@ export async function createAutomaticWithdrawalRequests(now = new Date()) {
         console.error('Automatic creator payout skipped after unexpected error', {
           userId: row.userId,
           payoutPeriod: period,
-          error,
+          errorName: error instanceof Error ? error.name : 'UnknownError',
         })
         results.push({ userId: row.userId, skipped: 'error' })
       }
