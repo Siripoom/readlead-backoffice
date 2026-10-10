@@ -1,6 +1,7 @@
 export const ALL_PERMISSIONS = [
   'dashboard',
   'users',
+  'writer-applications',
   'admins',
   'reports',
   'finance',

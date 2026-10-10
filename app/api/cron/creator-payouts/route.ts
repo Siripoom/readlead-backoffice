@@ -1,9 +1,12 @@
 export const dynamic = 'force-dynamic'
+import { timingSafeEqual } from 'node:crypto'
 import { createAutomaticWithdrawalRequests } from '@/lib/db/creator-studio'
 
 export async function POST(request: Request) {
   const secret = process.env.CRON_SECRET
-  if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const received = Buffer.from(request.headers.get('authorization') ?? '')
+  const expected = Buffer.from(secret ? `Bearer ${secret}` : '')
+  if (!secret || received.length !== expected.length || !timingSafeEqual(received, expected)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const result = await createAutomaticWithdrawalRequests()
     const failures = result.results.filter((item) => item.skipped === 'error')

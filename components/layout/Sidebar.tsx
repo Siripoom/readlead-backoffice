@@ -13,7 +13,7 @@ interface NavItem { label: string; href?: string; icon: LucideIcon; permission: 
 const navItems: NavItem[] = [
   { label: 'ภาพรวมระบบ', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard' },
   { label: 'จัดการผู้ใช้', icon: Users, permission: 'users', children: [{ label: 'ผู้ใช้งาน', href: '/users?tab=users', tab: 'users' }, { label: 'นักเขียน', href: '/users?tab=creators', tab: 'creators' }, { label: 'แอดมิน', href: '/users?tab=admins', tab: 'admins' }] },
-  { label: 'ใบสมัครนักเขียน', href: '/writer-applications', icon: ClipboardCheck, permission: 'users' },
+  { label: 'ใบสมัครนักเขียน', href: '/writer-applications', icon: ClipboardCheck, permission: 'writer-applications' },
   { label: 'รายงาน', href: '/report', icon: Flag, permission: 'reports' },
   { label: 'การเงินของเว็บ', href: '/finance', icon: DollarSign, permission: 'finance' },
   { label: 'ตรวจผลงาน', href: '/content', icon: FileSearch, permission: 'cms' },

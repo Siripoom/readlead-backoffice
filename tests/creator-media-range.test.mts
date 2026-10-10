@@ -123,3 +123,35 @@ test('legacy RLCM1 media remains readable during migration', async () => {
   assert.equal(result.contentRange, `bytes 100-199/${plaintext.byteLength}`)
   assert.deepEqual(getRanges, ['bytes=0-16', undefined])
 })
+
+test('open-ended range from a 100 MiB object is capped at 8 MiB', async () => {
+  const large = new Uint8Array(100 * 1024 * 1024)
+  const uploaded = await uploadCreatorMedia({
+    body: large,
+    contentType: 'audio/mpeg',
+    extension: 'mp3',
+    size: large.byteLength,
+    id: 'large-range-test',
+    workToken: 'work-token',
+  })
+  getRanges.length = 0
+  returnedByteCounts.length = 0
+
+  const result = await downloadCreatorMedia(uploaded.key, 'bytes=0-')
+
+  assert.equal(result.contentLength, 8 * 1024 * 1024)
+  assert.equal(result.contentRange, `bytes 0-${8 * 1024 * 1024 - 1}/${large.byteLength}`)
+  assert.equal(result.body.byteLength, 8 * 1024 * 1024)
+  assert.equal(getRanges.length, 2)
+  assert.ok(returnedByteCounts.reduce((total, bytes) => total + bytes, 0) < 9 * 1024 * 1024)
+
+  getRanges.length = 0
+  const explicit = await downloadCreatorMedia(uploaded.key, 'bytes=0-99999999')
+  assert.equal(explicit.contentLength, 8 * 1024 * 1024)
+  assert.equal(getRanges.length, 2)
+
+  getRanges.length = 0
+  const suffix = await downloadCreatorMedia(uploaded.key, 'bytes=-99999999')
+  assert.equal(suffix.contentLength, 8 * 1024 * 1024)
+  assert.equal(getRanges.length, 2)
+})

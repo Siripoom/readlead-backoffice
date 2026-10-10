@@ -79,6 +79,7 @@ const statusMap: Record<UserStatus, { label: string; className: string }> = {
 const permissionLabels: Record<string, string> = {
   dashboard: 'ภาพรวม',
   users: 'ผู้ใช้',
+  'writer-applications': 'ใบสมัครนักเขียน',
   admins: 'แอดมิน',
   reports: 'รายงาน',
   finance: 'การเงิน',

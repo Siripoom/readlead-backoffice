@@ -18,7 +18,7 @@ function json(body: unknown, status = 200) {
 }
 
 export async function GET(_request: NextRequest, context: Context) {
-  const auth = await authorizeApi('users')
+  const auth = await authorizeApi('writer-applications')
   if (!auth.ok) return auth.response
   const { id } = await context.params
 
@@ -39,27 +39,30 @@ export async function GET(_request: NextRequest, context: Context) {
 }
 
 export async function PATCH(request: NextRequest, context: Context) {
-  const auth = await authorizeApi('users')
+  const auth = await authorizeApi('writer-applications')
   if (!auth.ok) return auth.response
   const { id } = await context.params
 
-  let body: { decision?: WriterApplicationDecision; reason?: string }
+  let body: unknown
   try {
     body = await request.json()
   } catch {
     return json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, 400)
   }
-  if (body.decision !== 'approved' && body.decision !== 'rejected') return json({ error: 'การตัดสินใจไม่ถูกต้อง' }, 400)
-  const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
-  if (body.decision === 'rejected' && (!reason || reason.length > 500)) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, 400)
+  const input = body as Record<string, unknown>
+  if (input.decision !== 'approved' && input.decision !== 'rejected') return json({ error: 'การตัดสินใจไม่ถูกต้อง' }, 400)
+  if (input.reason !== undefined && typeof input.reason !== 'string') return json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, 400)
+  const reason = typeof input.reason === 'string' ? input.reason.trim() : ''
+  if (input.decision === 'rejected' && (!reason || reason.length > 500)) {
     return json({ error: 'กรุณาระบุเหตุผลในการปฏิเสธไม่เกิน 500 ตัวอักษร' }, 400)
   }
 
   try {
     const result = await decideWriterApplication({
       id,
-      decision: body.decision,
-      reason: body.decision === 'rejected' ? reason : undefined,
+      decision: input.decision as WriterApplicationDecision,
+      reason: input.decision === 'rejected' ? reason : undefined,
       adminId: auth.admin.id,
     })
     return json(result)

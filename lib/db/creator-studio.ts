@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import { getPrisma } from '@/lib/prisma'
-import { decryptWriterApplicationPayload, encryptWriterApplicationPayload } from '@/lib/writer-application-crypto'
+import { decryptWriterApplicationPayload, encryptWithdrawalDestination } from '@/lib/writer-application-crypto'
 import type { CreatorEpisodeStatus, CreatorEpisodeType, CreatorModerationType, CreatorNarrationType, CreatorWorkOrigin, CreatorWorkStatus, CreatorWorkType } from '@/lib/generated/prisma/enums'
 
 export class CreatorStudioError extends Error {
@@ -376,18 +377,20 @@ export async function createWithdrawal(userId: string, amountBaht: number) {
   return prisma.$transaction(async (tx) => {
     const [user, application, ledger] = await Promise.all([
       tx.user.findUnique({ where: { id: userId }, select: { name: true, userType: true } }),
-      tx.writerApplication.findUnique({ where: { userId }, select: { status: true, encryptedPayload: true } }),
+      tx.writerApplication.findUnique({ where: { userId }, select: { id: true, status: true, encryptedPayload: true } }),
       tx.creatorRevenueLedger.aggregate({ where: { userId }, _sum: { amountSatang: true } }),
     ])
     if (!user || user.userType !== 'creator') throw new CreatorStudioError('FORBIDDEN')
     if (!application || application.status !== 'approved') throw new CreatorStudioError('NOT_READY')
     if ((ledger._sum.amountSatang ?? 0) < amountSatang) throw new CreatorStudioError('INSUFFICIENT_BALANCE')
-    const details = decryptWriterApplicationPayload(application.encryptedPayload)
+    const details = decryptWriterApplicationPayload(application.encryptedPayload, application.id)
     if (!details.bankName || !details.accountNumber || !details.accountName) throw new CreatorStudioError('NOT_READY')
     const taxSatang = Math.floor(amountSatang * 0.03)
     const netSatang = amountSatang - taxSatang
-    const encryptedDestination = encryptWriterApplicationPayload({ bankName: details.bankName, accountNumber: details.accountNumber, accountName: details.accountName })
+    const withdrawalId = randomUUID()
+    const encryptedDestination = encryptWithdrawalDestination({ bankName: details.bankName, accountNumber: details.accountNumber, accountName: details.accountName }, withdrawalId)
     const withdrawal = await tx.withdrawalRequest.create({ data: {
+      id: withdrawalId,
       userId,
       creator: user.name,
       bank: 'encrypted',
@@ -434,16 +437,17 @@ export async function createAutomaticWithdrawalRequests(now = new Date()) {
         if (existing) return existing
         const [user, application, latestBalance] = await Promise.all([
           tx.user.findUnique({ where: { id: row.userId }, select: { name: true, userType: true } }),
-          tx.writerApplication.findUnique({ where: { userId: row.userId }, select: { status: true, encryptedPayload: true } }),
+          tx.writerApplication.findUnique({ where: { userId: row.userId }, select: { id: true, status: true, encryptedPayload: true } }),
           tx.creatorRevenueLedger.aggregate({ where: { userId: row.userId }, _sum: { amountSatang: true } }),
         ])
         if (!user || user.userType !== 'creator' || !application || application.status !== 'approved') throw new CreatorStudioError('NOT_READY')
         const reservedSatang = Math.min(2_000_000, latestBalance._sum.amountSatang ?? 0)
         if (reservedSatang < 10_000) throw new CreatorStudioError('INSUFFICIENT_BALANCE')
-        const details = decryptWriterApplicationPayload(application.encryptedPayload)
+        const details = decryptWriterApplicationPayload(application.encryptedPayload, application.id)
         if (!details.bankName || !details.accountNumber || !details.accountName) throw new CreatorStudioError('NOT_READY')
         const taxSatang = Math.floor(reservedSatang * 0.03)
-        const withdrawal = await tx.withdrawalRequest.create({ data: { userId: row.userId, creator: user.name, bank: 'encrypted', bankAccount: `••••${details.accountNumber.slice(-4)}`, amount: reservedSatang / 100, amountSatang: reservedSatang, taxSatang, feeSatang: 0, netSatang: reservedSatang - taxSatang, encryptedDestination: encryptWriterApplicationPayload({ bankName: details.bankName, accountNumber: details.accountNumber, accountName: details.accountName }), payoutMode: 'automatic', payoutPeriod: period } })
+        const withdrawalId = randomUUID()
+        const withdrawal = await tx.withdrawalRequest.create({ data: { id: withdrawalId, userId: row.userId, creator: user.name, bank: 'encrypted', bankAccount: `••••${details.accountNumber.slice(-4)}`, amount: reservedSatang / 100, amountSatang: reservedSatang, taxSatang, feeSatang: 0, netSatang: reservedSatang - taxSatang, encryptedDestination: encryptWithdrawalDestination({ bankName: details.bankName, accountNumber: details.accountNumber, accountName: details.accountName }, withdrawalId), payoutMode: 'automatic', payoutPeriod: period } })
         await tx.creatorRevenueLedger.create({ data: { userId: row.userId, kind: 'withdrawal_reserve', amountSatang: -reservedSatang, referenceId: withdrawal.id, idempotencyKey: `automatic-withdrawal-reserve:${row.userId}:${period}` } })
         await tx.withdrawalHistory.create({ data: { withdrawalId: withdrawal.id, status: 'pending', note: `Automatic payout cycle ${period}` } })
         return withdrawal

@@ -32,7 +32,16 @@ export async function PATCH(request: NextRequest) {
   const auth = await authorizeApi('punishment'); if (!auth.ok) return auth.response
   const body = await request.json() as { id?: string; status?: 'cancelled'|'active' }
   if (!body.id || !body.status) return NextResponse.json({ error: 'ข้อมูลไม่ครบ' }, { status: 400 })
-  const prisma=getPrisma(), record=await prisma.punishmentRecord.update({where:{id:body.id},data:{status:body.status}})
+  const prisma = getPrisma()
+  let record
+  try {
+    record = await prisma.punishmentRecord.update({ where: { id: body.id }, data: { status: body.status } })
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+      return NextResponse.json({ error: 'ไม่พบรายการบทลงโทษ' }, { status: 404 })
+    }
+    throw error
+  }
   await prisma.auditLog.create({data:{adminId:auth.admin.id,action:`punishment.${body.status}`,entity:'PunishmentRecord',entityId:record.id}})
   return NextResponse.json(record)
 }

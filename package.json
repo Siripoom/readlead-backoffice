@@ -13,7 +13,7 @@
     "test:media": "node --experimental-test-module-mocks --import tsx --test tests/creator-media-range.test.mts",
     "test:payment-channels": "node --experimental-test-module-mocks --import tsx --test tests/payment-channel-settings.test.mts",
     "test:payouts": "node --experimental-test-module-mocks --import tsx --test tests/creator-payouts.test.mts",
-    "test:security": "node --experimental-test-module-mocks --import tsx --test tests/security-regressions.test.ts tests/social-member-auth.test.ts tests/user-route-security.test.mts tests/punishment-level-route.test.mts tests/cms-upload-security.test.mts",
+    "test:security": "node --experimental-test-module-mocks --import tsx --test tests/security-regressions.test.ts tests/social-member-auth.test.ts tests/user-route-security.test.mts tests/punishment-level-route.test.mts tests/cms-upload-security.test.mts tests/writer-application-permission.test.mts tests/writer-application-kyc.test.mts tests/writer-document-crypto.test.mts tests/writer-document-v2.test.mts tests/writer-application-punishment.test.mts tests/punishment-record-route.test.mts tests/m2-row-bound-crypto.test.mts",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

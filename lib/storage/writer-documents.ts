@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { decryptWriterDocument, encryptWriterDocument, writerDocumentObjectToken } from '@/lib/writer-application-crypto'
 
 export class WriterDocumentStorageConfigError extends Error {
@@ -58,29 +58,44 @@ function getClient(config: ReturnType<typeof getConfig>) {
 
 export async function uploadWriterDocument(input: {
   userId: string
+  applicationId: string
   kind: 'identity' | 'bank'
+  attemptId: string
   body: Uint8Array
   contentType: 'image/jpeg' | 'image/png'
 }) {
   const config = getConfig()
-  const encryptedBody = encryptWriterDocument(input.body, input.kind)
-  const token = writerDocumentObjectToken(input.userId, input.kind)
+  const encryptedBody = encryptWriterDocument(input.body, input.kind, input.userId, input.applicationId)
+  const token = writerDocumentObjectToken(input.userId, input.kind, input.attemptId)
   const key = [config.prefix, `${token}.rlwd`].filter(Boolean).join('/')
 
-  await getClient(config).send(new PutObjectCommand({
-    Bucket: config.bucket,
-    Key: key,
-    Body: encryptedBody,
-    ContentLength: encryptedBody.byteLength,
-    ContentType: 'application/octet-stream',
-    CacheControl: 'private, no-store',
-  }))
+  try {
+    await getClient(config).send(new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: key,
+      Body: encryptedBody,
+      ContentLength: encryptedBody.byteLength,
+      ContentType: 'application/octet-stream',
+      CacheControl: 'private, no-store',
+    }))
+  } catch (error) {
+    try { await deleteWriterDocument(key) } catch {}
+    throw error
+  }
 
   return { key }
 }
 
+export async function deleteWriterDocument(key: string) {
+  const config = getConfig()
+  if (!key.startsWith(`${config.prefix}/`)) throw new Error('Writer document key is outside the configured prefix')
+  await getClient(config).send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
+}
+
 export async function downloadWriterDocument(input: {
   key: string
+  userId: string
+  applicationId: string
   kind: 'identity' | 'bank'
 }) {
   const config = getConfig()
@@ -92,5 +107,5 @@ export async function downloadWriterDocument(input: {
   }))
   if (!object.Body) throw new Error('Writer document body is missing')
 
-  return decryptWriterDocument(await object.Body.transformToByteArray(), input.kind)
+  return decryptWriterDocument(await object.Body.transformToByteArray(), input.kind, input.userId, input.applicationId)
 }

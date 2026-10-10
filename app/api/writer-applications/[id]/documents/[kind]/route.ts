@@ -9,7 +9,7 @@ import { WriterApplicationEncryptionConfigError } from '@/lib/writer-application
 type Context = { params: Promise<{ id: string; kind: string }> }
 
 export async function GET(_request: NextRequest, context: Context) {
-  const auth = await authorizeApi('users')
+  const auth = await authorizeApi('writer-applications')
   if (!auth.ok) return auth.response
   const { id, kind: rawKind } = await context.params
   if (rawKind !== 'identity' && rawKind !== 'bank') {
@@ -23,7 +23,7 @@ export async function GET(_request: NextRequest, context: Context) {
     if (document.contentType !== 'image/jpeg' && document.contentType !== 'image/png') {
       throw new Error('Unsupported writer document content type')
     }
-    const bytes = await downloadWriterDocument({ key: document.key, kind })
+    const bytes = await downloadWriterDocument({ key: document.key, kind, userId: document.userId, applicationId: id })
     await recordWriterApplicationAudit({
       adminId: auth.admin.id,
       applicationId: id,

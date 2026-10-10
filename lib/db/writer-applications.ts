@@ -1,5 +1,6 @@
 import { getPrisma } from '@/lib/prisma'
 import { decryptWriterApplicationPayload } from '@/lib/writer-application-crypto'
+import { activePunishmentWhere } from '@/lib/member-punishment'
 import type { WriterApplicationStatus } from '@/lib/generated/prisma/enums'
 
 export type WriterApplicationFilter = WriterApplicationStatus | 'all'
@@ -87,7 +88,7 @@ export async function getWriterApplicationDetail(id: string) {
     createdAt: application.createdAt,
     updatedAt: application.updatedAt,
     user: application.user,
-    details: decryptWriterApplicationPayload(application.encryptedPayload),
+    details: decryptWriterApplicationPayload(application.encryptedPayload, application.id),
   }
 }
 
@@ -95,6 +96,7 @@ export async function getWriterApplicationDocument(id: string, kind: 'identity' 
   const application = await getPrisma().writerApplication.findUnique({
     where: { id },
     select: {
+      userId: true,
       identityObjectKey: true,
       identityContentType: true,
       bankObjectKey: true,
@@ -103,8 +105,8 @@ export async function getWriterApplicationDocument(id: string, kind: 'identity' 
   })
   if (!application) return null
   return kind === 'identity'
-    ? { key: application.identityObjectKey, contentType: application.identityContentType }
-    : { key: application.bankObjectKey, contentType: application.bankContentType }
+    ? { key: application.identityObjectKey, contentType: application.identityContentType, userId: application.userId }
+    : { key: application.bankObjectKey, contentType: application.bankContentType, userId: application.userId }
 }
 
 export async function recordWriterApplicationAudit(input: {
@@ -139,8 +141,13 @@ export async function decideWriterApplication(input: {
     if (!application) throw new WriterApplicationReviewError('NOT_FOUND')
     if (application.status === input.decision) return { application, idempotent: true }
     if (application.status !== 'pending') throw new WriterApplicationReviewError('INVALID_TRANSITION')
-    if (input.decision === 'approved' && application.user.status !== 'active') {
-      throw new WriterApplicationReviewError('INACTIVE_USER')
+    if (input.decision === 'approved') {
+      if (application.user.status !== 'active') throw new WriterApplicationReviewError('INACTIVE_USER')
+      const punishment = await tx.punishmentRecord.findFirst({
+        where: { userId: application.userId, ...activePunishmentWhere() },
+        select: { id: true },
+      })
+      if (punishment) throw new WriterApplicationReviewError('INACTIVE_USER')
     }
 
     const now = new Date()

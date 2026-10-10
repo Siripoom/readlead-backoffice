@@ -3,7 +3,7 @@ import { WriterApplicationsManager } from '@/components/writer-applications/Writ
 import { requireAdmin } from '@/lib/auth'
 
 export default async function WriterApplicationsPage() {
-  await requireAdmin('users')
+  await requireAdmin('writer-applications')
   return (
     <Box>
       <Box mb={6}>

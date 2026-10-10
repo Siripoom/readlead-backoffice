@@ -1,5 +1,5 @@
 import { getPrisma } from '@/lib/prisma'
-import { decryptWriterApplicationPayload } from '@/lib/writer-application-crypto'
+import { decryptWithdrawalDestination } from '@/lib/writer-application-crypto'
 import type { WithdrawalStatus } from '@/lib/generated/prisma/enums'
 
 const withdrawalSafeSelect = {
@@ -18,7 +18,7 @@ export async function getWithdrawalDetail(id: string, adminId: string) {
   const withdrawal = await prisma.withdrawalRequest.findUnique({ where: { id }, select: { ...withdrawalSafeSelect, encryptedDestination: true, history: { orderBy: { createdAt: 'desc' }, select: { status: true, note: true, createdAt: true } } } })
   if (!withdrawal) return null
   let destination: { bankName?: string; accountNumber?: string; accountName?: string } | null = null
-  if (withdrawal.encryptedDestination) destination = decryptWriterApplicationPayload(withdrawal.encryptedDestination)
+  if (withdrawal.encryptedDestination) destination = decryptWithdrawalDestination(withdrawal.encryptedDestination, withdrawal.id)
   await prisma.auditLog.create({ data: { adminId, action: 'finance.withdrawal_open', entity: 'WithdrawalRequest', entityId: id } })
   const { encryptedDestination: _secret, ...safe } = withdrawal
   void _secret

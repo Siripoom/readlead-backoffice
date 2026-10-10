@@ -7,7 +7,7 @@ import { listWriterApplications, type WriterApplicationFilter } from '@/lib/db/w
 const STATUSES = new Set<WriterApplicationFilter>(['all', 'pending', 'approved', 'rejected'])
 
 export async function GET(request: NextRequest) {
-  const auth = await authorizeApi('users')
+  const auth = await authorizeApi('writer-applications')
   if (!auth.ok) return auth.response
 
   const rawStatus = request.nextUrl.searchParams.get('status') ?? 'pending'

@@ -75,8 +75,8 @@ async function main() {
     { id: 'a3', name: 'ภูมิ ตรวจสอบ',  email: 'poom@readlead.com',       joinedAt: new Date('2024-06-01'), status: 'active' as const, userType: 'admin' as const },
   ]
   const adminProfiles = [
-    { userId: 'a1', role: 'ผู้ดูแลระบบ', adminCode: 'AD-001', passwordHash: hashPassword('ReadLead@123'), permissions: ['dashboard','users','admins','reports','finance','punishment','cms','exp'], isOwner: true, lastLogin: new Date('2026-05-16') },
-    { userId: 'a2', role: 'ผู้ดูแลเนื้อหา', adminCode: 'AD-014', passwordHash: hashPassword('ReadLead@123'), permissions: ['dashboard','users','reports','punishment','cms'], isOwner: false, lastLogin: new Date('2026-05-15') },
+    { userId: 'a1', role: 'ผู้ดูแลระบบ', adminCode: 'AD-001', passwordHash: hashPassword('ReadLead@123'), permissions: ['dashboard','users','writer-applications','admins','reports','finance','punishment','cms','exp'], isOwner: true, lastLogin: new Date('2026-05-16') },
+    { userId: 'a2', role: 'ผู้ดูแลเนื้อหา', adminCode: 'AD-014', passwordHash: hashPassword('ReadLead@123'), permissions: ['dashboard','users','writer-applications','reports','punishment','cms'], isOwner: false, lastLogin: new Date('2026-05-15') },
     { userId: 'a3', role: 'ผู้ตรวจสอบ', adminCode: 'AD-022', passwordHash: hashPassword('ReadLead@123'), permissions: ['dashboard','reports','finance'], isOwner: false, lastLogin: new Date('2026-05-14') },
   ]
   for (const a of admins) {

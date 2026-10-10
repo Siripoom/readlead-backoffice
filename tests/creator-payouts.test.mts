@@ -19,7 +19,7 @@ const transactionClient = {
     findUnique: async () => ({ name: 'Creator', userType: 'creator' }),
   },
   writerApplication: {
-    findUnique: async () => ({ status: 'approved', encryptedPayload: 'encrypted' }),
+    findUnique: async () => ({ id: 'application', status: 'approved', encryptedPayload: 'encrypted' }),
   },
   creatorRevenueLedger: {
     aggregate: async () => ({ _sum: { amountSatang: 20_000 } }),
@@ -44,7 +44,7 @@ mock.module('@/lib/prisma', { namedExports: { getPrisma: () => prisma } })
 mock.module('@/lib/writer-application-crypto', {
   namedExports: {
     decryptWriterApplicationPayload: () => ({ bankName: 'Bank', accountNumber: '1234567890', accountName: 'Creator' }),
-    encryptWriterApplicationPayload: () => 'encrypted-destination',
+    encryptWithdrawalDestination: () => 'encrypted-destination',
   },
 })
 

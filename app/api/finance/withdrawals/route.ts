@@ -23,11 +23,19 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const auth = await authorizeApi('finance'); if (!auth.ok) return auth.response
-  const body = await request.json() as { id?: string; status?: WithdrawalStatus; note?: string }
-  if (!body.id || !body.status || !['approved', 'rejected'].includes(body.status)) return NextResponse.json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, { status: 400 })
-  if (body.status === 'rejected' && (!body.note?.trim() || body.note.trim().length > 500)) return NextResponse.json({ error: 'กรุณาระบุเหตุผล 1–500 ตัวอักษร' }, { status: 400 })
+  let body: unknown
   try {
-    const withdrawal = await updateWithdrawalStatus({ id: body.id, status: body.status, adminId: auth.admin.id, reviewerName: auth.admin.user.name, note: body.note?.trim() })
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, { status: 400 })
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, { status: 400 })
+  const input = body as Record<string, unknown>
+  if (typeof input.id !== 'string' || !input.id.trim() || (input.status !== 'approved' && input.status !== 'rejected') || (input.note !== undefined && typeof input.note !== 'string')) return NextResponse.json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, { status: 400 })
+  const note = typeof input.note === 'string' ? input.note.trim() : undefined
+  if (input.status === 'rejected' && (!note || note.length > 500)) return NextResponse.json({ error: 'กรุณาระบุเหตุผล 1–500 ตัวอักษร' }, { status: 400 })
+  try {
+    const withdrawal = await updateWithdrawalStatus({ id: input.id, status: input.status as WithdrawalStatus, adminId: auth.admin.id, reviewerName: auth.admin.user.name, note })
     return NextResponse.json(withdrawal)
   } catch (error) {
     const message = error instanceof Error ? error.message : ''

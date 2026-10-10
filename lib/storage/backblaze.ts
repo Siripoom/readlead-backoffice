@@ -126,18 +126,20 @@ function decryptCreatorMedia(body: Uint8Array, objectKey: string) {
   return decryptCreatorMediaChunks(body.subarray(CREATOR_MEDIA_HEADER_SIZE), objectKey, header)
 }
 
+const MAX_CREATOR_MEDIA_RANGE_BYTES = 8 * 1024 * 1024
+
 function parseCreatorMediaRange(range: string, size: number) {
   const match = /^bytes=(\d*)-(\d*)$/.exec(range)
   if (!match || (!match[1] && !match[2]) || size <= 0) return null
   if (!match[1]) {
     const suffixLength = Number(match[2])
     if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) return null
-    return { start: Math.max(0, size - suffixLength), end: size - 1 }
+    return { start: Math.max(0, size - Math.min(suffixLength, MAX_CREATOR_MEDIA_RANGE_BYTES)), end: size - 1 }
   }
   const start = Number(match[1])
   const requestedEnd = match[2] ? Number(match[2]) : size - 1
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(requestedEnd) || start < 0 || requestedEnd < start || start >= size) return null
-  return { start, end: Math.min(requestedEnd, size - 1) }
+  return { start, end: Math.min(requestedEnd, size - 1, start + MAX_CREATOR_MEDIA_RANGE_BYTES - 1) }
 }
 
 function getConfig() {

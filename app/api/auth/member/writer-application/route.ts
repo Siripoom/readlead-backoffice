@@ -1,9 +1,10 @@
+import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { getMemberSessionUser } from '@/lib/member-auth'
 import { getPrisma } from '@/lib/prisma'
 import { encryptWriterApplicationPayload, WriterApplicationEncryptionConfigError } from '@/lib/writer-application-crypto'
 import { validateWriterApplicationForm } from '@/lib/writer-application-validation'
-import { uploadWriterDocument, WriterDocumentStorageConfigError } from '@/lib/storage/writer-documents'
+import { deleteWriterDocument, uploadWriterDocument, WriterDocumentStorageConfigError } from '@/lib/storage/writer-documents'
 
 const TERMS_VERSION = 'readify-2026-07-18'
 const MAX_MULTIPART_SIZE = 11 * 1024 * 1024
@@ -79,16 +80,39 @@ export async function POST(request: Request) {
     }
 
     const { applicantType, penName, payload, identityFile, bankFile } = validation.data
-    const encryptedPayload = encryptWriterApplicationPayload(payload)
-    const [identityUpload, bankUpload] = await Promise.all([
-      uploadWriterDocument({ userId: user.id, kind: 'identity', ...identityFile }),
-      uploadWriterDocument({ userId: user.id, kind: 'bank', ...bankFile }),
+    const applicationId = existing?.id ?? randomUUID()
+    const encryptedPayload = encryptWriterApplicationPayload(payload, applicationId)
+    const attemptId = randomUUID()
+    const uploads = await Promise.allSettled([
+      uploadWriterDocument({ userId: user.id, applicationId, kind: 'identity', attemptId, ...identityFile }),
+      uploadWriterDocument({ userId: user.id, applicationId, kind: 'bank', attemptId, ...bankFile }),
     ])
+    const uploadedKeys = uploads.flatMap((result) => result.status === 'fulfilled' ? [result.value.key] : [])
+    const cleanup = async () => {
+      await Promise.allSettled(uploadedKeys.map((key) => deleteWriterDocument(key)))
+    }
+    const failedUpload = uploads.find((result) => result.status === 'rejected')
+    if (failedUpload?.status === 'rejected') {
+      await cleanup()
+      throw failedUpload.reason
+    }
+    const [identityUpload, bankUpload] = uploads.map((result) => {
+      if (result.status !== 'fulfilled') throw new Error('Writer document upload failed')
+      return result.value
+    })
     const now = new Date()
 
-    const application = existing
-      ? await prisma.writerApplication.update({
-          where: { userId: user.id },
+    let application: {
+      id: string
+      status: 'pending' | 'approved' | 'rejected'
+      penName: string
+      submittedAt: Date
+      rejectionReason: string | null
+    }
+    try {
+      if (existing) {
+        const updated = await prisma.writerApplication.updateMany({
+          where: { userId: user.id, status: 'rejected' },
           data: {
             applicantType,
             penName,
@@ -104,10 +128,22 @@ export async function POST(request: Request) {
             reviewedAt: null,
             rejectionReason: null,
           },
-          select: { id: true, status: true, penName: true, submittedAt: true, rejectionReason: true },
         })
-      : await prisma.writerApplication.create({
+        if (updated.count !== 1) {
+          await cleanup()
+          return json({ error: 'สถานะใบสมัครเปลี่ยนไป กรุณาตรวจสอบอีกครั้ง' }, 409)
+        }
+        application = {
+          id: existing.id,
+          status: 'pending',
+          penName,
+          submittedAt: now,
+          rejectionReason: null,
+        }
+      } else {
+        application = await prisma.writerApplication.create({
           data: {
+            id: applicationId,
             userId: user.id,
             applicantType,
             penName,
@@ -121,6 +157,11 @@ export async function POST(request: Request) {
           },
           select: { id: true, status: true, penName: true, submittedAt: true, rejectionReason: true },
         })
+      }
+    } catch (error) {
+      await cleanup()
+      throw error
+    }
 
     return json({ ok: true, application: serializeApplication(application) }, 201)
   } catch (error) {
