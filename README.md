@@ -35,3 +35,21 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Private payload migration
+
+The application writes v2 encrypted writer applications and withdrawal destinations. Existing v1 rows remain readable until migration. Keep `WRITER_APPLICATION_ENCRYPTION_KEY` unchanged and backed up separately from the database.
+
+Back up the database, then run the default dry run against the intended environment:
+
+```bash
+npm run db:migrate-private-payloads
+```
+
+Check `legacy`, `wouldMigrate`, and `concurrent` counts. The command requires verified TLS for remote PostgreSQL. To write v2 envelopes after reviewing the dry run:
+
+```bash
+npm run db:migrate-private-payloads -- --apply
+```
+
+Run the dry run again. Both `legacy` counts must be zero. Each written envelope is decrypted and compared with its source before the database update. The update also checks that the source ciphertext has not changed. Do not roll back to a build that only reads v1 after v2 writes have begun. Keep a v2-capable rollback build and the encryption key available.

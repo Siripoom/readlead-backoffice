@@ -1,4 +1,5 @@
-import { createHmac, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
+import { CreatorMediaTokenConfigError, creatorMediaObjectToken } from '@/lib/creator-media-token'
 import { authorizeMember, privateJson } from '@/lib/creator-api'
 import { getPrisma } from '@/lib/prisma'
 import { BackblazeConfigError, CreatorMediaEncryptionConfigError, deleteCreatorMedia, uploadCreatorMedia } from '@/lib/storage/backblaze'
@@ -33,14 +34,13 @@ export async function POST(request: Request, context: Context) {
   if (!file.size || file.size > max) return privateJson({ error: kind === 'audio' ? 'ไฟล์เสียงต้องไม่เกิน 100 MB' : 'ภาพแต่ละหน้าต้องไม่เกิน 10 MB' }, 413)
   const bytes = new Uint8Array(await file.arrayBuffer())
   if (!validMagic(file.type, bytes)) return privateJson({ error: 'ชนิดไฟล์ไม่ตรงกับข้อมูลภายในไฟล์' }, 400)
-  const secret = process.env.WRITER_APPLICATION_ENCRYPTION_KEY || process.env.B2_APP_KEY || 'creator-media'
-  const workToken = createHmac('sha256', secret).update(workId).digest('hex').slice(0, 24)
   try {
+    const workToken = creatorMediaObjectToken(workId)
     const uploaded = await uploadCreatorMedia({ body: bytes, contentType: file.type, extension: extensions[file.type], size: file.size, id: randomUUID(), workToken })
     const asset = await getPrisma().workAsset.create({ data: { workId, episodeId, kind, objectKey: uploaded.key, contentType: file.type, sizeBytes: file.size, sortOrder: Math.max(0, Number(form.get('sortOrder')) || 0), isPublic: false } })
     return privateJson({ asset: { id: asset.id, kind: asset.kind, contentType: asset.contentType, sizeBytes: asset.sizeBytes, sortOrder: asset.sortOrder, durationSeconds: asset.durationSeconds, isPublic: asset.isPublic, createdAt: asset.createdAt } }, 201)
   } catch (error) {
-    if (error instanceof BackblazeConfigError || error instanceof CreatorMediaEncryptionConfigError) return privateJson({ error: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน' }, 503)
+    if (error instanceof BackblazeConfigError || error instanceof CreatorMediaEncryptionConfigError || error instanceof CreatorMediaTokenConfigError) return privateJson({ error: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน' }, 503)
     console.error('Creator media upload failed', error instanceof Error ? error.name : 'UnknownError')
     return privateJson({ error: 'อัปโหลดไฟล์ไม่สำเร็จ' }, 502)
   }

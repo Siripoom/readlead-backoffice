@@ -370,48 +370,89 @@ export async function deleteCreatorEpisode(userId: string, id: string) {
   return getPrisma().creatorEpisode.delete({ where: { id }, select: { id: true } })
 }
 
-export async function createWithdrawal(userId: string, amountBaht: number) {
+type AdvanceWithdrawalRow = {
+  id: string
+  amountSatang: number | null
+  taxSatang: number | null
+  netSatang: number | null
+  status: string
+  requestedAt: Date
+}
+
+function presentAdvanceWithdrawal(row: AdvanceWithdrawalRow) {
+  return {
+    id: row.id,
+    amount: (row.amountSatang ?? 0) / 100,
+    tax: (row.taxSatang ?? 0) / 100,
+    netAmount: (row.netSatang ?? 0) / 100,
+    status: row.status,
+    requestedAt: row.requestedAt,
+  }
+}
+
+export async function createWithdrawal(userId: string, amountBaht: number, clientRequestKey: string) {
   const prisma = getPrisma()
   const amountSatang = Math.round(amountBaht * 100)
-  if (!Number.isInteger(amountSatang) || amountSatang < 10_000 || amountSatang > 2_000_000) throw new CreatorStudioError('VALIDATION')
-  return prisma.$transaction(async (tx) => {
-    const [user, application, ledger] = await Promise.all([
-      tx.user.findUnique({ where: { id: userId }, select: { name: true, userType: true } }),
-      tx.writerApplication.findUnique({ where: { userId }, select: { id: true, status: true, encryptedPayload: true } }),
-      tx.creatorRevenueLedger.aggregate({ where: { userId }, _sum: { amountSatang: true } }),
-    ])
-    if (!user || user.userType !== 'creator') throw new CreatorStudioError('FORBIDDEN')
-    if (!application || application.status !== 'approved') throw new CreatorStudioError('NOT_READY')
-    if ((ledger._sum.amountSatang ?? 0) < amountSatang) throw new CreatorStudioError('INSUFFICIENT_BALANCE')
-    const details = decryptWriterApplicationPayload(application.encryptedPayload, application.id)
-    if (!details.bankName || !details.accountNumber || !details.accountName) throw new CreatorStudioError('NOT_READY')
-    const taxSatang = Math.floor(amountSatang * 0.03)
-    const netSatang = amountSatang - taxSatang
-    const withdrawalId = randomUUID()
-    const encryptedDestination = encryptWithdrawalDestination({ bankName: details.bankName, accountNumber: details.accountNumber, accountName: details.accountName }, withdrawalId)
-    const withdrawal = await tx.withdrawalRequest.create({ data: {
-      id: withdrawalId,
-      userId,
-      creator: user.name,
-      bank: 'encrypted',
-      bankAccount: `••••${details.accountNumber.slice(-4)}`,
-      amount: amountBaht,
-      amountSatang,
-      taxSatang,
-      feeSatang: 0,
-      netSatang,
-      encryptedDestination,
-    } })
-    await tx.creatorRevenueLedger.create({ data: {
-      userId,
-      kind: 'withdrawal_reserve',
-      amountSatang: -amountSatang,
-      referenceId: withdrawal.id,
-      idempotencyKey: `withdrawal-reserve:${withdrawal.id}`,
-    } })
-    await tx.withdrawalHistory.create({ data: { withdrawalId: withdrawal.id, status: 'pending', note: 'Creator submitted withdrawal request' } })
-    return { id: withdrawal.id, amount: amountBaht, tax: taxSatang / 100, netAmount: netSatang / 100, status: withdrawal.status, requestedAt: withdrawal.requestedAt }
-  }, { isolationLevel: 'Serializable' })
+  if (!Number.isInteger(amountSatang) || amountSatang < 10_000 || amountSatang > 2_000_000 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientRequestKey)) throw new CreatorStudioError('VALIDATION')
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const existing = await tx.withdrawalRequest.findFirst({ where: { userId, clientRequestKey }, select: { id: true, amountSatang: true, taxSatang: true, netSatang: true, status: true, requestedAt: true } })
+        if (existing) {
+          if (existing.amountSatang !== amountSatang) throw new CreatorStudioError('INVALID_STATE')
+          return presentAdvanceWithdrawal(existing)
+        }
+        const [user, application, ledger] = await Promise.all([
+          tx.user.findUnique({ where: { id: userId }, select: { name: true, userType: true } }),
+          tx.writerApplication.findUnique({ where: { userId }, select: { id: true, status: true, encryptedPayload: true } }),
+          tx.creatorRevenueLedger.aggregate({ where: { userId }, _sum: { amountSatang: true } }),
+        ])
+        if (!user || user.userType !== 'creator') throw new CreatorStudioError('FORBIDDEN')
+        if (!application || application.status !== 'approved') throw new CreatorStudioError('NOT_READY')
+        if ((ledger._sum.amountSatang ?? 0) < amountSatang) throw new CreatorStudioError('INSUFFICIENT_BALANCE')
+        const details = decryptWriterApplicationPayload(application.encryptedPayload, application.id)
+        if (!details.bankName || !details.accountNumber || !details.accountName) throw new CreatorStudioError('NOT_READY')
+        const taxSatang = Math.floor(amountSatang * 0.03)
+        const netSatang = amountSatang - taxSatang
+        const withdrawalId = randomUUID()
+        const encryptedDestination = encryptWithdrawalDestination({ bankName: details.bankName, accountNumber: details.accountNumber, accountName: details.accountName }, withdrawalId)
+        const withdrawal = await tx.withdrawalRequest.create({ data: {
+          id: withdrawalId,
+          userId,
+          clientRequestKey,
+          creator: user.name,
+          bank: 'encrypted',
+          bankAccount: `••••${details.accountNumber.slice(-4)}`,
+          amount: amountBaht,
+          amountSatang,
+          taxSatang,
+          feeSatang: 0,
+          netSatang,
+          encryptedDestination,
+        } })
+        await tx.creatorRevenueLedger.create({ data: {
+          userId,
+          kind: 'withdrawal_reserve',
+          amountSatang: -amountSatang,
+          referenceId: withdrawal.id,
+          idempotencyKey: `withdrawal-reserve:${withdrawal.id}`,
+        } })
+        await tx.withdrawalHistory.create({ data: { withdrawalId: withdrawal.id, status: 'pending', note: 'Creator submitted withdrawal request' } })
+        return presentAdvanceWithdrawal(withdrawal)
+      }, { isolationLevel: 'Serializable' })
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+        const existing = await prisma.withdrawalRequest.findFirst({ where: { userId, clientRequestKey }, select: { id: true, amountSatang: true, taxSatang: true, netSatang: true, status: true, requestedAt: true } })
+        if (existing) {
+          if (existing.amountSatang !== amountSatang) throw new CreatorStudioError('INVALID_STATE')
+          return presentAdvanceWithdrawal(existing)
+        }
+      }
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2034' && attempt < 2) continue
+      throw error
+    }
+  }
+  throw new CreatorStudioError('INVALID_STATE')
 }
 
 export async function listCreatorWithdrawals(userId: string) {

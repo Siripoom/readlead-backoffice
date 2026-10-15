@@ -55,6 +55,8 @@ const cardSelect = {
 function presentCard<T extends {
   id: string
   status: string
+  tagline: string
+  synopsis: string
   approvedAt: Date | null
   publishedAt: Date | null
   coverObjectKey: string | null
@@ -65,11 +67,13 @@ function presentCard<T extends {
   const availability = status === 'approved' ? 'coming_soon' as const : 'published' as const
   return {
     ...card,
+    tagline: availability === 'published' ? (card.tagline ?? '') : '',
+    synopsis: availability === 'published' ? (card.synopsis ?? '') : '',
     publishedAt,
     availability,
     displayedAt: availability === 'coming_soon' ? approvedAt : publishedAt,
     episodeCount: _count.episodes,
-    hasCover: Boolean(coverObjectKey) && (availability === 'coming_soon' || coverIsPublic),
+    hasCover: availability === 'published' && Boolean(coverObjectKey) && coverIsPublic,
   }
 }
 

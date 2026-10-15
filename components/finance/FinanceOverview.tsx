@@ -7,7 +7,7 @@ import { TopUpProofsTab } from './TopUpProofsTab'
 import { PaymentChannelsTab, type PaymentChannelSetting } from './PaymentChannelsTab'
 import styles from './FinanceOverview.module.css'
 
-type Status = 'pending' | 'approved' | 'rejected'
+type Status = 'pending' | 'approved' | 'paid' | 'rejected'
 type Income = { id: string; month: string; income: number; transactions: number; creators: number }
 type Withdrawal = {
   id: string
@@ -24,13 +24,16 @@ type Withdrawal = {
   slipUrl: string | null
   reviewerName: string | null
   reviewedAt: string | null
+  transferReference: string | null
+  paidAt: string | null
   destination?: { bankName?: string; accountNumber?: string; accountName?: string } | null
   history?: Array<{ status: Status; note: string | null; createdAt: string }>
 }
 
 const statusMap: Record<Status, { label: string; className: string }> = {
   pending: { label: 'รออนุมัติ', className: styles.amber },
-  approved: { label: 'อนุมัติแล้ว', className: styles.green },
+  approved: { label: 'อนุมัติรอโอน', className: styles.amber },
+  paid: { label: 'โอนแล้ว', className: styles.green },
   rejected: { label: 'ปฏิเสธ', className: styles.red },
 }
 
@@ -50,6 +53,7 @@ export function FinanceOverview({ income, initialWithdrawals, initialPaymentChan
   const [detail, setDetail] = useState<Withdrawal | null>(null)
   const [rejectTarget, setRejectTarget] = useState<Withdrawal | null>(null)
   const [rejectNote, setRejectNote] = useState('')
+  const [transferReference, setTransferReference] = useState('')
   const [detailBusy, setDetailBusy] = useState(false)
 
   const stats = useMemo(() => {
@@ -68,22 +72,22 @@ export function FinanceOverview({ income, initialWithdrawals, initialPaymentChan
     }
   }, [income, withdrawals])
 
-  async function updateStatus(item: Withdrawal, status: Status, note?: string) {
+  async function updateStatus(item: Withdrawal, status: Status, note?: string, reference?: string) {
     setBusyId(item.id)
     try {
       const response = await fetch('/api/finance/withdrawals', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: item.id, status, note }),
+        body: JSON.stringify({ id: item.id, status, note, transferReference: reference }),
       })
       if (!response.ok) throw new Error('request failed')
       const updated = await response.json() as Withdrawal & { amount: string | number; requestedAt: string; reviewedAt: string | null }
       const normalized: Withdrawal = { ...item, ...updated, amount: Number(updated.amount), status }
       setWithdrawals((rows) => rows.map((row) => row.id === item.id ? normalized : row))
-      toaster.success({ title: status === 'approved' ? 'อนุมัติแล้ว' : 'ปฏิเสธแล้ว', description: `${item.creator} ${currency(item.amount)}` })
+      toaster.success({ title: status === 'paid' ? 'บันทึกการโอนแล้ว' : status === 'approved' ? 'อนุมัติแล้ว' : 'ปฏิเสธแล้ว', description: `${item.creator} ${currency(item.amount)}` })
       return true
     } catch {
-      toaster.error({ title: status === 'approved' ? 'อนุมัติไม่สำเร็จ' : 'ปฏิเสธไม่สำเร็จ', description: 'กรุณาลองใหม่อีกครั้ง' })
+      toaster.error({ title: status === 'paid' ? 'บันทึกการโอนไม่สำเร็จ' : status === 'approved' ? 'อนุมัติไม่สำเร็จ' : 'ปฏิเสธไม่สำเร็จ', description: 'กรุณาลองใหม่อีกครั้ง' })
       return false
     } finally {
       setBusyId(null)
@@ -143,7 +147,7 @@ export function FinanceOverview({ income, initialWithdrawals, initialPaymentChan
                 <button type="button" className={styles.approve} disabled={busyId === item.id} onClick={() => updateStatus(item, 'approved')}>อนุมัติ</button>
                 <button type="button" className={styles.reject} disabled={busyId === item.id} onClick={() => setRejectTarget(item)}>ปฏิเสธ</button>
                 <button type="button" className={styles.secondary} disabled={detailBusy} onClick={() => void openDetail(item)}>ดูบัญชี</button>
-              </> : <button type="button" className={styles.secondary} disabled={detailBusy} onClick={() => void openDetail(item)}>{item.status === 'approved' ? 'ดูการจ่าย' : 'ดูรายละเอียด'}</button>}</div></td>
+              </> : <button type="button" className={styles.secondary} disabled={detailBusy} onClick={() => void openDetail(item)}>{item.status === 'approved' ? 'บันทึกการโอน' : 'ดูรายละเอียด'}</button>}</div></td>
             </tr>)}
             {!withdrawals.length && <tr><td colSpan={6} className={styles.empty}>ยังไม่มีคำขอถอนเงิน</td></tr>}
           </tbody>
@@ -161,9 +165,9 @@ export function FinanceOverview({ income, initialWithdrawals, initialPaymentChan
 
     <Dialog.Root open={!!detail} onOpenChange={(event) => { if (!event.open) setDetail(null) }}>
       <Dialog.Backdrop /><Dialog.Positioner><Dialog.Content className={styles.dialog}>
-        <Dialog.Header><Dialog.Title>{detail?.status === 'approved' ? 'สลิปและรายละเอียดการถอนเงิน' : 'รายละเอียดคำขอถอนเงิน'}</Dialog.Title><Dialog.CloseTrigger /></Dialog.Header>
-        <Dialog.Body>{detail && <div className={styles.details}><div><span>นักเขียน</span><b>{detail.creator}</b></div><div><span>ยอดก่อนภาษี</span><b>{currency((detail.amountSatang ?? Math.round(detail.amount * 100)) / 100)}</b></div><div><span>ภาษีหัก ณ ที่จ่าย 3%</span><b>{currency((detail.taxSatang ?? 0) / 100)}</b></div><div><span>ค่าธรรมเนียม</span><b>{currency((detail.feeSatang ?? 0) / 100)}</b></div><div><span>ยอดสุทธิ</span><b>{currency((detail.netSatang ?? 0) / 100)}</b></div><div><span>ธนาคาร</span><b>{detail.destination?.bankName || detail.bank}</b></div><div><span>ชื่อบัญชี</span><b>{detail.destination?.accountName || '—'}</b></div><div><span>เลขบัญชี</span><b>{detail.destination?.accountNumber || maskAccount(detail.bankAccount)}</b></div><div><span>สถานะ</span><b>{statusMap[detail.status].label}</b></div>{detail.reviewerName && <div><span>ผู้ตรวจสอบ</span><b>{detail.reviewerName}</b></div>}{detail.slipUrl ? <a href={detail.slipUrl} target="_blank" rel="noreferrer" className={styles.slipLink}>เปิดดูสลิป</a> : detail.status === 'approved' && <p className={styles.noSlip}>บันทึกสถานะจ่ายแล้ว แต่ยังไม่มีสลิปแนบ</p>}</div>}</Dialog.Body>
-        <Dialog.Footer><button type="button" className={styles.secondary} onClick={() => setDetail(null)}>ปิด</button></Dialog.Footer>
+        <Dialog.Header><Dialog.Title>{detail?.status === 'approved' ? 'บันทึกการโอนเงิน' : 'รายละเอียดคำขอถอนเงิน'}</Dialog.Title><Dialog.CloseTrigger /></Dialog.Header>
+        <Dialog.Body>{detail && <div className={styles.details}><div><span>นักเขียน</span><b>{detail.creator}</b></div><div><span>ยอดก่อนภาษี</span><b>{currency((detail.amountSatang ?? Math.round(detail.amount * 100)) / 100)}</b></div><div><span>ภาษีหัก ณ ที่จ่าย 3%</span><b>{currency((detail.taxSatang ?? 0) / 100)}</b></div><div><span>ค่าธรรมเนียม</span><b>{currency((detail.feeSatang ?? 0) / 100)}</b></div><div><span>ยอดสุทธิ</span><b>{currency((detail.netSatang ?? 0) / 100)}</b></div><div><span>ธนาคาร</span><b>{detail.destination?.bankName || detail.bank}</b></div><div><span>ชื่อบัญชี</span><b>{detail.destination?.accountName || '—'}</b></div><div><span>เลขบัญชี</span><b>{detail.destination?.accountNumber || maskAccount(detail.bankAccount)}</b></div><div><span>สถานะ</span><b>{statusMap[detail.status].label}</b></div>{detail.transferReference && <div><span>เลขอ้างอิงการโอน</span><b>{detail.transferReference}</b></div>}{detail.reviewerName && <div><span>ผู้ตรวจสอบ</span><b>{detail.reviewerName}</b></div>}{detail.slipUrl ? <a href={detail.slipUrl} target="_blank" rel="noreferrer" className={styles.slipLink}>เปิดดูสลิป</a> : detail.status === 'paid' && <p className={styles.noSlip}>ยังไม่มีสลิปแนบ</p>}</div>}</Dialog.Body>
+        <Dialog.Footer>{detail?.status === 'approved' && <><label className={styles.field}>เลขอ้างอิงการโอน *<input maxLength={120} value={transferReference} onChange={(event) => setTransferReference(event.target.value)} /></label><button type="button" className={styles.approve} disabled={!!busyId || transferReference.trim().length < 3} onClick={async () => { if (detail && await updateStatus(detail, 'paid', undefined, transferReference.trim())) { setDetail(null); setTransferReference('') } }}>ยืนยันว่าโอนแล้ว</button></>}<button type="button" className={styles.secondary} onClick={() => setDetail(null)}>ปิด</button></Dialog.Footer>
       </Dialog.Content></Dialog.Positioner>
     </Dialog.Root>
     </> : activeTab === 'proofs' ? <TopUpProofsTab /> : <PaymentChannelsTab initialChannels={initialPaymentChannels} />}

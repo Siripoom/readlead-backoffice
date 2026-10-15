@@ -62,7 +62,8 @@ export async function listWriterApplications(input: {
 }
 
 export async function getWriterApplicationDetail(id: string) {
-  const application = await getPrisma().writerApplication.findUnique({
+  const prisma = getPrisma()
+  const application = await prisma.writerApplication.findUnique({
     where: { id },
     select: {
       ...summarySelect,
@@ -74,6 +75,11 @@ export async function getWriterApplicationDetail(id: string) {
     },
   })
   if (!application) return null
+  const revisions = await prisma.writerApplicationRevision.findMany({
+    where: { applicationId: id, expiresAt: { gt: new Date() } },
+    orderBy: { archivedAt: 'desc' },
+    select: { id: true, applicantType: true, penName: true, status: true, encryptedPayload: true, submittedAt: true, reviewedAt: true, rejectionReason: true, archivedAt: true, expiresAt: true },
+  })
 
   return {
     id: application.id,
@@ -89,10 +95,32 @@ export async function getWriterApplicationDetail(id: string) {
     updatedAt: application.updatedAt,
     user: application.user,
     details: decryptWriterApplicationPayload(application.encryptedPayload, application.id),
+    revisions: revisions.map((revision) => ({
+      id: revision.id,
+      applicantType: revision.applicantType,
+      penName: revision.penName,
+      status: revision.status,
+      submittedAt: revision.submittedAt,
+      reviewedAt: revision.reviewedAt,
+      rejectionReason: revision.rejectionReason,
+      archivedAt: revision.archivedAt,
+      expiresAt: revision.expiresAt,
+      details: decryptWriterApplicationPayload(revision.encryptedPayload, application.id),
+    })),
   }
 }
 
-export async function getWriterApplicationDocument(id: string, kind: 'identity' | 'bank') {
+export async function getWriterApplicationDocument(id: string, kind: 'identity' | 'bank', revisionId?: string) {
+  if (revisionId) {
+    const revision = await getPrisma().writerApplicationRevision.findFirst({
+      where: { id: revisionId, applicationId: id, expiresAt: { gt: new Date() } },
+      select: { userId: true, identityObjectKey: true, identityContentType: true, bankObjectKey: true, bankContentType: true },
+    })
+    if (!revision) return null
+    return kind === 'identity'
+      ? { key: revision.identityObjectKey, contentType: revision.identityContentType, userId: revision.userId }
+      : { key: revision.bankObjectKey, contentType: revision.bankContentType, userId: revision.userId }
+  }
   const application = await getPrisma().writerApplication.findUnique({
     where: { id },
     select: {

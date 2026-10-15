@@ -57,6 +57,7 @@ async function main() {
         const payload = decryptWriterApplicationPayload(row.encryptedPayload, row.id)
         if (!apply) { writer.wouldMigrate++; continue }
         const next = encryptWriterApplicationPayload(payload, row.id)
+        if (JSON.stringify(decryptWriterApplicationPayload(next, row.id)) !== JSON.stringify(payload)) throw new Error(`Writer payload verification failed for ${row.id}`)
         const result = await prisma.writerApplication.updateMany({
           where: { id: row.id, encryptedPayload: row.encryptedPayload },
           data: { encryptedPayload: next },
@@ -84,6 +85,7 @@ async function main() {
         const payload = decryptWithdrawalDestination(old, row.id)
         if (!apply) { withdrawal.wouldMigrate++; continue }
         const next = encryptWithdrawalDestination(payload, row.id)
+        if (JSON.stringify(decryptWithdrawalDestination(next, row.id)) !== JSON.stringify(payload)) throw new Error(`Withdrawal destination verification failed for ${row.id}`)
         const result = await prisma.withdrawalRequest.updateMany({
           where: { id: row.id, encryptedDestination: old },
           data: { encryptedDestination: next },

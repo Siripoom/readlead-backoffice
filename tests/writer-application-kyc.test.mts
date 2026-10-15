@@ -14,10 +14,16 @@ let loseRace = false
 let failCreateConflict = false
 const uploads: string[] = []
 const deletions: string[] = []
+const revisions: Array<{ identityObjectKey: string; bankObjectKey: string; expiresAt: Date }> = []
 
 const prisma = {
+  $transaction: async (callback: (tx: unknown) => Promise<unknown>) => {
+    const count = revisions.length
+    try { return await callback(prisma) } catch (error) { revisions.length = count; throw error }
+  },
+  writerApplicationRevision: { create: async ({ data }: { data: { identityObjectKey: string; bankObjectKey: string; expiresAt: Date } }) => { revisions.push(data); return data } },
   writerApplication: {
-    findUnique: async () => row,
+    findUnique: async () => row ? { ...row, userId: 'user-a', identityObjectKey: rowKeys.identity, bankObjectKey: rowKeys.bank, encryptedPayload: 'old-encrypted', applicantType: 'individual', identityContentType: 'image/png', bankContentType: 'image/png', termsVersion: 'old', termsAcceptedAt: new Date('2026-01-01'), reviewedAt: new Date('2026-01-02') } : null,
     updateMany: async ({ where, data }: { where: { status: string }; data: UpdateData }) => {
       if (failDatabase) throw new Error('database failed')
       if (loseRace || where.status !== 'rejected' || row?.status !== 'rejected') return { count: 0 }
@@ -76,6 +82,7 @@ const reset = (status: 'pending' | 'rejected' | null) => {
   rowKeys = { identity: oldIdentity, bank: oldBank }
   uploads.length = 0
   deletions.length = 0
+  revisions.length = 0
   failUpload = null
   failDatabase = false
   loseRace = false
@@ -89,11 +96,15 @@ test('resubmission uses unique keys and preserves previous evidence', async () =
   assert.notEqual(first.identity, oldIdentity)
   assert.notEqual(first.bank, oldBank)
   assert.deepEqual(deletions, [])
+  assert.equal(revisions.length, 1)
+  assert.deepEqual([revisions[0].identityObjectKey, revisions[0].bankObjectKey], [oldIdentity, oldBank])
+  assert.ok(revisions[0].expiresAt > new Date())
   row = { ...row!, status: 'rejected', rejectionReason: 'retry' }
   assert.equal((await send()).status, 201)
   assert.notEqual(rowKeys.identity, first.identity)
   assert.notEqual(rowKeys.bank, first.bank)
   assert.deepEqual(deletions, [])
+  assert.equal(revisions.length, 2)
   const uploadedCount = uploads.length
   assert.equal((await send()).status, 409)
   assert.equal(uploads.length, uploadedCount)
@@ -113,6 +124,7 @@ test('database failure cleans both new keys and retains rejected row', async () 
   assert.equal((await send()).status, 500)
   assert.deepEqual(new Set(deletions), new Set(uploads))
   assert.deepEqual(rowKeys, { identity: oldIdentity, bank: oldBank })
+  assert.equal(revisions.length, 0)
 })
 
 test('lost rejected to pending race returns conflict and deletes loser keys', async () => {
@@ -121,6 +133,7 @@ test('lost rejected to pending race returns conflict and deletes loser keys', as
   assert.equal((await send()).status, 409)
   assert.deepEqual(new Set(deletions), new Set(uploads))
   assert.deepEqual(rowKeys, { identity: oldIdentity, bank: oldBank })
+  assert.equal(revisions.length, 0)
 })
 
 test('simultaneous first submission loser removes only its own keys', async () => {
@@ -129,4 +142,16 @@ test('simultaneous first submission loser removes only its own keys', async () =
   assert.equal((await send()).status, 409)
   assert.deepEqual(new Set(deletions), new Set(uploads))
   assert.equal(row, null)
+})
+
+test('multipart body without content-length is stopped at the total size limit', async () => {
+  reset(null)
+  const request = new Request('http://localhost/api/auth/member/writer-application', {
+    method: 'POST',
+    headers: { 'content-type': 'multipart/form-data; boundary=limit-test' },
+    body: new Uint8Array(11 * 1024 * 1024 + 1),
+  })
+  assert.equal(request.headers.get('content-length'), null)
+  assert.equal((await route.POST(request)).status, 413)
+  assert.deepEqual(uploads, [])
 })

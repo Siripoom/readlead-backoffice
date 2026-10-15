@@ -29,7 +29,9 @@ export async function GET(_request: Request, context: Context) {
   const presented = {
     ...publicWork,
     availability,
-    hasCover: Boolean(coverObjectKey) && (availability === 'coming_soon' || coverIsPublic),
+    hasCover: availability === 'published' && Boolean(coverObjectKey) && coverIsPublic,
+    tagline: availability === 'published' ? publicWork.tagline : '',
+    synopsis: availability === 'published' ? publicWork.synopsis : '',
     reviews: availability === 'coming_soon' ? [] : reviews.map(({ reactions, ...review }) => ({
       ...review,
       likes: reactions.filter((reaction) => reaction.kind === 'like').length,

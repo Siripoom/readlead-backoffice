@@ -1,4 +1,5 @@
-import { createHmac, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
+import { CreatorMediaTokenConfigError, creatorMediaObjectToken } from '@/lib/creator-media-token'
 import { authorizeMember, privateJson } from '@/lib/creator-api'
 import { getPrisma } from '@/lib/prisma'
 import { BackblazeConfigError, CreatorMediaEncryptionConfigError, downloadCreatorMedia, uploadCreatorMedia } from '@/lib/storage/backblaze'
@@ -27,7 +28,7 @@ export async function GET(_request: Request, context: Context) {
       },
     })
   } catch (error) {
-    if (error instanceof BackblazeConfigError || error instanceof CreatorMediaEncryptionConfigError) return privateJson({ error: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน' }, 503)
+    if (error instanceof BackblazeConfigError || error instanceof CreatorMediaEncryptionConfigError || error instanceof CreatorMediaTokenConfigError) return privateJson({ error: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน' }, 503)
     console.error('Creator cover read failed', error instanceof Error ? error.name : 'UnknownError')
     return privateJson({ error: 'เปิดภาพปกไม่สำเร็จ' }, 502)
   }
@@ -51,13 +52,12 @@ export async function POST(request: Request, context: Context) {
   if (file.type === 'image/webp' && String.fromCharCode(...bytes.slice(8, 12)) !== 'WEBP') return privateJson({ error: 'ไฟล์ WebP ไม่ถูกต้อง' }, 400)
 
   try {
-    const secret = process.env.WRITER_APPLICATION_ENCRYPTION_KEY || process.env.B2_APP_KEY || 'creator-media'
-    const workToken = createHmac('sha256', secret).update(workId).digest('hex').slice(0, 24)
+    const workToken = creatorMediaObjectToken(workId)
     const uploaded = await uploadCreatorMedia({ body: bytes, contentType: file.type, extension: format.extension, size: file.size, id: randomUUID(), workToken })
     await getPrisma().creatorWork.update({ where: { id: workId }, data: { coverObjectKey: uploaded.key, coverContentType: file.type, coverIsPublic: false } })
     return privateJson({ uploaded: true })
   } catch (error) {
-    if (error instanceof BackblazeConfigError || error instanceof CreatorMediaEncryptionConfigError) return privateJson({ error: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน' }, 503)
+    if (error instanceof BackblazeConfigError || error instanceof CreatorMediaEncryptionConfigError || error instanceof CreatorMediaTokenConfigError) return privateJson({ error: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน' }, 503)
     console.error('Creator cover upload failed', error instanceof Error ? error.name : 'UnknownError')
     return privateJson({ error: 'อัปโหลดปกไม่สำเร็จ กรุณาลองใหม่' }, 502)
   }

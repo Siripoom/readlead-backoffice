@@ -21,3 +21,10 @@ test('PATCH returns 404 when punishment record no longer exists', async () => {
   const response = await PATCH(request)
   assert.equal(response.status, 404)
 })
+
+test('PATCH rejects malformed JSON and unsupported status', async () => {
+  for (const body of ['{', JSON.stringify({ id: 'record-a', status: 'recorded' }), 'null']) {
+    const response = await PATCH(new NextRequest('http://localhost/api/punishment/records', { method: 'PATCH', body }))
+    assert.equal(response.status, 400)
+  }
+})

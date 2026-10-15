@@ -1,0 +1,18 @@
+ALTER TABLE "EpisodePurchase" DROP CONSTRAINT "EpisodePurchase_userId_fkey";
+ALTER TABLE "EpisodePurchase" ADD CONSTRAINT "EpisodePurchase_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "EpisodePurchase" DROP CONSTRAINT "EpisodePurchase_workId_fkey";
+ALTER TABLE "EpisodePurchase" ADD CONSTRAINT "EpisodePurchase_workId_fkey" FOREIGN KEY ("workId") REFERENCES "CreatorWork"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "EpisodePurchase" DROP CONSTRAINT "EpisodePurchase_episodeId_fkey";
+ALTER TABLE "EpisodePurchase" ADD CONSTRAINT "EpisodePurchase_episodeId_fkey" FOREIGN KEY ("episodeId") REFERENCES "CreatorEpisode"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "WorkFeaturePurchase" DROP CONSTRAINT "WorkFeaturePurchase_userId_fkey";
+ALTER TABLE "WorkFeaturePurchase" ADD CONSTRAINT "WorkFeaturePurchase_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "WorkFeaturePurchase" DROP CONSTRAINT "WorkFeaturePurchase_workId_fkey";
+ALTER TABLE "WorkFeaturePurchase" ADD CONSTRAINT "WorkFeaturePurchase_workId_fkey" FOREIGN KEY ("workId") REFERENCES "CreatorWork"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CoinLedger" DROP CONSTRAINT "CoinLedger_userId_fkey";
+ALTER TABLE "CoinLedger" ADD CONSTRAINT "CoinLedger_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CoinTopUpRequest" DROP CONSTRAINT "CoinTopUpRequest_userId_fkey";
+ALTER TABLE "CoinTopUpRequest" ADD CONSTRAINT "CoinTopUpRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CreatorRevenueLedger" DROP CONSTRAINT "CreatorRevenueLedger_userId_fkey";
+ALTER TABLE "CreatorRevenueLedger" ADD CONSTRAINT "CreatorRevenueLedger_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "WithdrawalRequest" DROP CONSTRAINT "WithdrawalRequest_userId_fkey";
+ALTER TABLE "WithdrawalRequest" ADD CONSTRAINT "WithdrawalRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

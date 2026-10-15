@@ -37,6 +37,8 @@ export default async function FinancePage() {
       slipUrl: row.slipUrl,
       reviewerName: row.reviewerName,
       reviewedAt: row.reviewedAt?.toISOString() ?? null,
+      transferReference: row.transferReference,
+      paidAt: row.paidAt?.toISOString() ?? null,
     }))}
     initialPaymentChannels={paymentChannels}
   />

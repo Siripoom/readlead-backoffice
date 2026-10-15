@@ -9,6 +9,30 @@ import { deleteWriterDocument, uploadWriterDocument, WriterDocumentStorageConfig
 const TERMS_VERSION = 'readify-2026-07-18'
 const MAX_MULTIPART_SIZE = 11 * 1024 * 1024
 
+class MultipartTooLargeError extends Error {}
+class ApplicationSubmissionConflict extends Error {}
+
+async function boundedFormData(request: Request) {
+  if (!request.body) throw new Error('Multipart body is missing')
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > MAX_MULTIPART_SIZE) {
+      await reader.cancel()
+      throw new MultipartTooLargeError()
+    }
+    chunks.push(value)
+  }
+  const body = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength }
+  return new Request(request.url, { method: 'POST', headers: request.headers, body }).formData()
+}
+
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
 }
@@ -52,11 +76,13 @@ export async function POST(request: Request) {
     if (user.userType === 'creator') return json({ error: 'บัญชีนี้เป็นนักเขียนอยู่แล้ว' }, 409)
 
     const contentType = request.headers.get('content-type') ?? ''
-    const contentLength = Number(request.headers.get('content-length') ?? 0)
+    const contentLengthHeader = request.headers.get('content-length')
+    const contentLength = contentLengthHeader === null ? null : Number(contentLengthHeader)
     if (!contentType.toLowerCase().startsWith('multipart/form-data')) {
       return json({ error: 'รูปแบบข้อมูลต้องเป็น multipart/form-data' }, 415)
     }
-    if (contentLength > MAX_MULTIPART_SIZE) return json({ error: 'ขนาดข้อมูลรวมเกินกำหนด' }, 413)
+    if (contentLength !== null && (!Number.isSafeInteger(contentLength) || contentLength < 0)) return json({ error: 'ขนาดข้อมูลไม่ถูกต้อง' }, 400)
+    if (contentLength !== null && contentLength > MAX_MULTIPART_SIZE) return json({ error: 'ขนาดข้อมูลรวมเกินกำหนด' }, 413)
 
     const prisma = getPrisma()
     const existing = await prisma.writerApplication.findUnique({
@@ -69,8 +95,9 @@ export async function POST(request: Request) {
 
     let form: FormData
     try {
-      form = await request.formData()
-    } catch {
+      form = await boundedFormData(request)
+    } catch (error) {
+      if (error instanceof MultipartTooLargeError) return json({ error: 'ขนาดข้อมูลรวมเกินกำหนด' }, 413)
       return json({ error: 'ไม่สามารถอ่านข้อมูลแบบฟอร์มได้' }, 400)
     }
 
@@ -111,28 +138,50 @@ export async function POST(request: Request) {
     }
     try {
       if (existing) {
-        const updated = await prisma.writerApplication.updateMany({
-          where: { userId: user.id, status: 'rejected' },
-          data: {
-            applicantType,
-            penName,
-            status: 'pending',
-            encryptedPayload,
-            identityObjectKey: identityUpload.key,
-            identityContentType: identityFile.contentType,
-            bankObjectKey: bankUpload.key,
-            bankContentType: bankFile.contentType,
-            termsVersion: TERMS_VERSION,
-            termsAcceptedAt: now,
-            submittedAt: now,
-            reviewedAt: null,
-            rejectionReason: null,
-          },
-        })
-        if (updated.count !== 1) {
-          await cleanup()
-          return json({ error: 'สถานะใบสมัครเปลี่ยนไป กรุณาตรวจสอบอีกครั้ง' }, 409)
-        }
+        await prisma.$transaction(async (tx) => {
+          const archived = await tx.writerApplication.findUnique({ where: { id: existing.id } })
+          if (!archived || archived.status !== 'rejected') throw new ApplicationSubmissionConflict()
+          const expiresAt = new Date(now)
+          expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 1)
+          await tx.writerApplicationRevision.create({ data: {
+            applicationId: archived.id,
+            userId: archived.userId,
+            applicantType: archived.applicantType,
+            penName: archived.penName,
+            status: archived.status,
+            encryptedPayload: archived.encryptedPayload,
+            identityObjectKey: archived.identityObjectKey,
+            identityContentType: archived.identityContentType,
+            bankObjectKey: archived.bankObjectKey,
+            bankContentType: archived.bankContentType,
+            termsVersion: archived.termsVersion,
+            termsAcceptedAt: archived.termsAcceptedAt,
+            submittedAt: archived.submittedAt,
+            reviewedAt: archived.reviewedAt,
+            rejectionReason: archived.rejectionReason,
+            archivedAt: now,
+            expiresAt,
+          } })
+          const updated = await tx.writerApplication.updateMany({
+            where: { id: archived.id, userId: user.id, status: 'rejected' },
+            data: {
+              applicantType,
+              penName,
+              status: 'pending',
+              encryptedPayload,
+              identityObjectKey: identityUpload.key,
+              identityContentType: identityFile.contentType,
+              bankObjectKey: bankUpload.key,
+              bankContentType: bankFile.contentType,
+              termsVersion: TERMS_VERSION,
+              termsAcceptedAt: now,
+              submittedAt: now,
+              reviewedAt: null,
+              rejectionReason: null,
+            },
+          })
+          if (updated.count !== 1) throw new ApplicationSubmissionConflict()
+        }, { isolationLevel: 'Serializable' })
         application = {
           id: existing.id,
           status: 'pending',
@@ -160,6 +209,7 @@ export async function POST(request: Request) {
       }
     } catch (error) {
       await cleanup()
+      if (error instanceof ApplicationSubmissionConflict || (error && typeof error === 'object' && 'code' in error && error.code === 'P2034')) return json({ error: 'สถานะใบสมัครเปลี่ยนไป กรุณาตรวจสอบอีกครั้ง' }, 409)
       throw error
     }
 

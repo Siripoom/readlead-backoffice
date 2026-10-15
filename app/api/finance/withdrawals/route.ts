@@ -31,11 +31,13 @@ export async function PATCH(request: NextRequest) {
   }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, { status: 400 })
   const input = body as Record<string, unknown>
-  if (typeof input.id !== 'string' || !input.id.trim() || (input.status !== 'approved' && input.status !== 'rejected') || (input.note !== undefined && typeof input.note !== 'string')) return NextResponse.json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, { status: 400 })
+  if (typeof input.id !== 'string' || !input.id.trim() || (input.status !== 'approved' && input.status !== 'rejected' && input.status !== 'paid') || (input.note !== undefined && typeof input.note !== 'string')) return NextResponse.json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, { status: 400 })
   const note = typeof input.note === 'string' ? input.note.trim() : undefined
   if (input.status === 'rejected' && (!note || note.length > 500)) return NextResponse.json({ error: 'กรุณาระบุเหตุผล 1–500 ตัวอักษร' }, { status: 400 })
+  const transferReference = typeof input.transferReference === 'string' ? input.transferReference.trim() : ''
+  if (input.status === 'paid' && (transferReference.length < 3 || transferReference.length > 120)) return NextResponse.json({ error: 'กรุณาระบุเลขอ้างอิงการโอน 3–120 ตัวอักษร' }, { status: 400 })
   try {
-    const withdrawal = await updateWithdrawalStatus({ id: input.id, status: input.status as WithdrawalStatus, adminId: auth.admin.id, reviewerName: auth.admin.user.name, note })
+    const withdrawal = await updateWithdrawalStatus({ id: input.id, status: input.status as WithdrawalStatus, adminId: auth.admin.id, reviewerName: auth.admin.user.name, note, transferReference })
     return NextResponse.json(withdrawal)
   } catch (error) {
     const message = error instanceof Error ? error.message : ''

@@ -8,7 +8,7 @@ import { WriterApplicationEncryptionConfigError } from '@/lib/writer-application
 
 type Context = { params: Promise<{ id: string; kind: string }> }
 
-export async function GET(_request: NextRequest, context: Context) {
+export async function GET(request: NextRequest, context: Context) {
   const auth = await authorizeApi('writer-applications')
   if (!auth.ok) return auth.response
   const { id, kind: rawKind } = await context.params
@@ -18,7 +18,8 @@ export async function GET(_request: NextRequest, context: Context) {
   const kind = rawKind as 'identity' | 'bank'
 
   try {
-    const document = await getWriterApplicationDocument(id, kind)
+    const revisionId = request.nextUrl.searchParams.get('revisionId') || undefined
+    const document = await getWriterApplicationDocument(id, kind, revisionId)
     if (!document) return NextResponse.json({ error: 'ไม่พบใบสมัคร' }, { status: 404 })
     if (document.contentType !== 'image/jpeg' && document.contentType !== 'image/png') {
       throw new Error('Unsupported writer document content type')
@@ -28,7 +29,7 @@ export async function GET(_request: NextRequest, context: Context) {
       adminId: auth.admin.id,
       applicationId: id,
       action: 'writer_application.document_viewed',
-      detail: { kind },
+      detail: { kind, ...(revisionId ? { revisionId } : {}) },
     })
     const extension = document.contentType === 'image/png' ? 'png' : 'jpg'
     return new Response(Buffer.from(bytes), {

@@ -30,18 +30,20 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const auth = await authorizeApi('punishment'); if (!auth.ok) return auth.response
-  const body = await request.json() as { id?: string; status?: 'cancelled'|'active' }
-  if (!body.id || !body.status) return NextResponse.json({ error: 'ข้อมูลไม่ครบ' }, { status: 400 })
+  const body: unknown = await request.json().catch(() => null)
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'ข้อมูลไม่ถูกต้อง' }, { status: 400 })
+  const { id, status } = body as Record<string, unknown>
+  if (typeof id !== 'string' || !id.trim() || (status !== 'cancelled' && status !== 'active')) return NextResponse.json({ error: 'ข้อมูลไม่ถูกต้อง' }, { status: 400 })
   const prisma = getPrisma()
   let record
   try {
-    record = await prisma.punishmentRecord.update({ where: { id: body.id }, data: { status: body.status } })
+    record = await prisma.punishmentRecord.update({ where: { id }, data: { status } })
   } catch (error) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
       return NextResponse.json({ error: 'ไม่พบรายการบทลงโทษ' }, { status: 404 })
     }
     throw error
   }
-  await prisma.auditLog.create({data:{adminId:auth.admin.id,action:`punishment.${body.status}`,entity:'PunishmentRecord',entityId:record.id}})
+  await prisma.auditLog.create({data:{adminId:auth.admin.id,action:`punishment.${status}`,entity:'PunishmentRecord',entityId:record.id}})
   return NextResponse.json(record)
 }

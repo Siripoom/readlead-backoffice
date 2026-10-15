@@ -65,6 +65,7 @@ enum ReportType {
 enum WithdrawalStatus {
   pending
   approved
+  paid
   rejected
 }
 
@@ -255,6 +256,30 @@ model WriterApplication {
   updatedAt           DateTime                @updatedAt
 
   @@index([status, submittedAt])
+}
+
+model WriterApplicationRevision {
+  id                  String                  @id @default(cuid())
+  applicationId       String
+  userId              String
+  applicantType       WriterApplicantType
+  penName             String
+  status              WriterApplicationStatus
+  encryptedPayload    String                  @db.Text
+  identityObjectKey   String
+  identityContentType String
+  bankObjectKey       String
+  bankContentType     String
+  termsVersion        String
+  termsAcceptedAt     DateTime
+  submittedAt         DateTime
+  reviewedAt          DateTime?
+  rejectionReason     String?
+  archivedAt          DateTime                @default(now())
+  expiresAt           DateTime
+
+  @@index([applicationId, archivedAt])
+  @@index([expiresAt])
 }
 
 model CreatorProfile {
@@ -570,11 +595,11 @@ model WorkComment {
 model EpisodePurchase {
   id            String         @id @default(cuid())
   userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Restrict)
   workId        String
-  work          CreatorWork    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  work          CreatorWork    @relation(fields: [workId], references: [id], onDelete: Restrict)
   episodeId     String
-  episode       CreatorEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  episode       CreatorEpisode @relation(fields: [episodeId], references: [id], onDelete: Restrict)
   coinsSpent    Int
   revenueSatang Int
   purchasedAt   DateTime       @default(now())
@@ -586,9 +611,9 @@ model EpisodePurchase {
 model WorkFeaturePurchase {
   id          String      @id @default(cuid())
   userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
   workId      String
-  work        CreatorWork @relation(fields: [workId], references: [id], onDelete: Cascade)
+  work        CreatorWork @relation(fields: [workId], references: [id], onDelete: Restrict)
   feature     WorkFeature
   coinsSpent  Int
   purchasedAt DateTime    @default(now())
@@ -609,7 +634,7 @@ model CoinAccount {
 model CoinLedger {
   id             String         @id @default(cuid())
   userId         String
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Restrict)
   kind           CoinLedgerKind
   amount         Int
   balanceAfter   Int
@@ -625,7 +650,7 @@ model CoinLedger {
 model CoinTopUpRequest {
   id               String          @id @default(cuid())
   userId           String
-  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Restrict)
   packageId        String
   baseCoins        Int
   bonusCoins       Int
@@ -666,7 +691,7 @@ model CoinTopUpRequest {
 model CreatorRevenueLedger {
   id             String             @id @default(cuid())
   userId         String
-  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User               @relation(fields: [userId], references: [id], onDelete: Restrict)
   kind           CreatorRevenueKind
   amountSatang   Int
   referenceId    String?
@@ -768,7 +793,7 @@ model MonthlyIncome {
 model WithdrawalRequest {
   id                   String           @id @default(cuid())
   userId               String?
-  user                 User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user                 User?            @relation(fields: [userId], references: [id], onDelete: Restrict)
   creator              String
   bank                 String
   bankAccount          String
@@ -780,17 +805,21 @@ model WithdrawalRequest {
   encryptedDestination String?          @db.Text
   payoutMode           String           @default("advance")
   payoutPeriod         String?
+  clientRequestKey     String?
   requestedAt          DateTime         @default(now())
   status               WithdrawalStatus @default(pending)
   slipUrl              String?
   reviewerName         String?
   reviewedAt           DateTime?
+  transferReference    String?
+  paidAt               DateTime?
 
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
   history   WithdrawalHistory[]
 
   @@unique([userId, payoutPeriod])
+  @@unique([userId, clientRequestKey])
   @@index([userId, status, requestedAt])
 }
 

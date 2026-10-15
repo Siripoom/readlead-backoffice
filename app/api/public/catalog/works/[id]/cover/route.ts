@@ -14,7 +14,6 @@ export async function GET(_request: Request, context: Context) {
     where: {
       id: (await context.params).id,
       OR: [
-        { status: 'approved' },
         { status: 'published', coverIsPublic: true, episodes: { some: { status: 'published' } } },
       ],
     },
