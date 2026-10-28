@@ -65,3 +65,26 @@ test('generation modes and groups remain isolated', () => {
   assert.equal(generatedItemMatchesGroup({ source: 'manual', group: 'top' }, 'top'), false)
   assert.equal(generatedItemMatchesGroup({ source: 'generated', group: 'bottom' }, 'top'), false)
 })
+
+
+test('reference banners retain alpha colors and intrinsic button sizing', () => {
+  const elements = normalizeElements([
+    { id: 'description', type: 'text', text: 'คำโปรย', color: '#ffffffcc' },
+    { id: 'action', type: 'button', text: 'อ่านเลย', color: '#ffffff', backgroundColor: '#cc4452' },
+  ])
+  assert.equal(elements[0].color, '#ffffffcc')
+  assert.equal(elements[1].width, undefined)
+  assert.equal(elements[1].height, undefined)
+  const restored = modernizeItemConfig({ elements }, { title: 'ตัวอย่าง' }).elements
+  assert.equal(restored?.[1].width, undefined)
+  assert.equal(restored?.[0].color, '#ffffffcc')
+})
+
+test('explicit banner button dimensions remain constrained', () => {
+  const [button] = normalizeElements([{ type: 'button', text: 'อ่านเลย', width: 24, height: 16 }])
+  assert.equal(button.width, 24)
+  assert.equal(button.height, 16)
+  const [bounded] = normalizeElements([{ type: 'button', width: 140, height: -2 }])
+  assert.equal(bounded.width, 100)
+  assert.equal(bounded.height, 4)
+})

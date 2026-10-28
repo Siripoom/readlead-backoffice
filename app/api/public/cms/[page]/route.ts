@@ -87,6 +87,7 @@ export async function GET(_request: Request, { params }: Params) {
         id: item.id,
         title: item.title,
         subtitle: item.subtitle ?? '',
+        caption: typeof config.caption === 'string' ? config.caption.slice(0, 200) : null,
         imageUrl: cmsMediaUrl(safeUrl(item.imageUrl)),
         mobileImageUrl: cmsMediaUrl(safeUrl(config.mobileImageUrl, safeUrl(item.imageUrl))),
         linkUrl: safeUrl(item.linkUrl),

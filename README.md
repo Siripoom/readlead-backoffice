@@ -53,3 +53,25 @@ npm run db:migrate-private-payloads -- --apply
 ```
 
 Run the dry run again. Both `legacy` counts must be zero. Each written envelope is decrypted and compared with its source before the database update. The update also checks that the source ciphertext has not changed. Do not roll back to a build that only reads v1 after v2 writes have begun. Keep a v2-capable rollback build and the encryption key available.
+
+
+## Seed the homepage design
+
+The seed includes 24 preview works and 49 CMS items. It replaces the active items in the six homepage sections. It preserves prior CMS rows in a private JSON backup under `.seed-backups/` before writing. Stable IDs and one transaction allow repeat runs without duplicate items.
+
+Preview the local changes without committing them.
+
+```bash
+npm run seed:home -- --db-port 5434 --web-origin http://localhost:3100
+```
+
+Add `--apply` to write the seed. Production uses `DATABASE_URL`, `DATABASE_SSL`, and `WEB_APP_URL` from the process environment or `.env`. Use `--env-file /path/to/production.env` to select a different environment file. Production keeps the database port from `DATABASE_URL`.
+
+Deploy the web repository first. The seed checks that the three `/seed/home-design/` images exist on the deployed HTTPS web origin before any production database writes.
+
+```bash
+npm run seed:home -- --production --env-file /path/to/production.env --web-origin https://YOUR_WEB_DOMAIN
+npm run seed:home -- --production --env-file /path/to/production.env --web-origin https://YOUR_WEB_DOMAIN --apply
+```
+
+The first command rolls back its transaction after checking the resulting counts. The second commits it. Use `--backup-dir /persistent/backup/directory` if the default directory is ephemeral. Keep the backup path printed by the command for recovery. This seed changes content only and does not deploy code or run database migrations.

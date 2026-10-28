@@ -42,6 +42,7 @@ export type CmsItemConfig = {
   bookId?: string
   badge?: string
   ctaLabel?: string
+  caption?: string
   mobileImageUrl?: string
   background?: string
   discount?: string
@@ -172,7 +173,7 @@ export function clamp(value: unknown, fallback: number, minimum: number, maximum
 }
 
 export function safeColor(value: unknown, fallback = '#ffffff') {
-  return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback
+  return typeof value === 'string' && /^#(?:[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value) ? value : fallback
 }
 
 export function safeBackground(value: unknown, fallback = '') {
@@ -217,8 +218,8 @@ export function normalizeElements(value: unknown): CmsVisualElement[] {
       bold: raw.bold === true || raw.b === true,
       shadow: raw.shadow !== false && raw.sh !== false,
       link: safeUrl(raw.link),
-      width: type === 'button' ? clamp(raw.width ?? raw.w, 18, 8, 100) : undefined,
-      height: type === 'button' ? clamp(raw.height ?? raw.h, 12, 4, 100) : undefined,
+      width: type === 'button' && (raw.width ?? raw.w) != null ? clamp(raw.width ?? raw.w, 18, 8, 100) : undefined,
+      height: type === 'button' && (raw.height ?? raw.h) != null ? clamp(raw.height ?? raw.h, 12, 4, 100) : undefined,
       offsetSeconds: type === 'countdown' ? Math.round(clamp(raw.offsetSeconds ?? raw.off, 0, 0, 31536000)) : undefined,
     }]
   })

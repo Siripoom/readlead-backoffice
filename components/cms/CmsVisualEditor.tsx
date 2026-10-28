@@ -108,6 +108,8 @@ export function CmsVisualEditor({ config, imageUrl, aspect, allowSpecial, showSe
     event.stopPropagation()
     event.preventDefault()
     setSelectedId(element.id)
+    const bounds = (event.currentTarget.closest('[data-element-id]') ?? event.currentTarget).getBoundingClientRect()
+    const stageBounds = stageRef.current?.getBoundingClientRect()
     dragRef.current = {
       kind,
       pointerId: event.pointerId,
@@ -116,8 +118,8 @@ export function CmsVisualEditor({ config, imageUrl, aspect, allowSpecial, showSe
       startY: event.clientY,
       baseX: element.x,
       baseY: element.y,
-      baseWidth: element.width ?? 18,
-      baseHeight: element.height ?? 12,
+      baseWidth: element.width ?? (stageBounds?.width ? bounds.width / stageBounds.width * 100 : 18),
+      baseHeight: element.height ?? (stageBounds?.height ? bounds.height / stageBounds.height * 100 : 12),
       resizeDirection,
     }
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -165,8 +167,8 @@ export function CmsVisualEditor({ config, imageUrl, aspect, allowSpecial, showSe
       textShadow: element.shadow ? '0 1px 6px rgba(0,0,0,.48)' : 'none',
     }
     if (element.type === 'button') {
-      style.width = `${element.width ?? 18}%`
-      style.height = `${element.height ?? 12}%`
+      style.width = element.width === undefined ? undefined : `${element.width}%`
+      style.height = element.height === undefined ? undefined : `${element.height}%`
       style.background = element.backgroundColor
       style.fontSize = `${12.5 * element.scale}px`
     } else {
@@ -228,8 +230,8 @@ export function CmsVisualEditor({ config, imageUrl, aspect, allowSpecial, showSe
         <div className={styles.selectedTools}>
           {selected.type !== 'countdown' ? <label className={styles.growTool}><input aria-label="ข้อความ" placeholder="ข้อความ" value={selected.text} onChange={(event) => updateElement(selected.id, { text: event.target.value.slice(0, 500) })} /></label> : (() => { const part = countdownParts(selected.offsetSeconds ?? 0); const setPart = (key: keyof typeof part, value: number) => updateElement(selected.id, { offsetSeconds: (key === 'days' ? value : part.days) * 86400 + (key === 'hours' ? value : part.hours) * 3600 + (key === 'minutes' ? value : part.minutes) * 60 }); return <div className={styles.countdownControl}><b>เหลือเวลา</b><input aria-label="วัน" type="number" min={0} value={part.days} onChange={(event) => setPart('days', Number(event.target.value))} /><span>วัน</span><input aria-label="ชั่วโมง" type="number" min={0} value={part.hours} onChange={(event) => setPart('hours', Number(event.target.value))} /><span>ชม.</span><input aria-label="นาที" type="number" min={0} value={part.minutes} onChange={(event) => setPart('minutes', Number(event.target.value))} /><span>นาที</span></div> })()}
           <label>ขนาด <input type="range" min={50} max={240} value={Math.round(selected.scale * 100)} onChange={(event) => updateElement(selected.id, { scale: Number(event.target.value) / 100 })} /></label>
-          <label>สีข้อความ<input type="color" value={safeColor(selected.color)} onChange={(event) => updateElement(selected.id, { color: event.target.value })} /></label>
-          {(selected.type === 'badge' || selected.type === 'button') && <label>สีพื้น<input type="color" value={safeColor(selected.backgroundColor)} onChange={(event) => updateElement(selected.id, { backgroundColor: event.target.value })} /></label>}
+          <label>สีข้อความ<input type="color" value={safeColor(selected.color).slice(0, 7)} onChange={(event) => updateElement(selected.id, { color: event.target.value + safeColor(selected.color).slice(7) })} /></label>
+          {(selected.type === 'badge' || selected.type === 'button') && <label>สีพื้น<input type="color" value={safeColor(selected.backgroundColor).slice(0, 7)} onChange={(event) => updateElement(selected.id, { backgroundColor: event.target.value + safeColor(selected.backgroundColor).slice(7) })} /></label>}
           {selected.type === 'button' && <label className={styles.growTool}>ลิงก์<input value={selected.link ?? ''} onChange={(event) => updateElement(selected.id, { link: event.target.value.slice(0, 1000) })} /></label>}
           {(selected.type === 'title' || selected.type === 'text' || selected.type === 'votes') && <><label className={styles.toggleTool}>เงา<button type="button" className={selected.shadow ? styles.toggleActive : ''} onClick={() => updateElement(selected.id, { shadow: !selected.shadow })}>{selected.shadow ? 'เปิด' : 'ปิด'}</button></label><label className={styles.toggleTool}>ตัวหนา<button type="button" className={selected.bold ? styles.toggleActive : ''} onClick={() => updateElement(selected.id, { bold: !selected.bold })}>{selected.bold ? 'เปิด' : 'ปิด'}</button></label></>}
           <button type="button" className={styles.deleteTool} onClick={removeSelected}>ลบชิ้นนี้</button>
