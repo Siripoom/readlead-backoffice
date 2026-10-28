@@ -9,3 +9,5 @@ docker-compose*
 README.md
 *.tsbuildinfo
 lib/generated
+
+.seed-backups

@@ -44,6 +44,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/seed-home-design.mjs ./scripts/seed-home-design.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/data/home-design.json ./scripts/data/home-design.json
+RUN mkdir -p /app/.seed-backups && chown nextjs:nodejs /app/.seed-backups
+
 # The standalone output only contains dependencies traced by the Next.js app.
 # Copy the lockfile-installed dependency tree so the Prisma CLI used at startup
 # also has all of its transitive dependencies (for example @prisma/debug).

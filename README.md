@@ -75,3 +75,15 @@ npm run seed:home -- --production --env-file /path/to/production.env --web-origi
 ```
 
 The first command rolls back its transaction after checking the resulting counts. The second commits it. Use `--backup-dir /persistent/backup/directory` if the default directory is ephemeral. Keep the backup path printed by the command for recovery. This seed changes content only and does not deploy code or run database migrations.
+
+
+### Run the seed from EasyPanel
+
+Deploy the latest web and backoffice images first. The backoffice image includes the seed script and data. Its default backup directory is writable by the application user. In the backoffice service terminal, run these commands separately from `/app`.
+
+```bash
+node scripts/seed-home-design.mjs --production --web-origin https://readlead.co.th
+node scripts/seed-home-design.mjs --production --web-origin https://readlead.co.th --apply
+```
+
+Only run the second command after the first reports `"mode":"dry-run"` with 24 works and 49 CMS items. A missing web image stops the command before it connects to the database. Save the printed backup path and copy the backup out before replacing the container. Environment variables come from the EasyPanel service. No database password needs to be pasted into the terminal command.
