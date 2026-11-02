@@ -134,12 +134,12 @@ export async function POST(request: NextRequest) {
   const definition = getSectionDefinition(section.page.slug, section.key)
   if (!definition || !validPlacement(definition, config)) return NextResponse.json({ error: 'ตำแหน่งรายการไม่ถูกต้อง' }, { status: 400 })
   if (section.page.slug === 'search' && section.key === 'hero') return NextResponse.json({ error: 'Hero หน้าค้นหามีหนึ่งรายการคงที่' }, { status: 409 })
-  if (config.variant === 'book') {
+  if (config.variant === 'book' || definition.bookLinked) {
     if (typeof config.bookId !== 'string' || !config.bookId) return NextResponse.json({ error: 'กรุณาเลือกเรื่อง' }, { status: 400 })
     const expectedType = cmsGenerationWorkType(section.page.slug, section.key, config.group)
     const work = await prisma.creatorWork.findFirst({ where: { id: config.bookId, status: 'published', episodes: { some: { status: 'published' } }, ...(expectedType ? { type: expectedType } : {}) }, select: { id: true } })
     if (!work) return NextResponse.json({ error: 'ไม่พบผลงานที่เผยแพร่หรือประเภทไม่ตรงกับกลุ่ม' }, { status: 400 })
-    if (section.items.some((item) => placement(item.config) === placement(config) && asItemConfig(item.config).bookId === config.bookId)) return NextResponse.json({ error: 'เรื่องนี้อยู่ในกลุ่มแล้ว' }, { status: 409 })
+    if (section.items.some((item) => (definition.bookLinked || placement(item.config) === placement(config)) && asItemConfig(item.config).bookId === config.bookId)) return NextResponse.json({ error: 'เรื่องนี้อยู่ในกลุ่มแล้ว' }, { status: 409 })
   }
   const signature = placement(config)
   const groupCount = section.items.filter((item) => placement(item.config) === signature).length
@@ -223,12 +223,12 @@ export async function PATCH(request: NextRequest) {
       if (!definition || !validPlacement(definition, itemConfig)) return NextResponse.json({ error: 'ตำแหน่งรายการไม่ถูกต้อง' }, { status: 400 })
       const siblings = await prisma.cmsItem.findMany({ where: { sectionId: existing.sectionId, id: { not: existing.id } }, select: { config: true } })
       if (siblings.filter((item) => placement(item.config) === placement(itemConfig)).length >= cmsItemLimit(definition, itemConfig)) return NextResponse.json({ error: 'กลุ่มปลายทางเต็มแล้ว' }, { status: 409 })
-      if (itemConfig.variant === 'book') {
+      if (itemConfig.variant === 'book' || definition.bookLinked) {
         if (typeof itemConfig.bookId !== 'string' || !itemConfig.bookId) return NextResponse.json({ error: 'กรุณาเลือกเรื่อง' }, { status: 400 })
         const expectedType = cmsGenerationWorkType(existing.section.page.slug, existing.section.key, itemConfig.group)
         const work = await prisma.creatorWork.findFirst({ where: { id: itemConfig.bookId, status: 'published', episodes: { some: { status: 'published' } }, ...(expectedType ? { type: expectedType } : {}) }, select: { id: true } })
         if (!work) return NextResponse.json({ error: 'ไม่พบผลงานที่เผยแพร่หรือประเภทไม่ตรงกับกลุ่ม' }, { status: 400 })
-        if (siblings.some((item) => placement(item.config) === placement(itemConfig) && asItemConfig(item.config).bookId === itemConfig.bookId)) return NextResponse.json({ error: 'เรื่องนี้อยู่ในกลุ่มแล้ว' }, { status: 409 })
+        if (siblings.some((item) => (definition.bookLinked || placement(item.config) === placement(itemConfig)) && asItemConfig(item.config).bookId === itemConfig.bookId)) return NextResponse.json({ error: 'เรื่องนี้อยู่ในกลุ่มแล้ว' }, { status: 409 })
       }
     }
     await prisma.cmsItem.update({

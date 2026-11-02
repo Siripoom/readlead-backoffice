@@ -80,6 +80,7 @@ export type CmsSectionDefinition = {
   groupLimits?: Record<string, number>
   columnLabels?: string[]
   slotAspects?: string[]
+  bookLinked?: boolean
   adminVisible?: boolean
   toggleLabel?: boolean
   clearable?: boolean
@@ -119,8 +120,12 @@ export const CMS_PAGE_SECTIONS: Record<CmsPageSlug, CmsSectionDefinition[]> = {
     shared.hero,
     { key: 'activity', title: 'แบนเนอร์แถว 2 (ใต้แบนเนอร์ใหญ่)', kind: 'visual', columns: 2, aspect: '566 / 169', addLabel: 'เพิ่ม', toggleable: true, maxItems: 10 },
     shared.sale,
+    { key: 'ranking-wide', title: 'ภาพอันดับยอดนิยม อันดับ 1 (1216×287)', kind: 'visual', columns: 1, aspect: '1216 / 287', addLabel: 'เพิ่มภาพของเรื่อง', bookLinked: true, maxItems: 100, hint: 'เลือกนิยายแล้วอัปโหลดภาพสำหรับอันดับ 1 · ภาพจะตามเรื่องเมื่ออันดับเปลี่ยน · หน้าเว็บแสดงภาพล้วน' },
+    { key: 'ranking-compact', title: 'ภาพอันดับยอดนิยม อันดับ 2–3 (600×226)', kind: 'visual', columns: 1, aspect: '600 / 226', addLabel: 'เพิ่มภาพของเรื่อง', bookLinked: true, maxItems: 100, hint: 'เลือกนิยายแล้วอัปโหลดภาพสำหรับอันดับ 2–3 · ถ้าไม่มีภาพขนาดนี้ หน้าเว็บใช้ภาพอันดับ 1 หรือปกเรื่อง' },
     { key: 'act3', title: 'แบนเนอร์แถว 3 (กิจกรรม) เหนือจัดอันดับรวม', kind: 'visual', columns: 1, aspect: '1180 / 247', addLabel: 'เพิ่มแบนเนอร์', allowSpecial: true, toggleable: true, clearable: true, maxItems: 10 },
-    shared['web-coverflow'], shared['web-books'], shared['writer-banner'], shared.category, shared['web-recommend'], shared.launch,
+    shared['web-coverflow'], shared['web-books'], shared['writer-banner'], shared.category,
+    { ...shared['web-recommend'], adminVisible: true, aspect: '1180 / 247' },
+    { ...shared.launch, adminVisible: true, columns: 1, aspect: '1180 / 247' },
   ],
   manga: [
     shared.hero,

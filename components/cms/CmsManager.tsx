@@ -95,7 +95,7 @@ function sourceMatches(item: Item, mode: string) {
 }
 
 function emptyForm(context: Omit<EditorContext, 'item'>): FormState {
-  const visual = !['book'].includes(context.definition.kind) && context.variant !== 'book' && context.variant !== 'cover'
+  const visual = !['book'].includes(context.definition.kind) && context.variant !== 'book' && context.variant !== 'cover' && !context.definition.bookLinked
   const title = context.variant === 'main' ? 'แนะนำโดยเว็บ' : context.variant === 'cover' ? '(ปกไม่มีคำโปรย)' : visual ? 'หัวข้อ' : ''
   const softGradient = 'linear-gradient(120deg,#eef0f5,#f3eaf8)'
   const background = context.definition.key === 'category'
@@ -348,6 +348,15 @@ export function CmsManager() {
     } : current)
   }
 
+  function selectArtworkBook(work: CatalogWork) {
+    setForm((current) => current ? {
+      ...current,
+      title: work.title,
+      linkUrl: `/detail?bookId=${encodeURIComponent(work.id)}`,
+      config: { ...current.config, bookId: work.id, workType: work.type },
+    } : current)
+  }
+
   async function addPickedBook(work: CatalogWork) {
     if (!picker) return
     const payload = {
@@ -380,7 +389,7 @@ export function CmsManager() {
   }
 
   async function save() {
-    if (!editor || !form || !form.title.trim()) return
+    if (!editor || !form || !form.title.trim() || (editor.definition.bookLinked && !form.config.bookId)) return
     setSaving(true)
     try {
       const config: CmsItemConfig = {
@@ -629,10 +638,11 @@ export function CmsManager() {
     </>}
 
     <Dialog.Root open={!!editor && !!form} onOpenChange={(event) => { if (!event.open) close() }}><Dialog.Backdrop className={styles.modalBackdrop} /><Dialog.Positioner className={styles.modalPositioner}><Dialog.Content className={`${styles.dialog} ${editorKind() === 'visual' ? styles.wideDialog : ''}`}><Dialog.Header className={styles.dialogHeader}><Dialog.Title>{editorTitle()}</Dialog.Title><Dialog.CloseTrigger className={styles.modalClose}>×</Dialog.CloseTrigger></Dialog.Header><Dialog.Body className={styles.dialogBody}>{editor && form && <div className={styles.form}>
+      {editor.definition.bookLinked && <BookPicker page={slug} forcedType="novel" selectedId={typeof form.config.bookId === 'string' ? form.config.bookId : undefined} onSelect={selectArtworkBook} />}
       {editorKind() === 'book' && <><BookPicker page={slug} selectedId={typeof form.config.bookId === 'string' ? form.config.bookId : undefined} onSelect={selectBook} />{slug === 'home' && <label>ข้อความใต้ชื่อเรื่อง (เว้นว่าง = หมวดและประเภทเดิม)<input value={typeof form.config.caption === 'string' ? form.config.caption : ''} onChange={(event) => setForm({ ...form, config: { ...form.config, caption: event.target.value.slice(0, 200) } })} placeholder="เช่น แอ็กชัน · มังฮวา" /></label>}{form.config.bookId && <><div className={styles.previewLabel}>เรื่องที่เลือก</div><div className={styles.selectedBookPreview}><Image src={form.imageUrl} alt="" /><span><b>{form.title}</b><small>{form.subtitle}</small></span></div></>}{editor.section.key === 'sale' && <><label>ประเภท (กำหนดไอคอน: ตา/หูฟัง)<select value={typeof form.config.workType === 'string' ? form.config.workType : slug === 'audio' ? 'audiobook' : slug === 'manga' ? 'manga' : 'novel'} onChange={(event) => setForm({ ...form, config: { ...form.config, workType: event.target.value } })}><option value="novel">นิยาย</option><option value="manga">เว็บตูน</option><option value="audiobook">หนังสือเสียง</option></select></label><div className={styles.configGrid}><label>ส่วนลด (เช่น -45%)<input value={form.discount} onChange={(event) => setForm({ ...form, discount: event.target.value.slice(0, 20) })} placeholder="-30%" /></label><label>นับถอยหลัง (วัน)<input type="number" min={0} value={form.countdownDays} onChange={(event) => setForm({ ...form, countdownDays: Number(event.target.value) })} /></label><label>ชั่วโมง<input type="number" min={0} max={23} value={form.countdownHours} onChange={(event) => setForm({ ...form, countdownHours: Number(event.target.value) })} /></label></div></>} {editor.section.key !== 'sale' && <label>ป้าย (เว้นว่างได้ เช่น ใหม่/ฮิต/จบแล้ว)<input value={typeof form.config.badge === 'string' ? form.config.badge : ''} onChange={(event) => setForm({ ...form, config: { ...form.config, badge: event.target.value.slice(0, 80) } })} /></label>}</>}
       {editorKind() === 'cover' && <><label>รูปปกนิยาย (เว้นว่าง = กล่องเทา)<input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value.slice(0, 2000) })} placeholder="วางลิงก์รูป (URL)" /><input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && void upload(event.target.files[0], 'desktop')} />{form.imageUrl && <Image className={styles.imagePreview} src={form.imageUrl} alt="" />}</label><label>คำโปรย (แสดงใต้ปกตอนเลื่อนมาตรงกลาง)<input value={form.subtitle} onChange={(event) => setForm({ ...form, title: event.target.value || '(ปกไม่มีคำโปรย)', subtitle: event.target.value })} /></label><label>ลิงก์ (กดปกแล้วไปหน้าเรื่องนี้ · เว้นว่าง = ไม่ลิงก์)<input value={form.linkUrl} onChange={(event) => setForm({ ...form, linkUrl: event.target.value })} /></label></>}
-      {editorKind() === 'visual' && <><label>{imageFieldCopy().label} <small>{imageFieldCopy().hint}</small><input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value.slice(0, 2000) })} placeholder="วางลิงก์รูป (URL)" /><input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && void upload(event.target.files[0], 'desktop')} />{form.imageUrl && <Image className={styles.imagePreview} src={form.imageUrl} alt="" />}</label><CmsVisualEditor config={form.config} imageUrl={form.imageUrl} aspect={editor.definition.aspect} allowSpecial={editor.definition.allowSpecial} showSearchMock={slug === 'search' && editor.section.key === 'hero'} onChange={visualChange} /></>}
-    </div>}</Dialog.Body><Dialog.Footer className={styles.dialogFooter}><button type="button" className={styles.cancelButton} disabled={saving || uploading} onClick={close}>ยกเลิก</button><button type="button" className={styles.saveButton} disabled={saving || uploading || !form?.title.trim() || (editorKind() === 'book' && typeof form?.config.bookId !== 'string')} onClick={() => void save()}>{uploading ? 'กำลังอัปโหลด…' : saving ? 'กำลังบันทึก…' : 'บันทึก'}</button></Dialog.Footer></Dialog.Content></Dialog.Positioner></Dialog.Root>
+      {editorKind() === 'visual' && <><label>{imageFieldCopy().label} <small>{imageFieldCopy().hint}</small><input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value.slice(0, 2000) })} placeholder="วางลิงก์รูป (URL)" /><input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && void upload(event.target.files[0], 'desktop')} />{form.imageUrl && <Image className={styles.imagePreview} src={form.imageUrl} alt="" />}</label>{!editor.definition.bookLinked && <CmsVisualEditor config={form.config} imageUrl={form.imageUrl} aspect={editor.definition.aspect} allowSpecial={editor.definition.allowSpecial} showSearchMock={slug === 'search' && editor.section.key === 'hero'} onChange={visualChange} />}</>}
+    </div>}</Dialog.Body><Dialog.Footer className={styles.dialogFooter}><button type="button" className={styles.cancelButton} disabled={saving || uploading} onClick={close}>ยกเลิก</button><button type="button" className={styles.saveButton} disabled={saving || uploading || !form?.title.trim() || ((editorKind() === 'book' || editor?.definition.bookLinked) && (typeof form?.config.bookId !== 'string' || !form.config.bookId))} onClick={() => void save()}>{uploading ? 'กำลังอัปโหลด…' : saving ? 'กำลังบันทึก…' : 'บันทึก'}</button></Dialog.Footer></Dialog.Content></Dialog.Positioner></Dialog.Root>
 
     <Dialog.Root open={!!picker} onOpenChange={(event) => { if (!event.open && !saving) setPicker(null) }}><Dialog.Backdrop className={styles.modalBackdrop} /><Dialog.Positioner className={styles.modalPositioner}><Dialog.Content className={`${styles.dialog} ${styles.pickerDialog}`}><Dialog.Header className={styles.pickerHeader}><Dialog.Title>{picker ? `เลือกเรื่อง ${picker.definition.columnLabels?.[picker.column] ?? ''}` : 'เลือกเรื่อง'}</Dialog.Title><button type="button" className={styles.smallButton} disabled={saving} onClick={() => setPicker(null)}>ปิด</button></Dialog.Header><Dialog.Body className={styles.pickerBody}>{picker && <BookPicker page={slug} forcedType={picker.section.key === 'recommend-columns' ? picker.group === 'audio' ? 'audiobook' : picker.group : undefined} selectedIds={pickerItems} continuous onSelect={(work) => void addPickedBook(work)} />}</Dialog.Body></Dialog.Content></Dialog.Positioner></Dialog.Root>
     <div className={`${styles.cmsToast} ${savedToast ? styles.toastVisible : ''}`}>บันทึกแล้ว</div>

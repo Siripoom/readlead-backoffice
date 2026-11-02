@@ -25,7 +25,7 @@ test('CMS presentation metadata mirrors the admin reference', () => {
     Object.fromEntries(CMS_PAGE_SLUGS.map((slug) => [slug, CMS_PAGE_SECTIONS[slug].filter((section) => section.adminVisible !== false).map((section) => section.key)])),
     {
       home: ['hero', 'side', 'recommend-columns', 'editors-choice', 'curated-picks', 'promo-4'],
-      novel: ['hero', 'activity', 'sale', 'act3', 'web-coverflow', 'web-books', 'writer-banner', 'category'],
+      novel: ['hero', 'activity', 'sale', 'ranking-wide', 'ranking-compact', 'act3', 'web-coverflow', 'web-books', 'writer-banner', 'category', 'web-recommend', 'launch'],
       manga: ['hero', 'activity', 'sale', 'row-3', 'web-sides', 'web-books', 'category', 'bottom-cta'],
       audio: ['hero', 'activity', 'sale', 'row-3', 'narrator', 'web-sides', 'web-books', 'category', 'bottom-cta'],
       rank: ['hero', 'side'],
@@ -87,4 +87,16 @@ test('explicit banner button dimensions remain constrained', () => {
   const [bounded] = normalizeElements([{ type: 'button', width: 140, height: -2 }])
   assert.equal(bounded.width, 100)
   assert.equal(bounded.height, 4)
+})
+
+
+test('novel artwork follows published works and keeps other page layouts unchanged', () => {
+  assert.equal(getSectionDefinition('novel', 'ranking-wide')?.bookLinked, true)
+  assert.equal(getSectionDefinition('novel', 'ranking-wide')?.aspect, '1216 / 287')
+  assert.equal(getSectionDefinition('novel', 'ranking-compact')?.aspect, '600 / 226')
+  assert.equal(getSectionDefinition('novel', 'launch')?.columns, 1)
+  assert.equal(getSectionDefinition('novel', 'launch')?.aspect, '1180 / 247')
+  assert.equal(getSectionDefinition('novel', 'web-recommend')?.aspect, '1180 / 247')
+  assert.equal(getSectionDefinition('manga', 'launch')?.columns, 2)
+  assert.equal(getSectionDefinition('audio', 'web-recommend')?.adminVisible, false)
 })

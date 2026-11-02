@@ -81,7 +81,7 @@ export async function GET(_request: Request, { params }: Params) {
       const config = modernizeItemConfig(item.config, item)
       const inferredVariant = typeof config.variant === 'string' ? config.variant : ['sale', 'recommend', 'web-books'].includes(section.key) ? 'book' : 'default'
       const book = typeof config.bookId === 'string' ? workById.get(config.bookId) : undefined
-      const requiresPublishedBook = (definition.kind === 'grouped-books' || ['sale', 'recommend', 'web-books'].includes(section.key)) && inferredVariant === 'book'
+      const requiresPublishedBook = definition.bookLinked || (definition.kind === 'grouped-books' || ['sale', 'recommend', 'web-books'].includes(section.key)) && inferredVariant === 'book'
       if (requiresPublishedBook && !book) return []
       return [{
         id: item.id,
