@@ -137,7 +137,8 @@ export const CMS_PAGE_SECTIONS: Record<CmsPageSlug, CmsSectionDefinition[]> = {
     shared.hero,
     { key: 'activity', title: 'แบนเนอร์แถว 2 (ใต้แบนเนอร์ใหญ่)', kind: 'visual', columns: 2, aspect: '566 / 169', addLabel: 'เพิ่ม', toggleable: true, maxItems: 10 },
     shared.sale,
-    shared['row-3'], shared.narrator, shared['web-sides'], shared['web-books'], shared.category, shared['bottom-cta'], shared['web-recommend'], shared.launch,
+    { key: 'ranking-artwork', title: 'ภาพอันดับหนังสือเสียงยอดนิยม', kind: 'visual', columns: 1, aspect: '441 / 229', addLabel: 'เพิ่มภาพของเรื่อง', bookLinked: true, maxItems: 100, hint: 'เลือกหนังสือเสียงแล้วอัปโหลดภาพ · ภาพตามเรื่องเมื่ออันดับเปลี่ยน · อันดับ 1 แสดง 441×229 และอันดับ 2–3 แสดง 339×229 · หน้าเว็บแสดงภาพล้วน' },
+    shared['row-3'], shared.narrator, { ...shared['web-sides'], aspect: '566 / 169', columnLabels: ['ใบซ้าย (ใบละ 566×169)', 'ใบขวา (ใบละ 566×169)'] }, shared['web-books'], shared.category, shared['bottom-cta'], shared['web-recommend'], shared.launch,
   ],
   rank: [
     { ...shared.hero, aspect: '1280 / 320' },

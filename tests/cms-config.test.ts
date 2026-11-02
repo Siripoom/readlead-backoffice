@@ -27,7 +27,7 @@ test('CMS presentation metadata mirrors the admin reference', () => {
       home: ['hero', 'side', 'recommend-columns', 'editors-choice', 'curated-picks', 'promo-4'],
       novel: ['hero', 'activity', 'sale', 'ranking-wide', 'ranking-compact', 'act3', 'web-coverflow', 'web-books', 'writer-banner', 'category', 'web-recommend', 'launch'],
       manga: ['hero', 'activity', 'sale', 'row-3', 'web-sides', 'web-books', 'category', 'bottom-cta'],
-      audio: ['hero', 'activity', 'sale', 'row-3', 'narrator', 'web-sides', 'web-books', 'category', 'bottom-cta'],
+      audio: ['hero', 'activity', 'sale', 'ranking-artwork', 'row-3', 'narrator', 'web-sides', 'web-books', 'category', 'bottom-cta'],
       rank: ['hero', 'side'],
       search: ['hero', 'search-categories'],
     },
@@ -99,4 +99,16 @@ test('novel artwork follows published works and keeps other page layouts unchang
   assert.equal(getSectionDefinition('novel', 'web-recommend')?.aspect, '1180 / 247')
   assert.equal(getSectionDefinition('manga', 'launch')?.columns, 2)
   assert.equal(getSectionDefinition('audio', 'web-recommend')?.adminVisible, false)
+})
+
+test('audio ranking artwork and recommendation canvases match their page without changing manga', () => {
+  const artwork = getSectionDefinition('audio', 'ranking-artwork')
+  assert.equal(artwork?.bookLinked, true)
+  assert.equal(artwork?.kind, 'visual')
+  assert.equal(artwork?.aspect, '441 / 229')
+  assert.equal(cmsGenerationWorkType('audio', 'ranking-artwork'), 'audiobook')
+  assert.equal(getSectionDefinition('audio', 'web-sides')?.aspect, '566 / 169')
+  assert.equal(getSectionDefinition('manga', 'web-sides')?.aspect, '567 / 135')
+  assert.equal(getSectionDefinition('audio', 'launch')?.adminVisible, false)
+  assert.equal(getSectionDefinition('novel', 'ranking-wide')?.aspect, '1216 / 287')
 })

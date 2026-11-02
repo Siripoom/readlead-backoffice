@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import test, { mock } from 'node:test'
 import { NextRequest } from 'next/server'
 
+let activePage = 'novel'
+let publicLookup
 let published = true
 let siblingConfigs = []
 let writes = 0
@@ -13,8 +15,8 @@ const work = {
   creator: { name: 'Writer', writerApplication: null }, _count: { episodes: 1 },
 }
 const section = () => ({
-  id: 'art-section', key: 'ranking-wide', title: 'Ranking artwork', enabled: true,
-  config: {}, page: { slug: 'novel' },
+  id: 'art-section', key: activePage === 'audio' ? 'ranking-artwork' : 'ranking-wide', title: 'Ranking artwork', enabled: true,
+  config: {}, page: { slug: activePage },
   items: siblingConfigs.map((config, index) => ({ id: `item-${index}`, config })),
 })
 
@@ -27,7 +29,7 @@ mock.module('@/lib/prisma', {
       cmsSection: { findUnique: async () => section() },
       creatorWork: {
         findFirst: async (input) => { lookup = input; return published ? { id: work.id } : null },
-        findMany: async () => published ? [work] : [],
+        findMany: async (input) => { publicLookup = input; return published ? [work] : [] },
       },
       cmsItem: {
         findUnique: async () => ({ id: 'art-1', sectionId: 'art-section', section: section() }),
@@ -38,7 +40,7 @@ mock.module('@/lib/prisma', {
       auditLog: { create: async () => ({}) },
       cmsPage: {
         findUnique: async () => ({
-          slug: 'novel', label: 'Novel', slideSeconds: 5,
+          slug: activePage, label: 'Ranking page', slideSeconds: 5,
           sections: [{
             ...section(),
             items: [{ id: 'art-1', title: 'Artwork', subtitle: '', imageUrl: '/art.png', enabled: true, config: { variant: 'default', bookId: work.id } }],
@@ -59,49 +61,61 @@ function request(method, config) {
   })
 }
 
-test('ranking artwork requires a published novel for both create and update', async () => {
-  siblingConfigs = []
-  writes = 0
-  published = true
-  assert.equal((await POST(request('POST', { variant: 'default' }))).status, 400)
-  assert.equal((await PATCH(request('PATCH', { variant: 'default' }))).status, 400)
-  published = false
-  assert.equal((await POST(request('POST', { variant: 'default', bookId: work.id }))).status, 400)
-  assert.equal((await PATCH(request('PATCH', { variant: 'default', bookId: work.id }))).status, 400)
-  assert.equal(writes, 0)
-  assert.deepEqual(lookup, {
-    where: { id: work.id, status: 'published', episodes: { some: { status: 'published' } }, type: 'novel' },
-    select: { id: true },
+for (const page of ['novel', 'audio']) {
+  test(`${page} ranking artwork requires a published work of the matching type for create and update`, async () => {
+    activePage = page
+    work.type = page === 'audio' ? 'audiobook' : 'novel'
+    siblingConfigs = []
+    writes = 0
+    published = true
+    assert.equal((await POST(request('POST', { variant: 'default' }))).status, 400)
+    assert.equal((await PATCH(request('PATCH', { variant: 'default' }))).status, 400)
+    published = false
+    assert.equal((await POST(request('POST', { variant: 'default', bookId: work.id }))).status, 400)
+    assert.equal((await PATCH(request('PATCH', { variant: 'default', bookId: work.id }))).status, 400)
+    assert.equal(writes, 0)
+    assert.deepEqual(lookup, {
+      where: { id: work.id, status: 'published', episodes: { some: { status: 'published' } }, type: page === 'audio' ? 'audiobook' : 'novel' },
+      select: { id: true },
+    })
   })
-})
 
-test('ranking artwork prevents duplicate work links even across visual variants', async () => {
-  published = true
-  writes = 0
-  siblingConfigs = [{ bookId: work.id, variant: 'banner' }]
-  assert.equal((await POST(request('POST', { variant: 'default', bookId: work.id }))).status, 409)
-  assert.equal((await PATCH(request('PATCH', { variant: 'default', bookId: work.id }))).status, 409)
-  assert.equal(writes, 0)
-})
+  test(`${page} ranking artwork prevents duplicate work links even across visual variants`, async () => {
+    activePage = page
+    work.type = page === 'audio' ? 'audiobook' : 'novel'
+    published = true
+    writes = 0
+    siblingConfigs = [{ bookId: work.id, variant: 'banner' }]
+    assert.equal((await POST(request('POST', { variant: 'default', bookId: work.id }))).status, 409)
+    assert.equal((await PATCH(request('PATCH', { variant: 'default', bookId: work.id }))).status, 409)
+    assert.equal(writes, 0)
+  })
 
-test('ranking artwork saves the existing work-linked visual contract', async () => {
-  published = true
-  siblingConfigs = []
-  writes = 0
-  assert.equal((await POST(request('POST', { variant: 'default', bookId: work.id }))).status, 201)
-  assert.equal((await PATCH(request('PATCH', { variant: 'default', bookId: work.id }))).status, 200)
-  assert.equal(writes, 2)
-})
+  test(`${page} ranking artwork saves the existing work-linked visual contract`, async () => {
+    activePage = page
+    work.type = page === 'audio' ? 'audiobook' : 'novel'
+    published = true
+    siblingConfigs = []
+    writes = 0
+    assert.equal((await POST(request('POST', { variant: 'default', bookId: work.id }))).status, 201)
+    assert.equal((await PATCH(request('PATCH', { variant: 'default', bookId: work.id }))).status, 200)
+    assert.equal(writes, 2)
+  })
 
-test('public ranking artwork hides missing or unpublished works and keeps book identity', async () => {
-  published = false
-  const hidden = await GET(new Request('http://localhost/api/public/cms/novel'), { params: Promise.resolve({ page: 'novel' }) })
-  assert.equal(hidden.status, 200)
-  assert.deepEqual((await hidden.json()).sections[0].items, [])
-  published = true
-  const visible = await GET(new Request('http://localhost/api/public/cms/novel'), { params: Promise.resolve({ page: 'novel' }) })
-  const items = (await visible.json()).sections[0].items
-  assert.equal(items.length, 1)
-  assert.equal(items[0].book.id, work.id)
-  assert.equal(items[0].imageUrl, '/art.png')
-})
+  test(`${page} public ranking artwork hides missing or unpublished works and keeps book identity`, async () => {
+    activePage = page
+    work.type = page === 'audio' ? 'audiobook' : 'novel'
+    published = false
+    const hidden = await GET(new Request(`http://localhost/api/public/cms/${page}`), { params: Promise.resolve({ page }) })
+    assert.equal(hidden.status, 200)
+    assert.deepEqual((await hidden.json()).sections[0].items, [])
+    published = true
+    const visible = await GET(new Request(`http://localhost/api/public/cms/${page}`), { params: Promise.resolve({ page }) })
+    const items = (await visible.json()).sections[0].items
+    assert.equal(items.length, 1)
+    assert.equal(items[0].book.id, work.id)
+    assert.equal(items[0].book.type, page === 'audio' ? 'audiobook' : 'novel')
+    assert.equal(publicLookup.where.type, page === 'audio' ? 'audiobook' : 'novel')
+    assert.equal(items[0].imageUrl, '/art.png')
+  })
+}
